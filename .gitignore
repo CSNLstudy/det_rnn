@@ -1,0 +1,14 @@
+# log and cache data
+.ipynb_checkpoints
+.idea
+.DS_Store
+__pycache__
+
+# data/figure file extensions
+*.mat
+*.pkl
+*.csv
+*.pdf
+*.jpg
+*.jpeg
+*.png
