@@ -47,7 +47,7 @@ par = {
 	# Input and noise
 	'input_mean'            : 0.0,
 	'noise_in_sd'           : 0.1,
-	'noise_rnn_sd'          : 0.05,    # 0.5
+	'noise_rnn_sd'          : 0.5,    # TODO(HL): rnn_sd changed from 0.05 to 0.5 (Masse)
 
 	# Tuning function data
 	'strength_input'        : 0.8,      # magnitutde scaling factor for von Mises
@@ -59,6 +59,7 @@ par = {
 	'spike_cost'            : 2e-5,
 	'weight_cost'           : 0.,
 	'clip_max_grad_val'     : 0.1,
+	'orientation_cost' 		: 1, # TODO(HL): cost for target-output
 
 	# Synaptic plasticity specs
 	'masse'					: False,
@@ -80,11 +81,11 @@ par = {
 	'noise_mean' : 0,
 	'noise_sd'   : 0.005,     # 0.05
 	'n_recall_tuned' : 24,   # precision at the moment of recall
-	'n_hidden' 	 : 160,		 # number of rnn units
+	'n_hidden' 	 : 100,		 # number of rnn units TODO(HL): h_hidden to 100
 
 	# Experimental settings
 	'batch_size' 	: 1024,      # if image, 128 recommended
-	'alpha_neuron'  : 0.2,    # changed from tf.constant
+	'alpha_neuron'  : 0.1,    # changed from tf.constant TODO(HL): alpha changed from 0.2 to 0.1 (Masse)
 
 	# Optimizer
 	'optimizer' : 'Adam', # TODO(HG):  other optim. options?
@@ -135,7 +136,10 @@ def update_parameters(par):
 		'rg_inh': range(par['n_exc'], par['n_hidden']),
 		'w_in_mask': np.ones((par['n_input'], par['n_hidden']), dtype=np.float32),
 		'w_rnn_mask': np.ones((par['n_hidden'], par['n_hidden']), dtype=np.float32) - np.eye(par['n_hidden'],dtype=np.float32),
-		'w_out_mask': np.ones((par['n_hidden'], par['n_output']), dtype=np.float32)
+		'w_out_mask': np.concatenate((np.ones((par['n_exc'], par['n_output']),dtype=np.float32),
+									  np.zeros((par['n_hidden']-par['n_exc'], par['n_output']), dtype=np.float32)),
+									 axis=0) # Todo(HL): no input from inhibitory neurons
+
 	})
 
 	# parameters
