@@ -5,14 +5,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 import time
-nModel = 5
+iModel = 1
 iteration = 2000
 stimulus = Stimulus()
 
-par['design'].update({'iti'     : (0, 0.5),
-                      'stim'    : (0.5,2.0),
-                      'delay'   : (2.0,4.5),
-                      'estim'   : (4.5,6.0)})
+# par['design'].update({'iti'     : (0, 0.5),
+#                       'stim'    : (0.5,2.0),
+#                       'delay'   : (2.0,4.5),
+#                       'estim'   : (4.5,6.0)})
 
 # par['design'].update({'iti'     : (0, 0.5),
 #                       'stim'    : (0.5,2.0),
@@ -142,7 +142,6 @@ def save_results(model_performance, par, iteration):
     print('Model results saved in', savedir, '/Iter', str(iteration), '.pkl')
 
 t0 = time.time()
-iModel = 4
 # for iModel in range(1, nModel):
 
 par, var_dict, var_list, syn_x_init, syn_u_init, batch_size, savedir = initialize_parameters(iModel, par)
