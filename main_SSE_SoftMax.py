@@ -50,14 +50,14 @@ def initialize_parameters(iModel, par):
     isyn_u_init = tf.constant(ipar['syn_u_init'])
     ibatch_size = ipar['batch_size']
 
-    isavedir = os.path.dirname(os.path.realpath(__file__)) + '/savedir/iModel' + str(iModel)
+    isavedir = os.path.dirname(os.path.realpath('__file__')) + '/savedir/iModel' + str(iModel)
     if not os.path.isdir(isavedir):
         os.makedirs(isavedir)
 
     return ipar, ivar_dict, ivar_list, isyn_x_init, isyn_u_init, ibatch_size, isavedir
 
 def rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn):
-    syn_x += (par['alpha_std'] * (1 - syn_x) - par['dt']/1000 * syn_u * syn_x * h) 
+    syn_x += (par['alpha_std'] * (1 - syn_x) - par['dt']/1000 * syn_u * syn_x * h)
     syn_u += (par['alpha_stf'] * (par['U'] - syn_u) + par['dt']/1000 * par['U'] * (1 - syn_u) * h)
 
     syn_x = tf.minimum(np.float32(1), tf.nn.relu(syn_x))
@@ -108,7 +108,7 @@ def calc_loss(syn_x_init, syn_u_init, in_data, out_target):
 
     starget = tf.reduce_sum(out_target, axis=2)
     starget = tf.expand_dims(starget, axis=2)
-    ntarget = out_target / tf.repeat(starget, par['n_output'], axis=2)
+    ntarget = out_target / starget
 
     cenoutput = tf.nn.softmax(output, axis=2)
 
@@ -187,3 +187,13 @@ for i in range(0, iteration):
         save_results(model_performance, par, i+1)
 
 save_results(model_performance, par, i+1)
+
+
+
+
+
+with open('weight.pkl', 'wb') as f:
+    pickle.dump(var_dict,f)
+
+pickle.dump(results, open(savedir + '/Iter' + str(iteration) + '.pkl', 'wb'))
+

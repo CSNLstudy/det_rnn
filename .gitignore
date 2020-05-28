@@ -12,3 +12,7 @@ __pycache__
 *.jpg
 *.jpeg
 *.png
+
+# subsidiary directories
+savedir/
+debug/
