@@ -1,7 +1,7 @@
 import numpy as np
 
 __all__ = ['_initialize', '_random_normal_abs', '_alternating',
-		   '_w_rnn_mask', '_modular_mask', '_convert_to_rg', '_w_input_mask']
+		   '_w_rnn_mask', '_modular_mask', '_convert_to_rg', '_w_EI_input_mask']
 
 # Inherited from Masse
 def _initialize(dims, shape=0.1, scale=1.0):
@@ -9,8 +9,8 @@ def _initialize(dims, shape=0.1, scale=1.0):
 	return w
 
 # Inherited from JsL
-def _random_normal_abs(dims): # Todo (HL): random.gamma
-    y = np.random.gamma(0.1, 1.0, size=dims)
+def _random_normal_abs(dims, ): # Todo (HL): random.gamma
+    y = np.random.gamma(0.1, 1, size=dims)
     # y = np.abs(np.random.normal(0, 0.01, size=dims)).astype(np.float32)
     return np.float32(y)
 
@@ -31,16 +31,21 @@ def _w_rnn_mask(n_hidden, exc_inh_prop):
 	return np.float32(EI_matrix)
 
 # Input neurons are either excitatory or inhibitory neurons
-def _w_input_mask(n_input, n_hidden, exc_inh_prop, n_tuned_input):
+def _w_EI_input_mask(n_input, n_hidden, exc_inh_prop, n_tuned_input):
 	
 	EI_matrix = np.ones((n_input, n_hidden))
 	n_inh = np.round(n_tuned_input * (1-exc_inh_prop))
 	space_inh = np.floor(n_tuned_input/n_inh)
 	n_rule = n_input - n_tuned_input
 	for i in range(int(n_inh)):
-		EI_matrix[n_rule + int(space_inh*i), :] = -1
+		iInd = n_rule + int(space_inh*i)
+		EI_matrix[iInd, :] = -1
+	EI_matrix = np.tile(EI_matrix.T, 2).T
 
-	return np.float32(EI_matrix)
+	EI_in2in_matrix = np.diag(EI_matrix[:,0])
+
+	return np.float32(EI_matrix), np.float32(EI_in2in_matrix)
+
 
 # Modular w_RNN mask
 def _modular_mask(connect_prob, n_hidden, exc_inh_prop):
