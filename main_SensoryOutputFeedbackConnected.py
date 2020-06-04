@@ -5,15 +5,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 import time
-nModel = np.array([7, 8])
+nModel = np.array([9, 10])
 iteration = 3000
 stimulus = Stimulus()
 OneHotTarget = 0
 CrossEntropy = 1
 
-BatchSize = 50
-orientation_cost = 100
 n_orituned_neurons = 40
+BatchSize = 50
+orientation_cost = 1
 
 par['n_tuned_input'] = n_orituned_neurons
 par['n_tuned_output'] = n_orituned_neurons
@@ -77,7 +77,7 @@ def rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn):
     syn_x = tf.minimum(np.float32(1), tf.nn.relu(syn_x))
     syn_u = tf.minimum(np.float32(1), tf.nn.relu(syn_u))
     h_post = syn_u * syn_x * h
-    # h_post = h
+    h_post = h
 
     noise_rnn = np.sqrt(2*par['alpha_neuron'])*par['noise_rnn_sd']
     h = tf.nn.relu((1 - par['alpha_neuron']) * h

@@ -5,13 +5,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 import time
-iModel = 7
+iModel = 9
 iteration_goal = 3000
-iteration_load = 3000
+iteration_load = 1500
 OneHotTarget = 0
 CrossEntropy = 1
 BatchSize = 50
 dxtick = 1000 # in ms
+n_orituned_neurons = 40
+
+par['n_tuned_input'] = n_orituned_neurons
+par['n_tuned_output'] = n_orituned_neurons
+par['n_ori'] = n_orituned_neurons
 
 # par['design'].update({'iti'     : (0, 0.5),
 #                       'stim'    : (0.5,2.0),
@@ -30,6 +35,7 @@ fn = savedir + modelname
 model = pickle.load(open(fn, 'rb'))
 
 par['batch_size'] = BatchSize
+par = update_parameters(par)
 par_model = model['parameters']
 h = model['h'][-1].numpy().astype('float32')
 w_in = model['w_in'][-1].numpy().astype('float32')
@@ -106,7 +112,6 @@ plt.savefig(savedir + '/TrainingSummary_loss_Iter' + str(iteration_load) + '.png
 
 ## load stimulus for simulation result
 
-par = update_parameters(par)
 stimulus = Stimulus(par)
 trial_info = stimulus.generate_trial()
 #
@@ -134,6 +139,7 @@ def rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn, var_dict):
     syn_x = np.minimum(np.float32(1), np.maximum(syn_x, 0))
     syn_u = np.minimum(np.float32(1), np.maximum(syn_u, 0))
     h_post = syn_u * syn_x * h
+    h_post = h
 
     noise_rnn = np.sqrt(2*par['alpha_neuron'])*par['noise_rnn_sd']
     h = np.maximum((1 - par['alpha_neuron']) * h
@@ -178,7 +184,7 @@ if OneHotTarget is 0:
     starget = np.expand_dims(starget, axis=2)
     ntarget = out_target / np.repeat(starget, par['n_output'], axis=2)
     ivmin = 0
-    ivmax = 0.15
+    ivmax = 0.08
 else:
     ntarget = out_target == np.max(out_target, axis=2)[:, :, None]
     ivmin = 0
