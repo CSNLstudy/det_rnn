@@ -10,17 +10,16 @@ par = {
 			   	'stim'	: (1.5, 3.0),
 			   	'delay'	: (3.0, 4.5),
 			   	'estim'	: (4.5, 6.0)},
-	'output_range' : ((4.5,6.0)), # None fills the whole period
+	'output_range' : 'design', # estim period
 
 	# Mask specs
-	'dead': ((4.5,4.55)),
+	'dead': 'design', # ((0,0.1),(estim_start, estim_start+0.1))
 	'mask': {'iti'	: 1., 'stim' : 1., 'delay'	: 1., 'estim' : 5.,
 			 'rule_iti' : 2., 'rule_stim' : 2., 'rule_delay' : 2., 'rule_estim' : 10.},  # strength
 
 	# Rule specs
-	'input_rule'   : {'fixation' : (0,6.0),
-					  'response' : (4.5,6.0)},
-	'output_rule'  : {'fixation' : (0,4.5)},
+	'input_rule' :  'design', # {'fixation': whole period, 'response':estim}
+	'output_rule'  : 'design', # {'fixation' : (0,before estim)}
 	'input_rule_strength'	: 0.8,  # TODO(HG): check this
 	'output_rule_strength' 	: 0.8,
 
@@ -72,12 +71,11 @@ par = {
 	'n_iterations'        : 300,
 	'iters_between_outputs' : 100,
 
-	# TODO(HG): clarify here
 	# Neuronal settings
 	'n_receptive_fields': 1,
 	'n_tuned_input'	 : 24,  # number of possible orientation-tuned neurons (input)
 	'n_tuned_output' : 24,  # number of possible orientation-tuned neurons (input)
-	'n_ori'	 	 : 24 , # number of possible orientations (output)
+	'n_ori'	 	 : 24 , # number of possible orientaitons (output)
 	'noise_mean' : 0,
 	'noise_sd'   : 0.005,     # 0.05
 	'n_recall_tuned' : 24,   # precision at the moment of recall
@@ -95,15 +93,42 @@ par = {
 
 def update_parameters(par):
 	# ranges and masks
-	par.update({'design_rg': _convert_to_rg(par['design'], par['dt']),
-				'output_rg': _convert_to_rg(par['output_range'], par['dt']),
-				'dead_rg'  : _convert_to_rg(par['dead'], par['dt']),
-				'input_rule_rg'	:  _convert_to_rg(par['input_rule'], par['dt']),
-				'output_rule_rg': _convert_to_rg(par['output_rule'], par['dt']),
-				'n_rule_input'	: len(par['input_rule']),
-				'n_rule_output'	: len(par['output_rule'])})
+	par.update({'design_rg': _convert_to_rg(par['design'], par['dt'])})
 
-	# TODO(HG) implement as a function(NOT ELEGANT)?
+	#
+	par.update({
+		'n_timesteps' 		: sum([len(v) for _,v in par['design_rg'].items()]),
+		'n_exc'        		: int(par['n_hidden']*par['exc_inh_prop']),
+	})
+
+	# default settings
+	if par['output_range'] is 'design':
+		par['output_rg'] = _convert_to_rg(par['design']['estim'], par['dt'])
+	else:
+		par['output_rg'] = _convert_to_rg(par['output_range'], par['dt'])
+
+	# TODO(HG): this may not work if design['estim'] is 2-dimensional
+	if par['dead'] is 'design':
+		par['dead_rg'] = _convert_to_rg(((0,0.1),
+										 (par['design']['estim'][0],par['design']['estim'][0]+0.1)),par['dt'])
+	else:
+		par['dead_rg'] = _convert_to_rg(par['dead'], par['dt'])
+
+	if par['input_rule'] is 'design':
+		par['input_rule_rg'] = _convert_to_rg({'fixation': (0,par['design']['estim'][1]),
+											   'response': par['design']['estim']},par['dt'])
+		par['n_rule_input']  = 2
+	else:
+		par['input_rule_rg'] = _convert_to_rg(par['input_rule'], par['dt'])
+		par['n_rule_input']  = len(par['input_rule'])
+
+	if par['output_rule'] is 'design':
+		par['output_rule_rg'] = _convert_to_rg({'fixation':(0,par['design']['delay'][1])}, par['dt'])
+		par['n_rule_output'] = 1
+	else:
+		par['output_rule_rg'] = _convert_to_rg(par['output_rule'], par['dt'])
+		par['n_rule_output']  = len(par['output_rule'])
+
 	## set n_input
 	if par['stim_encoding'] == 'single':
 		par['n_input'] = par['n_rule_input'] + par['n_tuned_input']
@@ -120,18 +145,11 @@ def update_parameters(par):
 
 
 	#
-	par.update({
-		'n_timesteps' 		: sum([len(v) for _,v in par['design_rg'].items()]),
-		'n_exc'        		: int(par['n_hidden']*par['exc_inh_prop']),
-	})
-
-	#
 	if par['modular']:
 		par['EImodular_mask'] = _modular_mask(par['connect_prob'], par['n_hidden'], par['exc_inh_prop'])
 	else:
 		par['EImodular_mask'] = _w_rnn_mask(par['n_hidden'], par['exc_inh_prop'])
 
-	#
 	par['EI_input_mask'] = _w_input_mask(par['n_input'], par['n_hidden'], par['exc_inh_prop'], par['n_tuned_input'])
 
 	par.update({
@@ -150,7 +168,6 @@ def update_parameters(par):
 		'h0': _random_normal_abs((1, par['n_hidden'])),
 		'w_in0': _random_normal_abs((par['n_input'], par['n_hidden'])),
 		'w_rnn0': _random_normal_abs((par['n_hidden'], par['n_hidden'])),
-		# 'w_rnn2in0': _random_normal_abs((par['n_hidden'], par['n_input'])),
 		'b_rnn0': np.zeros(par['n_hidden'], dtype=np.float32),
 		'w_out0': _random_normal_abs((par['n_hidden'],par['n_output'])) * par['w_out_mask'],
 		'b_out0': np.zeros(par['n_output'], dtype=np.float32),
@@ -166,5 +183,4 @@ def update_parameters(par):
 	return par
 
 par = update_parameters(par)
-
 
