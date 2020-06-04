@@ -13,7 +13,11 @@ CrossEntropy = 1
 
 BatchSize = 50
 orientation_cost = 100
+n_orituned_neurons = 40
 
+par['n_tuned_input'] = n_orituned_neurons
+par['n_tuned_output'] = n_orituned_neurons
+par['n_ori'] = n_orituned_neurons
 par['batch_size'] = BatchSize
 par['orientation_cost'] = orientation_cost
 
