@@ -1,7 +1,7 @@
 import numpy as np
 
 __all__ = ['_initialize', '_random_normal_abs', '_alternating',
-		   '_w_rnn_mask', '_modular_mask', '_convert_to_rg']
+		   '_w_rnn_mask', '_modular_mask', '_convert_to_rg', '_w_input_mask']
 
 # Inherited from Masse
 def _initialize(dims, shape=0.1, scale=1.0):
@@ -21,16 +21,24 @@ def _alternating(x, size):
 
 # Nonmodular w_RNN mask
 def _w_rnn_mask(n_hidden, exc_inh_prop):
-	n_exc = int(n_hidden * exc_inh_prop)
-	rg_inh = range(n_exc, n_hidden)
-	Crec = np.ones((n_hidden, n_hidden))-np.eye(n_hidden)
-	Crec[:,rg_inh] = Crec[:,rg_inh]*(-1.)
 
-	# Todo(HL): revised following Masse et al., 2019
+	n_exc = int(n_hidden * exc_inh_prop)
 	n_inh = n_hidden - n_exc
 	EI_list = np.ones(n_hidden, dtype=np.float32)
 	EI_list[-n_inh:] = -1.
 	EI_matrix = np.diag(EI_list)
+
+	return np.float32(EI_matrix)
+
+# Input neurons are either excitatory or inhibitory neurons
+def _w_input_mask(n_input, n_hidden, exc_inh_prop, n_tuned_input):
+	
+	EI_matrix = np.ones((n_input, n_hidden))
+	n_inh = np.round(n_tuned_input * (1-exc_inh_prop))
+	space_inh = np.floor(n_tuned_input/n_inh)
+	n_rule = n_input - n_tuned_input
+	for i in range(int(n_inh)):
+		EI_matrix[n_rule + int(space_inh*i), :] = -1
 
 	return np.float32(EI_matrix)
 

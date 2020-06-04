@@ -13,7 +13,7 @@ par = {
 	'output_range' : ((4.5,6.0)), # None fills the whole period
 
 	# Mask specs
-	'dead': ((0,0.1),(4.4,4.5)),
+	'dead': ((4.5,4.55)),
 	'mask': {'iti'	: 1., 'stim' : 1., 'delay'	: 1., 'estim' : 5.,
 			 'rule_iti' : 2., 'rule_stim' : 2., 'rule_delay' : 2., 'rule_estim' : 10.},  # strength
 
@@ -77,7 +77,7 @@ par = {
 	'n_receptive_fields': 1,
 	'n_tuned_input'	 : 24,  # number of possible orientation-tuned neurons (input)
 	'n_tuned_output' : 24,  # number of possible orientation-tuned neurons (input)
-	'n_ori'	 	 : 24 , # number of possible orientaitons (output)
+	'n_ori'	 	 : 24 , # number of possible orientations (output)
 	'noise_mean' : 0,
 	'noise_sd'   : 0.005,     # 0.05
 	'n_recall_tuned' : 24,   # precision at the moment of recall
@@ -131,6 +131,9 @@ def update_parameters(par):
 	else:
 		par['EImodular_mask'] = _w_rnn_mask(par['n_hidden'], par['exc_inh_prop'])
 
+	#
+	par['EI_input_mask'] = _w_input_mask(par['n_input'], par['n_hidden'], par['exc_inh_prop'], par['n_tuned_input'])
+
 	par.update({
 		'rg_exc': range(par['n_exc']),
 		'rg_inh': range(par['n_exc'], par['n_hidden']),
@@ -147,6 +150,7 @@ def update_parameters(par):
 		'h0': _random_normal_abs((1, par['n_hidden'])),
 		'w_in0': _random_normal_abs((par['n_input'], par['n_hidden'])),
 		'w_rnn0': _random_normal_abs((par['n_hidden'], par['n_hidden'])),
+		# 'w_rnn2in0': _random_normal_abs((par['n_hidden'], par['n_input'])),
 		'b_rnn0': np.zeros(par['n_hidden'], dtype=np.float32),
 		'w_out0': _random_normal_abs((par['n_hidden'],par['n_output'])) * par['w_out_mask'],
 		'b_out0': np.zeros(par['n_output'], dtype=np.float32),
