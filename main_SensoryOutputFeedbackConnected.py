@@ -33,17 +33,22 @@ par['orientation_cost'] = orientation_cost
 
 par = update_parameters(par)
 stimulus = Stimulus(par)
-trial_info = stimulus.generate_trial()
 
 ##
 
-# fig, axes = plt.subplots(3,1, figsize=(10,8))
-# TEST_TRIAL = np.random.randint(stimulus.batch_size)
-# a0 = axes[0].imshow(trial_info['neural_input'][:,TEST_TRIAL,:].T, aspect='auto'); axes[0].set_title("Neural Input"); fig.colorbar(a0, ax=axes[0])
-# a1 = axes[1].imshow(trial_info['desired_output'][:,TEST_TRIAL,:].T, aspect='auto'); axes[1].set_title("Desired Output"); fig.colorbar(a1, ax=axes[1])
-# a2 = axes[2].imshow(trial_info['mask'][:,TEST_TRIAL,:].T, aspect='auto'); axes[2].set_title("Training Mask"); fig.colorbar(a2, ax=axes[2]) # a bug here
-# fig.tight_layout(pad=2.0)
-# plt.show()
+trial_info = stimulus.generate_trial()
+in_data = tf.constant(trial_info['neural_input'].astype('float32')).numpy()
+out_target = tf.constant(trial_info['desired_output']).numpy()
+mask_train = tf.constant(trial_info['mask']).numpy()
+
+plt.close()
+fig, axes = plt.subplots(3,1, figsize=(10,8))
+TEST_TRIAL = np.random.randint(stimulus.batch_size)
+a0 = axes[0].imshow(in_data[:,TEST_TRIAL,:].T, aspect='auto'); axes[0].set_title("Neural Input"); fig.colorbar(a0, ax=axes[0])
+a1 = axes[1].imshow(out_target[:,TEST_TRIAL,:].T, aspect='auto'); axes[1].set_title("Desired Output"); fig.colorbar(a1, ax=axes[1])
+a2 = axes[2].imshow(mask_train[:,TEST_TRIAL,:].T, aspect='auto'); axes[2].set_title("Training Mask"); fig.colorbar(a2, ax=axes[2]) # a bug here
+fig.tight_layout(pad=2.0)
+plt.show()
 
 ##
 
@@ -77,7 +82,7 @@ def rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn):
     syn_x = tf.minimum(np.float32(1), tf.nn.relu(syn_x))
     syn_u = tf.minimum(np.float32(1), tf.nn.relu(syn_u))
     h_post = syn_u * syn_x * h
-    h_post = h
+    # h_post = h
 
     noise_rnn = np.sqrt(2*par['alpha_neuron'])*par['noise_rnn_sd']
     h = tf.nn.relu((1 - par['alpha_neuron']) * h

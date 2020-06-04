@@ -7,12 +7,12 @@ import tensorflow as tf
 import time
 iModel = 9
 iteration_goal = 3000
-iteration_load = 1500
+iteration_load = 500
+n_orituned_neurons = 40
+BatchSize = 50
 OneHotTarget = 0
 CrossEntropy = 1
-BatchSize = 50
 dxtick = 1000 # in ms
-n_orituned_neurons = 40
 
 par['n_tuned_input'] = n_orituned_neurons
 par['n_tuned_output'] = n_orituned_neurons
@@ -139,7 +139,7 @@ def rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn, var_dict):
     syn_x = np.minimum(np.float32(1), np.maximum(syn_x, 0))
     syn_u = np.minimum(np.float32(1), np.maximum(syn_u, 0))
     h_post = syn_u * syn_x * h
-    h_post = h
+    # h_post = h
 
     noise_rnn = np.sqrt(2*par['alpha_neuron'])*par['noise_rnn_sd']
     h = np.maximum((1 - par['alpha_neuron']) * h

@@ -37,6 +37,7 @@ par = {
 	'exc_inh_prop'          : 0.8,    # excitatory/inhibitory ratio
 	'modular'				: False,
 	'connect_prob'			: 0.1,    # modular connectivity
+	'recurrent_inhiddenout' : True,   # in-hidden-out neurons are recurrently connected
 
 	# Timings and rates
 	'dt'                    : 10,     # unit: ms
@@ -88,8 +89,8 @@ par = {
 	# Optimizer
 	'optimizer' : 'Adam', # TODO(HG):  other optim. options?
 	'loss_fun'	: 'mse', # 'cosine', 'mse', 'mse_normalize', 'centropy'
-}
 
+}
 
 def update_parameters(par):
 	# ranges and masks
@@ -115,9 +116,8 @@ def update_parameters(par):
 		par['dead_rg'] = _convert_to_rg(par['dead'], par['dt'])
 
 	if par['input_rule'] is 'design':
-		par['input_rule_rg'] = _convert_to_rg({'fixation': (0,par['design']['estim'][1]),
-											   'response': par['design']['estim']},par['dt'])
-		par['n_rule_input']  = 2
+		par['input_rule_rg'] = _convert_to_rg({'response': par['design']['estim']},par['dt'])
+		par['n_rule_input']  = 1
 	else:
 		par['input_rule_rg'] = _convert_to_rg(par['input_rule'], par['dt'])
 		par['n_rule_input']  = len(par['input_rule'])
@@ -142,7 +142,6 @@ def update_parameters(par):
 
 	elif par['resp_decoding'] == 'disc':
 		par['n_output'] = par['n_rule_output'] + par['n_tuned_output']
-
 
 	#
 	if par['modular']:
