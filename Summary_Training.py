@@ -5,9 +5,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 import time
-iModel = 11
+iModel = 12
 iteration_goal = 3000
-iteration_load = 1000
+iteration_load = 3000
 n_orituned_neurons = 30
 BatchSize = 50
 OneHotTarget = 0
@@ -45,7 +45,7 @@ b_rnn = model['b_rnn'][-1].numpy().astype('float32')
 w_out = model['w_out'][-1].numpy().astype('float32')
 b_out = model['b_out'][-1].numpy().astype('float32')
 
-# in_h = model['in_h'][-1].numpy().astype('float32')
+in_h = model['in_h'][-1].numpy().astype('float32')
 # w_in2in = model['w_in2in'][-1].numpy().astype('float32')
 # w_rnn2in = model['w_rnn2in'][-1].numpy().astype('float32')
 # b_in = model['b_in'][-1].numpy().astype('float32')
@@ -62,7 +62,7 @@ var_dict['w_rnn'] = w_rnn
 var_dict['b_rnn'] = b_rnn
 var_dict['w_out'] = w_out
 var_dict['b_out'] = b_out
-# var_dict['in_h'] = in_h
+var_dict['in_h'] = in_h
 # var_dict['w_in2in'] = w_in2in
 # var_dict['w_rnn2in'] = w_rnn2in
 # var_dict['b_in'] = b_in
@@ -160,23 +160,25 @@ syn_u_init = par['syn_u_init']
 # syn_x_init_in = par['syn_x_init_input']
 # syn_u_init_in = par['syn_u_init_input']
 
-# def rnn_cell_input(rnn_input, in_h, h, in_syn_x, in_syn_u, w_rnn2in, w_in2in):
-#     in_syn_x += (par['alpha_std_input'] * (1 - in_syn_x) - par['dt']/1000 * in_syn_u * in_syn_x * in_h)  # what is alpha_std???
-#     in_syn_u += (par['alpha_stf_input'] * (par['U_input'] - in_syn_u) + par['dt']/1000 * par['U_input'] * (1 - in_syn_u) * in_h)
-#
-#     in_syn_x = tf.minimum(np.float32(1), tf.nn.relu(in_syn_x))
-#     in_syn_u = tf.minimum(np.float32(1), tf.nn.relu(in_syn_u))
-#     in_h_post = in_syn_u * in_syn_x * in_h
-#     # h_post = h
-#
-#     noise_rnn = np.sqrt(2*par['alpha_neuron'])*par['noise_rnn_sd']
-#     # in_h = tf.nn.relu((1 - par['alpha_neuron']) * in_h
-#     #      + par['alpha_neuron'] * (rnn_input
-#     #                               + in_h_post @ w_in2in
-#     #                               # + h @ w_rnn2in
-#     #                               + var_dict['b_in'])
-#     #      + tf.random.normal(in_h.shape, 0, noise_rnn, dtype=tf.float32))
-#     return in_h, in_syn_x, in_syn_u
+def rnn_cell_input(rnn_input, in_h):
+    # in_syn_x += (par['alpha_std_input'] * (1 - in_syn_x) - par['dt']/1000 * in_syn_u * in_syn_x * in_h)  # what is alpha_std???
+    # in_syn_u += (par['alpha_stf_input'] * (par['U_input'] - in_syn_u) + par['dt']/1000 * par['U_input'] * (1 - in_syn_u) * in_h)
+    #
+    # in_syn_x = tf.minimum(np.float32(1), tf.nn.relu(in_syn_x))
+    # in_syn_u = tf.minimum(np.float32(1), tf.nn.relu(in_syn_u))
+    # in_h_post = in_syn_u * in_syn_x * in_h
+    # # h_post = h
+
+    noise_rnn = np.sqrt(2*par['alpha_input'])*par['noise_rnn_sd']
+    in_h = tf.nn.relu((1 - par['alpha_input']) * in_h
+         + par['alpha_input'] * (rnn_input
+                                  # + in_h_post @ w_in2in
+                                  # + h @ w_rnn2in
+                                  # + var_dict['b_in']
+                                  )
+                                + tf.random.normal(in_h.shape, 0, 0, dtype=tf.float32)
+                      )
+    return in_h
 
 def rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn, w_in):
     syn_x += (par['alpha_std'] * (1 - syn_x) - par['dt']/1000 * syn_u * syn_x * h)  # what is alpha_std???
@@ -202,7 +204,7 @@ def run_model(in_data, var_dict, syn_x_init, syn_u_init):
     self_syn_u = np.zeros((par['n_timesteps'], par['batch_size'], par['n_hidden']), dtype=np.float32)
     self_output = np.zeros((par['n_timesteps'], par['batch_size'], par['n_output']), dtype=np.float32)
 
-    # self_in_h = np.zeros((par['n_timesteps'], par['batch_size'], 2*par['n_input']), dtype=np.float32)
+    self_in_h = np.zeros((par['n_timesteps'], par['batch_size'], 2*par['n_input']), dtype=np.float32)
     # self_in_syn_x = np.zeros((par['n_timesteps'], par['batch_size'], 2*par['n_input']), dtype=np.float32)
     # self_in_syn_u = np.zeros((par['n_timesteps'], par['batch_size'], 2*par['n_input']), dtype=np.float32)
 
@@ -212,7 +214,7 @@ def run_model(in_data, var_dict, syn_x_init, syn_u_init):
     w_rnn = par['EImodular_mask'] @ np.maximum(var_dict['w_rnn'], 0)
     w_in = par['EI_input_mask'] * np.maximum(var_dict['w_in'], 0)
 
-    # in_h = np.ones((par['batch_size'], 1)) @ var_dict['in_h']
+    in_h = np.ones((par['batch_size'], 1)) @ var_dict['in_h']
     # in_syn_x = syn_x_init_in
     # in_syn_u = syn_u_init_in
     # w_in2in = par['EI_in2in_mask'] @ np.maximum(var_dict['w_in2in'], 0)
@@ -221,11 +223,11 @@ def run_model(in_data, var_dict, syn_x_init, syn_u_init):
     c = 0
     for rnn_input in in_data:
 
-        # in_h, in_syn_x, in_syn_u = rnn_cell_input(rnn_input, in_h, h, in_syn_x, in_syn_u, w_rnn2in, w_in2in)
+        in_h = rnn_cell_input(rnn_input, in_h)
 
-        h, syn_x, syn_u = rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn, w_in)
+        h, syn_x, syn_u = rnn_cell(in_h, h, syn_x, syn_u, w_rnn, w_in)
         #
-        # self_in_h[c, :, :] = in_h
+        self_in_h[c, :, :] = in_h
         # self_in_syn_x[c, :, :] = in_syn_x
         # self_in_syn_u[c, :, :] = in_syn_u
         self_h[c, :, :] = h
@@ -234,9 +236,9 @@ def run_model(in_data, var_dict, syn_x_init, syn_u_init):
         self_output[c, :, :] = h @ np.maximum(var_dict['w_out'], 0) + var_dict['b_out']
         c += 1
 
-    return self_h, self_output, self_syn_x, self_syn_u, w_rnn
+    return self_h, self_output, self_syn_x, self_syn_u, w_rnn, self_in_h
 
-h, output, syn_x, syn_u, w_rnn \
+h, output, syn_x, syn_u, w_rnn, in_h \
     = run_model(in_data, var_dict, syn_x_init, syn_u_init)
 
 ##

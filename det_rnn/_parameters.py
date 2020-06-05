@@ -84,7 +84,8 @@ par = {
 
 	# Experimental settings
 	'batch_size' 	: 1024,      # if image, 128 recommended
-	'alpha_neuron'  : 0.1,    # changed from tf.constant TODO(HL): alpha changed from 0.2 to 0.1 (Masse)
+	'alpha_neuron'  : 0.2,    # changed from tf.constant TODO(HL): alpha changed from 0.2 to 0.1 (Masse)
+	'alpha_input' 	: 0.7, # Chaudhuri et al., Neuron, 2015
 
 	# Optimizer
 	'optimizer' : 'Adam', # TODO(HG):  other optim. options?
@@ -165,7 +166,7 @@ def update_parameters(par):
 
 	# parameters
 	par.update({
-		# 'in_h0': _random_normal_abs((1, 2*par['n_input'])),
+		'in_h0': _random_normal_abs((1, 2*par['n_input'])),
 		# 'w_in2in0': _random_normal_abs((2*par['n_input'], 2*par['n_input'])),
 		# 'w_rnn2in0': _random_normal_abs((par['n_hidden'], 2*par['n_input'])),
 		# 'b_in0': np.zeros(2*par['n_input'], dtype=np.float32),

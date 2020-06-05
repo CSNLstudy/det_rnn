@@ -6,7 +6,7 @@ import numpy as np
 import tensorflow as tf
 import time
 
-nModel = np.array([11, 12])
+nModel = np.array([12, 13])
 iteration = 3000
 stimulus = Stimulus()
 OneHotTarget = 0
@@ -37,20 +37,20 @@ stimulus = Stimulus(par)
 
 ##
 
-trial_info = stimulus.generate_trial()
-in_data = tf.constant(trial_info['neural_input'].astype('float32')).numpy()
-out_target = tf.constant(trial_info['desired_output']).numpy()
-mask_train = tf.constant(trial_info['mask']).numpy()
-#
-plt.close()
-fig, axes = plt.subplots(4,1, figsize=(13,8))
-TEST_TRIAL = np.random.randint(stimulus.batch_size)
-a0 = axes[0].imshow(in_data[:,TEST_TRIAL,:].T, aspect='auto'); axes[0].set_title("Neural Input"); fig.colorbar(a0, ax=axes[0])
-a1 = axes[1].imshow(out_target[:,TEST_TRIAL,:].T, aspect='auto'); axes[1].set_title("Desired Output"); fig.colorbar(a1, ax=axes[1])
-a2 = axes[2].imshow(mask_train[:,TEST_TRIAL,:].T, aspect='auto'); axes[2].set_title("Training Mask"); fig.colorbar(a2, ax=axes[2]) # a bug here
-a0 = axes[3].imshow(in_data[:,TEST_TRIAL,:par['n_input']].T - in_data[:,TEST_TRIAL,par['n_input']:].T, aspect='auto'); axes[3].set_title("Neural Input Difference"); fig.colorbar(a0, ax=axes[3])
-fig.tight_layout(pad=2.0)
-plt.show()
+# trial_info = stimulus.generate_trial()
+# in_data = tf.constant(trial_info['neural_input'].astype('float32')).numpy()
+# out_target = tf.constant(trial_info['desired_output']).numpy()
+# mask_train = tf.constant(trial_info['mask']).numpy()
+# #
+# plt.close()
+# fig, axes = plt.subplots(4,1, figsize=(13,8))
+# TEST_TRIAL = np.random.randint(stimulus.batch_size)
+# a0 = axes[0].imshow(in_data[:,TEST_TRIAL,:].T, aspect='auto'); axes[0].set_title("Neural Input"); fig.colorbar(a0, ax=axes[0])
+# a1 = axes[1].imshow(out_target[:,TEST_TRIAL,:].T, aspect='auto'); axes[1].set_title("Desired Output"); fig.colorbar(a1, ax=axes[1])
+# a2 = axes[2].imshow(mask_train[:,TEST_TRIAL,:].T, aspect='auto'); axes[2].set_title("Training Mask"); fig.colorbar(a2, ax=axes[2]) # a bug here
+# a0 = axes[3].imshow(in_data[:,TEST_TRIAL,:par['n_input']].T - in_data[:,TEST_TRIAL,par['n_input']:].T, aspect='auto'); axes[3].set_title("Neural Input Difference"); fig.colorbar(a0, ax=axes[3])
+# fig.tight_layout(pad=2.0)
+# plt.show()
 
 ##
 
@@ -79,23 +79,25 @@ def initialize_parameters(iModel, par):
 
     return ipar, ivar_dict, ivar_list, isyn_x_init, isyn_u_init, ibatch_size, isavedir, isyn_x_init_in, isyn_u_init_in
 
-# def rnn_cell_input(rnn_input, in_h, h, in_syn_x, in_syn_u, w_rnn2in, w_in2in):
-#     in_syn_x += (par['alpha_std_input'] * (1 - in_syn_x) - par['dt']/1000 * in_syn_u * in_syn_x * in_h)  # what is alpha_std???
-#     in_syn_u += (par['alpha_stf_input'] * (par['U_input'] - in_syn_u) + par['dt']/1000 * par['U_input'] * (1 - in_syn_u) * in_h)
-#
-#     in_syn_x = tf.minimum(np.float32(1), tf.nn.relu(in_syn_x))
-#     in_syn_u = tf.minimum(np.float32(1), tf.nn.relu(in_syn_u))
-#     in_h_post = in_syn_u * in_syn_x * in_h
-#     # h_post = h
-#
-#     noise_rnn = np.sqrt(2*par['alpha_neuron'])*par['noise_rnn_sd']
-#     in_h = tf.nn.relu((1 - par['alpha_neuron']) * in_h
-#          + par['alpha_neuron'] * (rnn_input
-#                                   + in_h_post @ w_in2in
-#                                   + h @ w_rnn2in
-#                                   + var_dict['b_in'])
-#          + tf.random.normal(in_h.shape, 0, noise_rnn, dtype=tf.float32))
-#     return in_h, in_syn_x, in_syn_u
+def rnn_cell_input(rnn_input, in_h):
+    # in_syn_x += (par['alpha_std_input'] * (1 - in_syn_x) - par['dt']/1000 * in_syn_u * in_syn_x * in_h)  # what is alpha_std???
+    # in_syn_u += (par['alpha_stf_input'] * (par['U_input'] - in_syn_u) + par['dt']/1000 * par['U_input'] * (1 - in_syn_u) * in_h)
+    #
+    # in_syn_x = tf.minimum(np.float32(1), tf.nn.relu(in_syn_x))
+    # in_syn_u = tf.minimum(np.float32(1), tf.nn.relu(in_syn_u))
+    # in_h_post = in_syn_u * in_syn_x * in_h
+    # h_post = h
+
+    noise_rnn = np.sqrt(2*par['alpha_input'])*par['noise_rnn_sd']
+    in_h = tf.nn.relu((1 - par['alpha_input']) * in_h
+         + par['alpha_input'] * (rnn_input
+                                  # + in_h_post @ w_in2in
+                                  # + h @ w_rnn2in
+                                  # + var_dict['b_in']
+                                  )
+         + tf.random.normal(in_h.shape, 0, noise_rnn, dtype=tf.float32)
+                      )
+    return in_h
 
 def rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn, w_in):
     syn_x += (par['alpha_std'] * (1 - syn_x) - par['dt']/1000 * syn_u * syn_x * h)  # what is alpha_std???
@@ -114,7 +116,7 @@ def rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn, w_in):
     return h, syn_x, syn_u
 
 def run_model(in_data, syn_x_init, syn_u_init):
-    # self_in_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
+    self_in_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
     # self_in_syn_x = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
     # self_in_syn_u = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
     self_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
@@ -128,7 +130,7 @@ def run_model(in_data, syn_x_init, syn_u_init):
     w_rnn = par['EImodular_mask'] @ tf.nn.relu(var_dict['w_rnn'])
     w_in = par['EI_input_mask'] * tf.nn.relu(var_dict['w_in'])
 
-    # in_h = np.ones((par['batch_size'], 1)) @ var_dict['in_h']
+    in_h = np.ones((par['batch_size'], 1)) @ var_dict['in_h']
     # in_syn_x = syn_x_init_in
     # in_syn_u = syn_u_init_in
     # w_in2in = par['EI_in2in_mask'] @ tf.nn.relu(var_dict['w_in2in'])
@@ -137,11 +139,11 @@ def run_model(in_data, syn_x_init, syn_u_init):
     c = 0
     for rnn_input in in_data:
 
-        # in_h, in_syn_x, in_syn_u = rnn_cell_input(rnn_input, in_h, h, in_syn_x, in_syn_u, w_rnn2in, w_in2in)
+        in_h = rnn_cell_input(rnn_input, in_h)
 
-        h, syn_x, syn_u = rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn, w_in)
+        h, syn_x, syn_u = rnn_cell(in_h, h, syn_x, syn_u, w_rnn, w_in)
 
-        # self_in_h = self_in_h.write(c, in_h)
+        self_in_h = self_in_h.write(c, in_h)
         # self_in_syn_x = self_in_syn_x.write(c, in_syn_x)
         # self_in_syn_u = self_in_syn_u.write(c, in_syn_u)
         self_h = self_h.write(c, h)
@@ -150,7 +152,7 @@ def run_model(in_data, syn_x_init, syn_u_init):
         self_output = self_output.write(c, h @ tf.nn.relu(var_dict['w_out']) + tf.nn.relu(var_dict['b_out']))
         c += 1
     #
-    # self_in_h = self_in_h.stack()
+    self_in_h = self_in_h.stack()
     # self_in_syn_x = self_in_syn_x.stack()
     # self_in_syn_u = self_in_syn_u.stack()
     self_h = self_h.stack()
@@ -158,11 +160,11 @@ def run_model(in_data, syn_x_init, syn_u_init):
     self_syn_u = self_syn_u.stack()
     self_output = self_output.stack()
 
-    return self_h, self_output, self_syn_x, self_syn_u, w_rnn
+    return self_h, self_output, self_syn_x, self_syn_u, w_rnn, self_in_h
 
 def calc_loss(syn_x_init, syn_u_init, in_data, out_target, mask_train):
 
-    h, output, _, _, w_rnn = run_model(in_data, syn_x_init, syn_u_init)
+    h, output, _, _, w_rnn, in_h = run_model(in_data, syn_x_init, syn_u_init)
 
     if OneHotTarget is 0:
         starget = tf.reduce_sum(out_target, axis=2)
@@ -182,7 +184,7 @@ def calc_loss(syn_x_init, syn_u_init, in_data, out_target, mask_train):
         loss_orient_print = tf.reduce_mean(mask_train*CE)
 
     n = 2
-    spike_loss = tf.reduce_sum(h**2)
+    spike_loss = tf.reduce_sum(h**2) + tf.reduce_sum(in_h**2)
     weight_loss = tf.reduce_sum(tf.nn.relu(w_rnn) ** n)
     loss = par['orientation_cost'] * loss_orient + par['spike_cost'] * spike_loss + par['weight_cost'] * weight_loss
     return loss, loss_orient, spike_loss, weight_loss, loss_orient_print
@@ -201,7 +203,7 @@ def append_model_performance(model_performance, loss, loss_orient, spike_loss, i
     model_performance['b_out'].append(var_dict['b_out'])
     model_performance['h'].append(var_dict['h'])
 
-    # model_performance['in_h'].append(var_dict['in_h'])
+    model_performance['in_h'].append(var_dict['in_h'])
     # model_performance['w_in2in'].append(var_dict['w_in2in'])
     # model_performance['w_rnn2in'].append(var_dict['w_rnn2in'])
     # model_performance['b_in'].append(var_dict['b_in'])
