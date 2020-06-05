@@ -61,7 +61,7 @@ par = {
 	'orientation_cost' 		: 1, # TODO(HL): cost for target-output
 
 	# Synaptic plasticity specs
-	'masse'					: False,
+	'masse'					: True,
 	'tau_fast'              : 200,
 	'tau_slow'              : 1500,
 	'U_stf'                 : 0.15,
@@ -82,12 +82,12 @@ par = {
 	'n_hidden' 	 : 100,		 # number of rnn units TODO(HL): h_hidden to 100
 
 	# Experimental settings
-	'batch_size' 	: 1024,      # if image, 128 recommended
+	'batch_size' 	: 128,      # if image, 128 recommended
 	'alpha_neuron'  : 0.1,    # changed from tf.constant TODO(HL): alpha changed from 0.2 to 0.1 (Masse)
 
 	# Optimizer
 	'optimizer' : 'Adam', # TODO(HG):  other optim. options?
-	'loss_fun'	: 'mse', # 'cosine', 'mse', 'mse_normalize', 'centropy'
+	'loss_fun'	: 'mse_sigmoid', # 'cosine', 'mse', 'mse_normalize', 'centropy'
 }
 
 
@@ -146,9 +146,9 @@ def update_parameters(par):
 
 	#
 	if par['modular']:
-		par['EImodular_mask'] = _modular_mask(par['connect_prob'], par['n_hidden'], par['exc_inh_prop'])
+		par['EI_mask'] = _modular_mask(par['connect_prob'], par['n_hidden'], par['exc_inh_prop'])
 	else:
-		par['EImodular_mask'] = _w_rnn_mask(par['n_hidden'], par['exc_inh_prop'])
+		par['EI_mask'] = _w_rnn_mask(par['n_hidden'], par['exc_inh_prop'])
 
 	par.update({
 		'rg_exc': range(par['n_exc']),
@@ -158,7 +158,6 @@ def update_parameters(par):
 		'w_out_mask': np.concatenate((np.ones((par['n_exc'], par['n_output']),dtype=np.float32),
 									  np.zeros((par['n_hidden']-par['n_exc'], par['n_output']), dtype=np.float32)),
 									 axis=0) # Todo(HL): no input from inhibitory neurons
-
 	})
 
 	# parameters

@@ -23,16 +23,16 @@ def _alternating(x, size):
 def _w_rnn_mask(n_hidden, exc_inh_prop):
 	n_exc = int(n_hidden * exc_inh_prop)
 	rg_inh = range(n_exc, n_hidden)
-	Crec = np.ones((n_hidden, n_hidden))-np.eye(n_hidden)
-	Crec[:,rg_inh] = Crec[:,rg_inh]*(-1.)
+	Crec = np.ones((n_hidden, n_hidden))
+	Crec[rg_inh,:] = Crec[rg_inh,:]*(-1.)
 
 	# Todo(HL): revised following Masse et al., 2019
-	n_inh = n_hidden - n_exc
-	EI_list = np.ones(n_hidden, dtype=np.float32)
-	EI_list[-n_inh:] = -1.
-	EI_matrix = np.diag(EI_list)
+	# n_inh = n_hidden - n_exc
+	# EI_list = np.ones(n_hidden, dtype=np.float32)
+	# EI_list[-n_inh:] = -1.
+	# EI_matrix = np.diag(EI_list)
 
-	return np.float32(EI_matrix)
+	return np.float32(Crec)
 
 # Modular w_RNN mask
 def _modular_mask(connect_prob, n_hidden, exc_inh_prop):

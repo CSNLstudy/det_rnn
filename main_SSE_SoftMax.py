@@ -82,7 +82,7 @@ def run_model(in_data, syn_x_init, syn_u_init):
     h = np.ones((par['batch_size'], 1)) @ var_dict['h']
     syn_x = syn_x_init
     syn_u = syn_u_init
-    w_rnn = par['EImodular_mask'] @ tf.nn.relu(var_dict['w_rnn'])
+    w_rnn = par['EI_mask'] @ tf.nn.relu(var_dict['w_rnn'])
 
     c = 0
     for rnn_input in in_data:
@@ -103,7 +103,6 @@ def run_model(in_data, syn_x_init, syn_u_init):
     return self_h, self_output, self_syn_x, self_syn_u, w_rnn
 
 def calc_loss(syn_x_init, syn_u_init, in_data, out_target):
-
     h, output, _, _, w_rnn = run_model(in_data, syn_x_init, syn_u_init)
 
     starget = tf.reduce_sum(out_target, axis=2)

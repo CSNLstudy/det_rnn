@@ -3,8 +3,6 @@ from ._parameters import par
 
 __all__ = ['Stimulus']
 
-# TODO(HG): modify rule input
-
 class Stimulus(object):
     """
     This script is dedicated to generating delayed estimation stimuli @ CSNL.
