@@ -77,17 +77,17 @@ def _convert_to_rg(design, dt):
 			if len(np.shape(v)) == 1:
 				start_step = round(v[0] / dt * 1000.)
 				end_step = round(v[1] / dt * 1000.)
-				rg_dict[k] = np.arange(start_step, end_step)
+				rg_dict[k] = np.arange(start_step, end_step, dtype=np.int32)
 			else:
-				rg_dict[k] = np.concatenate([np.arange(round(i[0] / dt * 1000.),round(i[1] / dt * 1000.)) for i in v])
+				rg_dict[k] = np.concatenate([np.arange(round(i[0] / dt * 1000.),round(i[1] / dt * 1000.), dtype=np.int32) for i in v])
 		return rg_dict
 
 	elif type(design) in (tuple, list):
 		if len(np.shape(design)) == 1:
 			start_step = round(design[0] / dt * 1000.)
 			end_step = round(design[1] / dt * 1000.)
-			rg = np.arange(start_step, end_step)
+			rg = np.arange(start_step, end_step, dtype=np.int32)
 		else:
-			rg = np.concatenate([np.arange(round(i[0] / dt * 1000.), round(i[1] / dt * 1000.)) for i in design])
+			rg = np.concatenate([np.arange(round(i[0] / dt * 1000.), round(i[1] / dt * 1000.), dtype=np.int32) for i in design])
 		return rg
 
