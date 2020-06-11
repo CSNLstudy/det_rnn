@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 from ._parameters import par
 
 __all__ = ['Stimulus']
@@ -110,4 +111,36 @@ class Stimulus(object):
                 rule_mat[self.output_rule_rg[k], :, i] = self.output_rule_strength
             return rule_mat
 
+    def plot_trial(self,trial_info, TEST_TRIAL=None):
+        if TEST_TRIAL is None:
+            TEST_TRIAL = np.random.randint(self.batch_size)
 
+        fig, axes = plt.subplots(5, 1, figsize=(10, 8))
+        im0 = axes[0].imshow(trial_info['neural_input'][:, TEST_TRIAL, :self.n_rule_input].T,
+                             interpolation='none',
+                             aspect='auto');
+        axes[0].set_title("Input Rule")
+        fig.colorbar(im0, ax=axes[0])
+        im1 = axes[1].imshow(trial_info['neural_input'][:, TEST_TRIAL, self.n_rule_input:].T,
+                             interpolation='none',
+                             aspect='auto');
+        axes[1].set_title("Neural Input")
+        fig.colorbar(im1, ax=axes[1])
+        im2 = axes[2].imshow(trial_info['desired_output'][:, TEST_TRIAL, :].T,
+                             interpolation='none',
+                             aspect='auto');
+        axes[2].set_title("Desired Output")
+        fig.colorbar(im2, ax=axes[2])
+        im3 = axes[3].imshow(trial_info['mask'][:, TEST_TRIAL, :self.n_rule_input].T,
+                             interpolation='none',
+                             aspect='auto');
+        axes[3].set_title("Training Mask_rules")
+        fig.colorbar(im3, ax=axes[3])
+        im4 = axes[4].imshow(trial_info['mask'][:, TEST_TRIAL, self.n_rule_input:].T,
+                             interpolation='none',
+                             aspect='auto');
+        axes[4].set_title("Training Mask");
+        fig.colorbar(im4, ax=axes[4])
+        fig.tight_layout(pad=2.0)
+
+        plt.show()

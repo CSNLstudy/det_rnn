@@ -14,7 +14,7 @@ class Model(object):
 		self.model_performance = {'iteration': [], 'eval': [], 'loss': [], 
 		'perf_loss': [], 'spike_loss': []}
 
-	def __call__(self, iteration, input_data, target_data, _pass):
+	def __call__(self, iteration, input_data, target_data, _pass): #josh: no separate train module???
 		Y, Loss = self._train_oneiter(input_data, target_data, _pass)
 		self._append_model_performance(iteration, target_data, Y, Loss)
 
@@ -32,6 +32,7 @@ class Model(object):
 		self.var_dict = _var_dict
 
 	def _get_loss(self, y, target, mask):
+		#mask = tf.ones_like(mask)
 		if self.loss_fun == 'cosine':
 			loss = tf.reduce_mean(-mask*tf.cos(2.*(y-target)))
 		elif self.loss_fun == 'mse':
@@ -90,10 +91,11 @@ class Model(object):
 		h_stack = []; y_stack = []
 
 		_input_data = tf.unstack(input_data) # this line is important
+		#print(input_data.shape)
 
 		for _iter, rnn_input in enumerate(_input_data):
 			# rnn_input: (128, 2501), _h: (128, 200)
-			_h, _, _ = self._rnn_cell(_h, rnn_input, _syn_x, _syn_u, _iter)
+			_h, _syn_x, _syn_u = self._rnn_cell(_h, rnn_input, _syn_x, _syn_u, _iter)
 			h_stack.append(_h)
 			y_stack.append(_h @ self.var_dict['w_out'] + self.var_dict['b_out'])
 
@@ -142,7 +144,7 @@ class Model(object):
 	# TODO(HG): evaluation name
 	def print_results(self, iteration):
 		print_res = 'Iter. {:4d}'.format(iteration)
-		print_res += ' | Evaluaiton {:0.4f}'.format(self.model_performance['eval'][iteration]) +\
+		print_res += ' | Evaluation {:0.4f}'.format(self.model_performance['eval'][iteration]) +\
 					 ' | Loss {:0.4f}'.format(self.model_performance['loss'][iteration])
 		print_res += ' | Spike loss {:0.4f}'.format(self.model_performance['spike_loss'][iteration])
 		print(print_res)

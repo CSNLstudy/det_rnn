@@ -21,8 +21,8 @@ par = {
 	'input_rule'   : {'fixation' : (0,6.0),
 					  'response' : (4.5,6.0)},
 	'output_rule'  : {'fixation' : (0,4.5)},
-	'input_rule_strength'	: 0.8,  # TODO(HG): check this
-	'output_rule_strength' 	: 0.8,
+	'input_rule_strength'	: 1,  # TODO(HG): check this
+	'output_rule_strength' 	: 1,  # josh: why do we need rule strengths?
 
 	# stimulus type
 	'type'					: 'orientation',  # size, orientation
