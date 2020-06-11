@@ -9,9 +9,10 @@ def _initialize(dims, shape=0.1, scale=1.0):
 	return w
 
 # Inherited from JsL
-def _random_normal_abs(dims):
-	y = np.abs(np.random.normal(0, 0.01, size=dims)).astype(np.float32)
-	return y
+def _random_normal_abs(dims): # Todo (HL): random.gamma
+    y = np.random.gamma(0.1, 1.0, size=dims)
+    # y = np.abs(np.random.normal(0, 0.01, size=dims)).astype(np.float32)
+    return np.float32(y)
 
 def _alternating(x, size):
 	tmp = np.tile(np.array(x), np.int(np.ceil(size / 2)))
@@ -24,7 +25,14 @@ def _w_rnn_mask(n_hidden, exc_inh_prop):
 	rg_inh = range(n_exc, n_hidden)
 	Crec = np.ones((n_hidden, n_hidden))-np.eye(n_hidden)
 	Crec[:,rg_inh] = Crec[:,rg_inh]*(-1.)
-	return np.float32(Crec)
+
+	# Todo(HL): revised following Masse et al., 2019
+	n_inh = n_hidden - n_exc
+	EI_list = np.ones(n_hidden, dtype=np.float32)
+	EI_list[-n_inh:] = -1.
+	EI_matrix = np.diag(EI_list)
+
+	return np.float32(EI_matrix)
 
 # Modular w_RNN mask
 def _modular_mask(connect_prob, n_hidden, exc_inh_prop):
