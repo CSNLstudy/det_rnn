@@ -1,6 +1,11 @@
 import pickle
 from det_rnn import *
 
+n_orituned_neurons = 40
+par['n_tuned_input'] = n_orituned_neurons
+par['n_tuned_output'] = n_orituned_neurons
+par['n_ori'] = n_orituned_neurons
+
 par = update_parameters(par)
 stimulus = Stimulus()
 trial_info = stimulus.generate_trial()
