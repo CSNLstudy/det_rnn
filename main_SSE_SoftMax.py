@@ -57,7 +57,7 @@ def initialize_parameters(iModel, par):
     return ipar, ivar_dict, ivar_list, isyn_x_init, isyn_u_init, ibatch_size, isavedir
 
 def rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn):
-    syn_x += (par['alpha_std'] * (1 - syn_x) - par['dt']/1000 * syn_u * syn_x * h) 
+    syn_x += (par['alpha_std'] * (1 - syn_x) - par['dt']/1000 * syn_u * syn_x * h)  # what is alpha_std???
     syn_u += (par['alpha_stf'] * (par['U'] - syn_u) + par['dt']/1000 * par['U'] * (1 - syn_u) * h)
 
     syn_x = tf.minimum(np.float32(1), tf.nn.relu(syn_x))
@@ -79,6 +79,7 @@ def run_model(in_data, syn_x_init, syn_u_init):
     self_syn_u = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
     self_output = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
 
+    # h = np.ones((par['batch_size'], 1)) @ var_dict['h']
     h = np.ones((par['batch_size'], 1)) @ var_dict['h']
     syn_x = syn_x_init
     syn_u = syn_u_init
