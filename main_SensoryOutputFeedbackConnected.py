@@ -5,20 +5,26 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 import time
+from shutil import copyfile
 
-nModel = np.array([12, 13])
-iteration = 3000
+
+nModel = np.array([3, 4])
+iteration = 2000
 stimulus = Stimulus()
 
 n_orituned_neurons = 30
 BatchSize = 50
 orientation_cost = 1
+noise_rnn_sd = 0
+noise_in_sd = 0
 
 par['n_tuned_input'] = n_orituned_neurons
 par['n_tuned_output'] = n_orituned_neurons
 par['n_ori'] = n_orituned_neurons
 par['batch_size'] = BatchSize
 par['orientation_cost'] = orientation_cost
+# par['noise_rnn_sd'] = noise_rnn_sd
+# par['noise_in_sd'] =noise_in_sd
 
 # par['design'].update({'iti'     : (0, 0.5),
 #                       'stim'    : (0.5,2.0),
@@ -41,12 +47,11 @@ stimulus = Stimulus(par)
 # mask_train = tf.constant(trial_info['mask']).numpy()
 # #
 # plt.close()
-# fig, axes = plt.subplots(4,1, figsize=(13,8))
+# fig, axes = plt.subplots(3,1, figsize=(13,8))
 # TEST_TRIAL = np.random.randint(stimulus.batch_size)
 # a0 = axes[0].imshow(in_data[:,TEST_TRIAL,:].T, aspect='auto'); axes[0].set_title("Neural Input"); fig.colorbar(a0, ax=axes[0])
 # a1 = axes[1].imshow(out_target[:,TEST_TRIAL,:].T, aspect='auto'); axes[1].set_title("Desired Output"); fig.colorbar(a1, ax=axes[1])
 # a2 = axes[2].imshow(mask_train[:,TEST_TRIAL,:].T, aspect='auto'); axes[2].set_title("Training Mask"); fig.colorbar(a2, ax=axes[2]) # a bug here
-# a0 = axes[3].imshow(in_data[:,TEST_TRIAL,:par['n_input']].T - in_data[:,TEST_TRIAL,par['n_input']:].T, aspect='auto'); axes[3].set_title("Neural Input Difference"); fig.colorbar(a0, ax=axes[3])
 # fig.tight_layout(pad=2.0)
 # plt.show()
 
@@ -72,6 +77,12 @@ def initialize_parameters(iModel, par):
                '/nIter' + str(iteration) + '/iModel' + str(iModel)
     if not os.path.isdir(isavedir):
         os.makedirs(isavedir)
+        os.makedirs(isavedir + '/code/')
+        os.makedirs(isavedir + '/code/det_rnn')
+    codenames = ['main.py', 'Summary_Training.py', 'det_rnn/__init__.py', 'det_rnn/_functions.py',
+                 'det_rnn/_model.py', 'det_rnn/_parameters.py', 'det_rnn/_stimulus.py']
+    for codename in codenames:
+        copyfile(os.path.dirname(os.path.realpath(__file__)) + '/' + codename, isavedir + '/code/' + codename)
 
     return ipar, ivar_dict, ivar_list, isyn_x_init, isyn_u_init, ibatch_size, isavedir
 
@@ -82,7 +93,7 @@ def rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn, w_in):
     syn_x = tf.minimum(np.float32(1), tf.nn.relu(syn_x))
     syn_u = tf.minimum(np.float32(1), tf.nn.relu(syn_u))
     h_post = syn_u * syn_x * h
-    h_post = h
+    # h_post = h
 
     noise_rnn = np.sqrt(2*par['alpha_neuron'])*par['noise_rnn_sd']
     h = tf.nn.relu((1 - par['alpha_neuron']) * h
@@ -102,10 +113,16 @@ def run_model(in_data, syn_x_init, syn_u_init):
     syn_x = syn_x_init
     syn_u = syn_u_init
     w_rnn = par['EImodular_mask'] @ tf.nn.relu(var_dict['w_rnn'])
-    w_in = par['EI_input_mask'] * tf.nn.relu(var_dict['w_in'])
+    w_in = tf.nn.relu(var_dict['w_in'])
+
+    # w_rnn2in = par['EImodular_mask'] @ tf.nn.relu(var_dict['w_rnn2in'])
+    h_pre = tf.ones_like(h)
 
     c = 0
     for rnn_input in in_data:
+
+        # rnn_input = rnn_input + h_pre @ w_rnn2in
+        # h_pre = h
 
         h, syn_x, syn_u = rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn, w_in)
 
@@ -136,7 +153,7 @@ def calc_loss(syn_x_init, syn_u_init, in_data, out_target, mask_train):
     loss_orient_print = tf.reduce_mean(mask_train*CE)
 
     n = 2
-    spike_loss = tf.reduce_sum(h**2) + tf.reduce_sum(in_h**2)
+    spike_loss = tf.reduce_sum(h**2)
     weight_loss = tf.reduce_sum(tf.nn.relu(w_rnn) ** n)
     loss = par['orientation_cost'] * loss_orient + par['spike_cost'] * spike_loss + par['weight_cost'] * weight_loss
     return loss, loss_orient, spike_loss, weight_loss, loss_orient_print
@@ -154,11 +171,8 @@ def append_model_performance(model_performance, loss, loss_orient, spike_loss, i
     model_performance['w_out'].append(var_dict['w_out'])
     model_performance['b_out'].append(var_dict['b_out'])
     model_performance['h'].append(var_dict['h'])
-
-    model_performance['in_h'].append(var_dict['in_h'])
-    # model_performance['w_in2in'].append(var_dict['w_in2in'])
     # model_performance['w_rnn2in'].append(var_dict['w_rnn2in'])
-    # model_performance['b_in'].append(var_dict['b_in'])
+
 
     return model_performance
 
@@ -173,11 +187,10 @@ t0 = time.time()
 iModel = 0
 for iModel in range(nModel[0], nModel[1]):
 
-    par, var_dict, var_list, syn_x_init, syn_u_init, batch_size, savedir, syn_x_init_in, syn_u_init_in = initialize_parameters(iModel, par)
+    par, var_dict, var_list, syn_x_init, syn_u_init, batch_size, savedir = initialize_parameters(iModel, par)
     opt = tf.optimizers.Adam(learning_rate=par['learning_rate'])
     model_performance = {'loss': [], 'loss_orient': [], 'spike_loss': [], 'iteration': [], 'w_in': [],
-                         'w_rnn': [], 'b_rnn': [], 'w_out': [], 'b_out': [], 'h': [], 'time': [],
-                         'in_h': [], 'w_in2in': [], 'w_rnn2in': [], 'b_in': []}
+                         'w_rnn': [], 'b_rnn': [], 'w_out': [], 'b_out': [], 'h': [], 'time': [], 'w_rnn2in': []}
 
     @ tf.function
     def train_onestep(syn_x_init, syn_u_init, in_data, out_target, mask_train):
@@ -193,8 +206,6 @@ for iModel in range(nModel[0], nModel[1]):
                 grad *= par['w_out_mask']
             elif 'w_in' in var.name:
                 grad *= par['w_in_mask']
-            # elif 'w_in2in' in var.name:
-            #     grad *= par['w_in2in_mask']
             capped_gvs.append((tf.clip_by_norm(grad, par['clip_max_grad_val']), var))
         opt.apply_gradients(grads_and_vars=capped_gvs)
         return loss, loss_orient, spike_loss, loss_orient_print

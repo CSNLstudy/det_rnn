@@ -7,7 +7,7 @@ import tensorflow as tf
 import time
 iModel = 3
 iteration_goal = 2000
-iteration_load = 500
+iteration_load = 400
 n_orituned_neurons = 30
 BatchSize = 50
 dxtick = 1000 # in ms
@@ -41,12 +41,12 @@ w_in = model['w_in'][-1].numpy().astype('float32')
 w_rnn = model['w_rnn'][-1].numpy().astype('float32')
 b_rnn = model['b_rnn'][-1].numpy().astype('float32')
 w_out = model['w_out'][-1].numpy().astype('float32')
-# w_rnn2in = model['w_rnn2in'][-1].numpy().astype('float32')
+w_rnn2in = model['w_rnn2in'][-1].numpy().astype('float32')
 
 b_out = model['b_out'][-1].numpy().astype('float32')
 
 iw_rnn = par['EImodular_mask'] @ np.maximum(w_rnn, 0)
-# iw_rnn2in = par['EImodular_mask'] @ tf.nn.relu(w_rnn2in)
+iw_rnn2in = par['EImodular_mask'] @ tf.nn.relu(w_rnn2in)
 
 var_dict = {}
 var_dict['h'] = h
@@ -55,7 +55,7 @@ var_dict['w_rnn'] = w_rnn
 var_dict['b_rnn'] = b_rnn
 var_dict['w_out'] = w_out
 var_dict['b_out'] = b_out
-# var_dict['w_rnn2in'] = w_rnn2in
+var_dict['w_rnn2in'] = w_rnn2in
 
 dxtick = dxtick/10
 
@@ -88,11 +88,11 @@ plt.title('w_rnn')
 plt.ylabel('from RNN')
 plt.xlabel('to RNN')
 #
-# iax = plt.subplot(2, 3, 5)
-# plt.imshow(w_rnn2in, vmin=-MaxVal1, vmax=MaxVal1)
-# plt.title('w_rnn')
-# plt.ylabel('from RNN')
-# plt.xlabel('to RNN')
+iax = plt.subplot(2, 3, 5)
+plt.imshow(w_rnn2in, vmin=-MaxVal1, vmax=MaxVal1)
+plt.title('w_rnn')
+plt.ylabel('from RNN')
+plt.xlabel('to RNN')
 
 iax = plt.subplot(1, 9, 7)
 plt.imshow((np.ones((5,1))@b_rnn[:, np.newaxis].T).T, vmin=0, vmax=MaxVal1)
@@ -184,7 +184,7 @@ def run_model(in_data, var_dict, syn_x_init, syn_u_init):
     c = 0
     for rnn_input in in_data:
 
-        # rnn_input = rnn_input + h_pre @ w_rnn2in
+        rnn_input = rnn_input + h_pre @ w_rnn2in
         h_pre = h
 
         h, syn_x, syn_u = rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn, w_in)
@@ -221,6 +221,7 @@ for i in range(30):
 
     cenoutput = tf.exp(tf.nn.log_softmax(output, axis=2))
     cenoutput = cenoutput.numpy()
+
 
     # sout = np.sum(output, axis=2)
     # sout = np.expand_dims(sout, axis=2)
