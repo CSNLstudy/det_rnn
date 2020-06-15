@@ -37,6 +37,7 @@ par = {
 	'exc_inh_prop'          : 0.8,    # excitatory/inhibitory ratio
 	'modular'				: False,
 	'connect_prob'			: 0.1,    # modular connectivity
+	'recurrent_inhiddenout' : True,   # in-hidden-out neurons are recurrently connected
 
 	# Timings and rates
 	'dt'                    : 10,     # unit: ms
@@ -149,10 +150,13 @@ def update_parameters(par):
 	else:
 		par['EImodular_mask'] = _w_rnn_mask(par['n_hidden'], par['exc_inh_prop'])
 
-		par.update({
+	par['EI_input_mask'], par['EI_in2in_mask'] = _w_EI_input_mask(par['n_input'], par['n_hidden'], par['exc_inh_prop'], par['n_tuned_input'])
+
+	par.update({
 		'rg_exc': range(par['n_exc']),
 		'rg_inh': range(par['n_exc'], par['n_hidden']),
 		'w_in_mask': np.ones((par['n_input'], par['n_hidden']), dtype=np.float32),
+		'w_in2in_mask': np.ones((par['n_input'], par['n_input']), dtype=np.float32) - np.eye(par['n_input'],dtype=np.float32),
 		'w_rnn_mask': np.ones((par['n_hidden'], par['n_hidden']), dtype=np.float32) - np.eye(par['n_hidden'],dtype=np.float32),
 		'w_out_mask': np.concatenate((np.ones((par['n_exc'], par['n_output']),dtype=np.float32),
 									  np.zeros((par['n_hidden']-par['n_exc'], par['n_output']), dtype=np.float32)),
@@ -162,8 +166,13 @@ def update_parameters(par):
 
 	# parameters
 	par.update({
+		'in_h0': _random_normal_abs((1, 2*par['n_input'])),
+		# 'w_in2in0': _random_normal_abs((2*par['n_input'], 2*par['n_input'])),
+		# 'w_rnn2in0': _random_normal_abs((par['n_hidden'], 2*par['n_input'])),
+		# 'b_in0': np.zeros(2*par['n_input'], dtype=np.float32),
+
 		'h0': _random_normal_abs((1, par['n_hidden'])),
-		'w_in0': _random_normal_abs((par['n_input'], par['n_hidden'])),
+		'w_in0': _random_normal_abs((2*par['n_input'], par['n_hidden'])),
 		'w_rnn0': _random_normal_abs((par['n_hidden'], par['n_hidden'])),
 		'b_rnn0': np.zeros(par['n_hidden'], dtype=np.float32),
 		'w_out0': _random_normal_abs((par['n_hidden'],par['n_output'])) * par['w_out_mask'],
@@ -175,6 +184,12 @@ def update_parameters(par):
 		'alpha_stf': _alternating((0.00667, 0.05), par['n_hidden']),
 		'dynamic_synapse': np.ones(par['n_hidden'], dtype=np.float32),
 		'U': _alternating((0.15, 0.45), par['n_hidden']),
+
+		'syn_x_init_input': np.ones((par['batch_size'], 2*par['n_input']), dtype=np.float32),
+		'syn_u_init_input': np.concatenate((0.15*np.ones((par['batch_size'], par['n_input']), dtype=np.float32), 0.45*np.ones((par['batch_size'], par['n_input']), dtype=np.float32)), axis=1),
+		'alpha_std_input': np.concatenate((0.05*np.ones(par['n_input'], dtype=np.float32), 0.00667*np.ones(par['n_input'], dtype=np.float32))),
+		'alpha_stf_input': np.concatenate((0.00667*np.ones(par['n_input'], dtype=np.float32), 0.05*np.ones(par['n_input'], dtype=np.float32))),
+		'U_input': np.concatenate((0.15 * np.ones(par['n_input'], dtype=np.float32), 0.45 * np.ones(par['n_input'], dtype=np.float32))),
 	})
 
 	return par

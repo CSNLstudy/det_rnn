@@ -5,11 +5,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 import time
-iModel = 0
-iteration_goal = 2000
-iteration_load = 2000
+iModel = 12
+iteration_goal = 3000
+iteration_load = 3000
 n_orituned_neurons = 30
 BatchSize = 50
+OneHotTarget = 0
+CrossEntropy = 1
 dxtick = 1000 # in ms
 
 par['n_tuned_input'] = n_orituned_neurons
@@ -22,7 +24,7 @@ par['n_ori'] = n_orituned_neurons
 #                       'estim'   : (4.5,6.0)})
 
 savedir = os.path.dirname(os.path.realpath(__file__)) + \
-          '/savedir/BatchSize' + str(BatchSize) +\
+          '/savedir/OneHotTarget' + str(OneHotTarget) + 'CrossEntropy' + str(CrossEntropy) + 'BatchSize' + str(BatchSize) +\
           '/nIter' + str(iteration_goal) + '/iModel' + str(
     iModel)
 if not os.path.isdir(savedir + '/estimation/Iter' + str(iteration_load)):
@@ -43,7 +45,14 @@ b_rnn = model['b_rnn'][-1].numpy().astype('float32')
 w_out = model['w_out'][-1].numpy().astype('float32')
 b_out = model['b_out'][-1].numpy().astype('float32')
 
-w_in = np.maximum(w_in, 0)
+in_h = model['in_h'][-1].numpy().astype('float32')
+# w_in2in = model['w_in2in'][-1].numpy().astype('float32')
+# w_rnn2in = model['w_rnn2in'][-1].numpy().astype('float32')
+# b_in = model['b_in'][-1].numpy().astype('float32')
+
+w_in = par['EI_input_mask'] * np.maximum(w_in, 0)
+# iw_in2in = par['EI_in2in_mask'] @ np.maximum(w_in2in, 0)
+# iw_rnn2in = par['EImodular_mask'] @ np.maximum(w_rnn2in, 0)
 iw_rnn = par['EImodular_mask'] @ np.maximum(w_rnn, 0)
 
 var_dict = {}
@@ -53,6 +62,10 @@ var_dict['w_rnn'] = w_rnn
 var_dict['b_rnn'] = b_rnn
 var_dict['w_out'] = w_out
 var_dict['b_out'] = b_out
+var_dict['in_h'] = in_h
+# var_dict['w_in2in'] = w_in2in
+# var_dict['w_rnn2in'] = w_rnn2in
+# var_dict['b_in'] = b_in
 
 dxtick = dxtick/10
 
@@ -144,6 +157,28 @@ mask_train = trial_info['mask']
 batch_size = par['batch_size']
 syn_x_init = par['syn_x_init']
 syn_u_init = par['syn_u_init']
+# syn_x_init_in = par['syn_x_init_input']
+# syn_u_init_in = par['syn_u_init_input']
+
+def rnn_cell_input(rnn_input, in_h):
+    # in_syn_x += (par['alpha_std_input'] * (1 - in_syn_x) - par['dt']/1000 * in_syn_u * in_syn_x * in_h)  # what is alpha_std???
+    # in_syn_u += (par['alpha_stf_input'] * (par['U_input'] - in_syn_u) + par['dt']/1000 * par['U_input'] * (1 - in_syn_u) * in_h)
+    #
+    # in_syn_x = tf.minimum(np.float32(1), tf.nn.relu(in_syn_x))
+    # in_syn_u = tf.minimum(np.float32(1), tf.nn.relu(in_syn_u))
+    # in_h_post = in_syn_u * in_syn_x * in_h
+    # # h_post = h
+
+    noise_rnn = np.sqrt(2*par['alpha_input'])*par['noise_rnn_sd']
+    in_h = tf.nn.relu((1 - par['alpha_input']) * in_h
+         + par['alpha_input'] * (rnn_input
+                                  # + in_h_post @ w_in2in
+                                  # + h @ w_rnn2in
+                                  # + var_dict['b_in']
+                                  )
+                                + tf.random.normal(in_h.shape, 0, 0, dtype=tf.float32)
+                      )
+    return in_h
 
 def rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn, w_in):
     syn_x += (par['alpha_std'] * (1 - syn_x) - par['dt']/1000 * syn_u * syn_x * h)  # what is alpha_std???
@@ -152,6 +187,7 @@ def rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn, w_in):
     syn_x = tf.minimum(np.float32(1), tf.nn.relu(syn_x))
     syn_u = tf.minimum(np.float32(1), tf.nn.relu(syn_u))
     h_post = syn_u * syn_x * h
+    # h_post = h
 
     noise_rnn = np.sqrt(2*par['alpha_neuron'])*par['noise_rnn_sd']
     h = tf.nn.relu((1 - par['alpha_neuron']) * h
@@ -168,36 +204,55 @@ def run_model(in_data, var_dict, syn_x_init, syn_u_init):
     self_syn_u = np.zeros((par['n_timesteps'], par['batch_size'], par['n_hidden']), dtype=np.float32)
     self_output = np.zeros((par['n_timesteps'], par['batch_size'], par['n_output']), dtype=np.float32)
 
+    self_in_h = np.zeros((par['n_timesteps'], par['batch_size'], 2*par['n_input']), dtype=np.float32)
+    # self_in_syn_x = np.zeros((par['n_timesteps'], par['batch_size'], 2*par['n_input']), dtype=np.float32)
+    # self_in_syn_u = np.zeros((par['n_timesteps'], par['batch_size'], 2*par['n_input']), dtype=np.float32)
+
     h = np.ones((par['batch_size'], 1)) @ var_dict['h']
     syn_x = syn_x_init
     syn_u = syn_u_init
     w_rnn = par['EImodular_mask'] @ np.maximum(var_dict['w_rnn'], 0)
-    w_in = np.maximum(var_dict['w_in'], 0)
+    w_in = par['EI_input_mask'] * np.maximum(var_dict['w_in'], 0)
+
+    in_h = np.ones((par['batch_size'], 1)) @ var_dict['in_h']
+    # in_syn_x = syn_x_init_in
+    # in_syn_u = syn_u_init_in
+    # w_in2in = par['EI_in2in_mask'] @ np.maximum(var_dict['w_in2in'], 0)
+    # w_rnn2in = par['EImodular_mask'] @ np.maximum(var_dict['w_rnn2in'], 0)
 
     c = 0
     for rnn_input in in_data:
 
-        h, syn_x, syn_u = rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn, w_in)
+        in_h = rnn_cell_input(rnn_input, in_h)
+
+        h, syn_x, syn_u = rnn_cell(in_h, h, syn_x, syn_u, w_rnn, w_in)
         #
+        self_in_h[c, :, :] = in_h
+        # self_in_syn_x[c, :, :] = in_syn_x
+        # self_in_syn_u[c, :, :] = in_syn_u
         self_h[c, :, :] = h
         self_syn_x[c, :, :] = syn_x
         self_syn_u[c, :, :] = syn_u
         self_output[c, :, :] = h @ np.maximum(var_dict['w_out'], 0) + var_dict['b_out']
         c += 1
 
-    return self_h, self_output, self_syn_x, self_syn_u, w_rnn
+    return self_h, self_output, self_syn_x, self_syn_u, w_rnn, self_in_h
 
-h, output, syn_x, syn_u, w_rnn \
+h, output, syn_x, syn_u, w_rnn, in_h \
     = run_model(in_data, var_dict, syn_x_init, syn_u_init)
 
 ##
 
-starget = tf.reduce_sum(out_target, axis=2)
-starget = tf.expand_dims(starget, axis=2)
-ntarget = out_target / tf.repeat(starget, par['n_output'], axis=2)
-
-ivmin = 0
-ivmax = 0.1
+if OneHotTarget is 0:
+    starget = np.sum(out_target, axis=2)
+    starget = np.expand_dims(starget, axis=2)
+    ntarget = out_target / np.repeat(starget, par['n_output'], axis=2)
+    ivmin = 0
+    ivmax = 0.1
+else:
+    ntarget = out_target == np.max(out_target, axis=2)[:, :, None]
+    ivmin = 0
+    ivmax = 1
 
 fig = plt.figure(figsize=(10, 8), dpi=80)
 
@@ -212,23 +267,23 @@ for i in range(30):
 
     sout = np.sum(output, axis=2)
     sout = np.expand_dims(sout, axis=2)
-    noutput = output / np.repeat(sout, par['n_output'], axis=2)
+    noutput = output / np.repeat(sout,par['n_output'],axis=2)
     cenoutput = tf.nn.softmax(output, axis=2)
     cenoutput = cenoutput.numpy()
 
     plt.subplot(222)
     a = cenoutput[:, iT, :]
-    plt.imshow(tf.transpose(a), aspect='auto', vmin=ivmin, vmax=ivmax)
+    plt.imshow(a.T, aspect='auto', vmin=ivmin, vmax=ivmax)
     plt.colorbar()
 
     plt.subplot(223)
     a = out_target[:, iT, :]
-    plt.imshow(tf.transpose(a), aspect='auto')
+    plt.imshow(a.T, aspect='auto')
     plt.colorbar()
     #
     plt.subplot(224)
     a = ntarget[:, iT, :]
-    plt.imshow(tf.transpose(a), aspect='auto', vmin=ivmin, vmax=ivmax)
+    plt.imshow(a.T, aspect='auto', vmin=ivmin, vmax=ivmax)
     plt.colorbar()
 
     plt.savefig(savedir + '/estimation/Iter' + str(iteration_load) + '/' + str(i) + '.png', bbox_inches='tight')
