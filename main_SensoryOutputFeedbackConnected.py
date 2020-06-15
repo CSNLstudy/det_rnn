@@ -9,8 +9,6 @@ import time
 nModel = np.array([12, 13])
 iteration = 3000
 stimulus = Stimulus()
-OneHotTarget = 0
-CrossEntropy = 1
 
 n_orituned_neurons = 30
 BatchSize = 50
@@ -67,37 +65,15 @@ def initialize_parameters(iModel, par):
             ivar_list.append(ivar_dict[name])
     isyn_x_init = tf.constant(ipar['syn_x_init'])
     isyn_u_init = tf.constant(ipar['syn_u_init'])
-    isyn_x_init_in = tf.constant(ipar['syn_x_init_input'])
-    isyn_u_init_in = tf.constant(ipar['syn_u_init_input'])
     ibatch_size = ipar['batch_size']
 
     isavedir = os.path.dirname(os.path.realpath(__file__)) + \
-               '/savedir/OneHotTarget' + str(OneHotTarget) + 'CrossEntropy' + str(CrossEntropy) + 'BatchSize' + str(BatchSize) +\
+               '/savedir/BatchSize' + str(BatchSize) +\
                '/nIter' + str(iteration) + '/iModel' + str(iModel)
     if not os.path.isdir(isavedir):
         os.makedirs(isavedir)
 
-    return ipar, ivar_dict, ivar_list, isyn_x_init, isyn_u_init, ibatch_size, isavedir, isyn_x_init_in, isyn_u_init_in
-
-def rnn_cell_input(rnn_input, in_h):
-    # in_syn_x += (par['alpha_std_input'] * (1 - in_syn_x) - par['dt']/1000 * in_syn_u * in_syn_x * in_h)  # what is alpha_std???
-    # in_syn_u += (par['alpha_stf_input'] * (par['U_input'] - in_syn_u) + par['dt']/1000 * par['U_input'] * (1 - in_syn_u) * in_h)
-    #
-    # in_syn_x = tf.minimum(np.float32(1), tf.nn.relu(in_syn_x))
-    # in_syn_u = tf.minimum(np.float32(1), tf.nn.relu(in_syn_u))
-    # in_h_post = in_syn_u * in_syn_x * in_h
-    # h_post = h
-
-    noise_rnn = np.sqrt(2*par['alpha_input'])*par['noise_rnn_sd']
-    in_h = tf.nn.relu((1 - par['alpha_input']) * in_h
-         + par['alpha_input'] * (rnn_input
-                                  # + in_h_post @ w_in2in
-                                  # + h @ w_rnn2in
-                                  # + var_dict['b_in']
-                                  )
-         + tf.random.normal(in_h.shape, 0, noise_rnn, dtype=tf.float32)
-                      )
-    return in_h
+    return ipar, ivar_dict, ivar_list, isyn_x_init, isyn_u_init, ibatch_size, isavedir
 
 def rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn, w_in):
     syn_x += (par['alpha_std'] * (1 - syn_x) - par['dt']/1000 * syn_u * syn_x * h)  # what is alpha_std???
@@ -106,6 +82,7 @@ def rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn, w_in):
     syn_x = tf.minimum(np.float32(1), tf.nn.relu(syn_x))
     syn_u = tf.minimum(np.float32(1), tf.nn.relu(syn_u))
     h_post = syn_u * syn_x * h
+    h_post = h
 
     noise_rnn = np.sqrt(2*par['alpha_neuron'])*par['noise_rnn_sd']
     h = tf.nn.relu((1 - par['alpha_neuron']) * h
@@ -116,9 +93,6 @@ def rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn, w_in):
     return h, syn_x, syn_u
 
 def run_model(in_data, syn_x_init, syn_u_init):
-    self_in_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
-    # self_in_syn_x = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
-    # self_in_syn_u = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
     self_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
     self_syn_x = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
     self_syn_u = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
@@ -130,58 +104,36 @@ def run_model(in_data, syn_x_init, syn_u_init):
     w_rnn = par['EImodular_mask'] @ tf.nn.relu(var_dict['w_rnn'])
     w_in = par['EI_input_mask'] * tf.nn.relu(var_dict['w_in'])
 
-    in_h = np.ones((par['batch_size'], 1)) @ var_dict['in_h']
-    # in_syn_x = syn_x_init_in
-    # in_syn_u = syn_u_init_in
-    # w_in2in = par['EI_in2in_mask'] @ tf.nn.relu(var_dict['w_in2in'])
-    # w_rnn2in = par['EImodular_mask'] @ tf.nn.relu(var_dict['w_rnn2in'])
-
     c = 0
     for rnn_input in in_data:
 
-        in_h = rnn_cell_input(rnn_input, in_h)
+        h, syn_x, syn_u = rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn, w_in)
 
-        h, syn_x, syn_u = rnn_cell(in_h, h, syn_x, syn_u, w_rnn, w_in)
-
-        self_in_h = self_in_h.write(c, in_h)
-        # self_in_syn_x = self_in_syn_x.write(c, in_syn_x)
-        # self_in_syn_u = self_in_syn_u.write(c, in_syn_u)
         self_h = self_h.write(c, h)
         self_syn_x = self_syn_x.write(c, syn_x)
         self_syn_u = self_syn_u.write(c, syn_u)
         self_output = self_output.write(c, h @ tf.nn.relu(var_dict['w_out']) + tf.nn.relu(var_dict['b_out']))
         c += 1
     #
-    self_in_h = self_in_h.stack()
-    # self_in_syn_x = self_in_syn_x.stack()
-    # self_in_syn_u = self_in_syn_u.stack()
     self_h = self_h.stack()
     self_syn_x = self_syn_x.stack()
     self_syn_u = self_syn_u.stack()
     self_output = self_output.stack()
 
-    return self_h, self_output, self_syn_x, self_syn_u, w_rnn, self_in_h
+    return self_h, self_output, self_syn_x, self_syn_u, w_rnn
 
 def calc_loss(syn_x_init, syn_u_init, in_data, out_target, mask_train):
 
-    h, output, _, _, w_rnn, in_h = run_model(in_data, syn_x_init, syn_u_init)
+    h, output, _, _, w_rnn = run_model(in_data, syn_x_init, syn_u_init)
 
-    if OneHotTarget is 0:
-        starget = tf.reduce_sum(out_target, axis=2)
-        starget = tf.expand_dims(starget, axis=2)
-        ntarget = out_target / tf.repeat(starget, par['n_output'], axis=2)
-    else:
-        ntarget = tf.cast(out_target == tf.reduce_max(out_target, axis=2)[:, :, None], dtype=tf.float32)
+    starget = tf.reduce_sum(out_target, axis=2)
+    starget = tf.expand_dims(starget, axis=2)
+    ntarget = out_target / tf.repeat(starget, par['n_output'], axis=2)
 
-    if CrossEntropy is 0:
-        noutput = tf.nn.softmax(output, axis=2)
-        loss_orient = tf.reduce_sum(mask_train * (ntarget - noutput) ** 2)
-        loss_orient_print = tf.reduce_mean(mask_train * (ntarget - noutput) ** 2)
-    else:
-        noutput = tf.nn.log_softmax(output, axis=2)
-        CE = -ntarget*noutput
-        loss_orient = tf.reduce_sum(mask_train*CE)
-        loss_orient_print = tf.reduce_mean(mask_train*CE)
+    noutput = tf.nn.log_softmax(output, axis=2)
+    CE = -ntarget*noutput
+    loss_orient = tf.reduce_sum(mask_train*CE)
+    loss_orient_print = tf.reduce_mean(mask_train*CE)
 
     n = 2
     spike_loss = tf.reduce_sum(h**2) + tf.reduce_sum(in_h**2)
