@@ -39,7 +39,7 @@ par = {
 	'connect_prob'			: 0.1,    # modular connectivity
 
 	# Timings and rates
-	'dt'                    : 10,     # unit: ms
+	'dt'                    : 10.,     # unit: ms
 	'learning_rate'         : 2e-2,	  # adam optimizer learning rate
 	'membrane_time_constant': 100,    # tau
 
