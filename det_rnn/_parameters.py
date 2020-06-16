@@ -1,7 +1,7 @@
 import numpy as np
 from ._functions import *
 
-__all__ = ['par', 'update_parameters']
+__all__ = ['par', 'update_parameters', 'hp']
 
 # All the relevant parameters ========================================================================
 par = {
@@ -40,7 +40,6 @@ par = {
 
 	# Timings and rates
 	'dt'                    : 10.,     # unit: ms
-	'learning_rate'         : 2e-2,	  # adam optimizer learning rate
 	'membrane_time_constant': 100,    # tau
 
 	# Input and noise
@@ -180,5 +179,42 @@ def update_parameters(par):
 	return par
 
 par = update_parameters(par)
+
+hp  = {
+	'masse' : True,
+	'learning_rate' : 2e-2,	  # adam optimizer learning rate
+	'dt'            : 10.,
+	'clip_max_grad_val'  : 0.1,
+	'alpha_neuron'  : 0.1,
+
+	'syn_x_init': np.ones((par['batch_size'], par['n_hidden']), dtype=np.float32),
+	'syn_u_init': np.tile(_alternating((0.15, 0.45), par['n_hidden']), (par['batch_size'], 1)),
+
+	'h0': _random_normal_abs((1, par['n_hidden'])),
+	'w_in0': _random_normal_abs((par['n_input'], par['n_hidden'])),
+	'w_rnn0': _random_normal_abs((par['n_hidden'], par['n_hidden'])),
+	'b_rnn0': np.zeros(par['n_hidden'], dtype=np.float32),
+	'w_out0': _random_normal_abs((par['n_hidden'],par['n_output'])) * par['w_out_mask'],
+	'b_out0': np.zeros(par['n_output'], dtype=np.float32),
+
+	'syn_x_init': np.ones((par['batch_size'], par['n_hidden']), dtype=np.float32),
+	'syn_u_init': np.tile(_alternating((0.15, 0.45), par['n_hidden']), (par['batch_size'], 1)),
+	'alpha_std': _alternating((0.05, 0.00667), par['n_hidden']),
+	'alpha_stf': _alternating((0.00667, 0.05), par['n_hidden']),
+	'dynamic_synapse': np.ones(par['n_hidden'], dtype=np.float32),
+	'U': _alternating((0.15, 0.45), par['n_hidden']),
+
+	'spike_cost'            : 2e-5,
+	'weight_cost'           : 0.,
+	'noise_rnn_sd'          : 0.5,
+
+	'w_in_mask': np.ones((par['n_input'], par['n_hidden']), dtype=np.float32),
+	'w_rnn_mask': np.ones((par['n_hidden'], par['n_hidden']), dtype=np.float32) - np.eye(par['n_hidden'],dtype=np.float32),
+	'w_out_mask': np.concatenate((np.ones((par['n_exc'], par['n_output']),dtype=np.float32),
+									  np.zeros((par['n_hidden']-par['n_exc'], par['n_output']), dtype=np.float32)),
+									 axis=0), # Todo(HL): no input from inhibitory neurons
+
+	'EI_mask': par['EI_mask'],
+}
 
 
