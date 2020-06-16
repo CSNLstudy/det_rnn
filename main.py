@@ -1,24 +1,17 @@
 import pickle
 from det_rnn import *
 
-par['design'].update({'iti'     : (0, 5.5),
-                      'stim'    : (5.5,7.0),
-                      'delay'   : (7.0,23.5),
-                      'estim'   : (23.5,28.0)})
-
 par = update_parameters(par)
 stimulus = Stimulus()
 trial_info = stimulus.generate_trial()
 
 model = Model()
-for iter in range(1000):
+for iter in range(3000):
     trial_info = stimulus.generate_trial()
-    model(iter, trial_info['neural_input'], trial_info['desired_output'], trial_info['mask'])
+    model(trial_info)
     if iter % 10 == 0:
-        model.print_results(iter) 
+        model.print_results(iter)
 
-with open('mse_nomasse.pkl','wb') as f:
+with open('/Volumes/Data_CSNL/project/RNN_study/20-06-19/HG/boost_wm/HL_Masse_mask_moderate.pkl','wb') as f:
     pickle.dump(model,f)
-
-
 

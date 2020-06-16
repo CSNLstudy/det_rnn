@@ -5,24 +5,25 @@ from ._parameters import par
 
 __all__ = ['Model']
 
-# DM-only model
-class Model(object):
+class Model(tf.Module):
 	def __init__(self, par=par):
 		super(Model, self).__init__()
 		self.set_params(par)
 		self.initialize_variable(par)
 		self.optimizer = tf.optimizers.Adam(self.learning_rate) 
-		self.model_performance = {'iteration': [], 'eval': [], 'loss': [], 
+		self.model_performance = {'iteration': [], 'perf': [], 'loss': [],
 		'perf_loss': [], 'spike_loss': []}
 
-	def __call__(self, iteration, input_data, target_data, _pass):
-		Y, Loss = self._train_oneiter(input_data, target_data, _pass)
-		self._append_model_performance(iteration, target_data, Y, Loss)
+	def __call__(self, trial_info):
+		Y, Loss = self._train_oneiter(trial_info['neural_input'],
+									  trial_info['desired_output'],
+									  trial_info['mask'])
+		self._append_model_performance(trial_info, Y, Loss)
 
-	# TODO(HG): convert into @property?
 	def set_params(self, par):
 		for k, v in par.items():
 			setattr(self, k, v)
+		self.design_rg_estim = par['design_rg']['estim']
 
 	def initialize_variable(self,par):
 		_var_dict = {}
@@ -31,7 +32,6 @@ class Model(object):
 				name = k[:-1]
 				_var_dict[name] = tf.Variable(par[k], name=name, dtype='float32')
 		self.var_dict = _var_dict
-		# self.savedir = os.path.dirname('../'+os.path.realpath('__file__')) + '/savedir'
 
 	def _calc_loss(self, y, target, mask):
 		if self.loss_fun == 'cosine':
@@ -52,16 +52,29 @@ class Model(object):
 				logits=y, labels=target, axis=2))
 		return loss
 
-	def _get_eval(self, target, output):
-		# TODO(HG): implement circular correlation
+	def _get_eval(self, trial_info, output):
 		if self.resp_decoding == 'conti':
-			accuracy = np.mean(np.arccos(np.cos((target[self.design_rg['estim'], :, :] -
-												 output[self.design_rg['estim'], :, :]) * 2.)))
+			# TODO(HG): implement circular correlation
+			perf = np.mean(np.arccos(np.cos((trial_info['desired_output'][self.design_rg_estim, :, :] -
+												 output[self.design_rg_estim, :, :]) * 2.)))
 		elif self.resp_decoding == 'disc':
-			target_max = np.argmax(target[self.design_rg['estim'], :, :], axis=2)
-			output_max = np.argmax(output[self.design_rg['estim'], :, :], axis=2)
-			accuracy = np.mean(np.float32(target_max == output_max))
-		return accuracy
+			if self.loss_fun == 'mse_sigmoid':
+				cenoutput = tf.nn.softmax(output, axis=2).numpy()
+				post_prob = cenoutput[:, :, self.n_rule_output:]
+				post_prob = post_prob / (
+							np.sum(post_prob, axis=2, keepdims=True) + np.finfo(np.float32).eps)  # Dirichlet normaliation
+				post_support = np.linspace(0, np.pi, self.n_ori, endpoint=False) + np.pi / self.n_ori / 2
+				pseudo_mean = np.arctan2(post_prob @ np.sin(2 * post_support),
+										 post_prob @ np.cos(2 * post_support)) / 2
+				estim_sinr = (np.sin(2 * pseudo_mean[self.design_rg_estim, :])).mean(axis=0)
+				estim_cosr = (np.cos(2 * pseudo_mean[self.design_rg_estim, :])).mean(axis=0)
+				estim_mean = np.arctan2(estim_sinr, estim_cosr) / 2
+				perf = np.mean(np.cos(2.*(trial_info['stimulus_ori'] * np.pi/self.n_ori - estim_mean)))
+			else:
+				target_max = np.argmax(trial_info['desired_output'][self.design_rg_estim, :, :], axis=2)
+				output_max = np.argmax(output[self.design_rg_estim, :, :], axis=2)
+				perf = np.mean(np.float32(target_max == output_max))
+		return perf
 
 	def _rnn_cell(self, _h, rnn_input, _syn_x, _syn_u, _iter):
 		# w_rnn constrained by modular mask
@@ -91,6 +104,7 @@ class Model(object):
 		_input_data = tf.unstack(input_data)
 		h_stack = []
 		y_stack = []
+
 
 		for _iter, rnn_input in enumerate(_input_data):
 			_h, _syn_x, _syn_u = self._rnn_cell(_h, rnn_input, _syn_x, _syn_u, _iter)
@@ -124,19 +138,17 @@ class Model(object):
 		self.optimizer.apply_gradients(grads_and_vars=capped_gvs)
 		return _Y, {'loss':loss, 'perf_loss': perf_loss, 'spike_loss': spike_loss}
 
-	def _append_model_performance(self, iteration, target, Y, Loss):
-		# compute 
-		estim_eval = self._get_eval(target, Y.numpy())
-		self.model_performance['iteration'].append(iteration)
+	def _append_model_performance(self, trial_info, Y, Loss):
+		# compute
+		estim_perf = self._get_eval(trial_info, Y.numpy())
 		self.model_performance['loss'].append(Loss['loss'].numpy())
 		self.model_performance['perf_loss'].append(Loss['perf_loss'].numpy())
 		self.model_performance['spike_loss'].append(Loss['spike_loss'].numpy())        
-		self.model_performance['eval'].append(estim_eval)
+		self.model_performance['perf'].append(estim_perf)
 
-	# TODO(HG): evaluation name
 	def print_results(self, iteration):
 		print_res = 'Iter. {:4d}'.format(iteration)
-		print_res += ' | Evaluaiton {:0.4f}'.format(self.model_performance['eval'][iteration]) +\
+		print_res += ' | Performance {:0.4f}'.format(self.model_performance['perf'][iteration]) +\
 					 ' | Loss {:0.4f}'.format(self.model_performance['loss'][iteration])
 		print_res += ' | Spike loss {:0.4f}'.format(self.model_performance['spike_loss'][iteration])
 		print(print_res)

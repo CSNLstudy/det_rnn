@@ -40,17 +40,17 @@ for i,m in enumerate(HL):
         models[re.sub('.pkl', '', m)] = pickle.load(f)
 
 for m,v in models.items():
-    plt.plot(v.model_performance['iteration'], v.model_performance['loss'], label=m)
-plt.xlim((0,500))
+    plt.plot(v.model_performance['loss'], label=m)
+plt.xlim((0,500)); plt.xlabel('Iteration'); plt.ylabel('Loss')
 plt.legend(loc='upper right')
 plt.show()
 
 def behavior_summary(trial_info, pred_output, par=par):
     # softmax the pred_output
-    sout = np.sum(pred_output[0], axis=2)
+    sout = np.sum(pred_output, axis=2)
     sout = np.expand_dims(sout, axis=2)
-    noutput = pred_output[0] / np.repeat(sout,par['n_output'],axis=2)
-    cenoutput = tf.nn.softmax(pred_output[0], axis=2)
+    noutput = pred_output / np.repeat(sout,par['n_output'],axis=2)
+    cenoutput = tf.nn.softmax(pred_output, axis=2)
     cenoutput = cenoutput.numpy()
     
     # posterior mean as a function of time
@@ -103,7 +103,7 @@ def behavior_figure(ground_truth, estim_mean, raw_error, beh_perf):
     
     ax[2,1].set_title("Estimation Distribution")
     ax[2,1].hist(estim_mean%(np.pi), bins=30)
-    ax[2,1].set_xlabel(r"$\theta$(rad)"); ax[2,1].set_ylabel("Count"); ax[2,1].legend()
+    ax[2,1].set_xlabel(r"$\hat{\theta}$(rad)"); ax[2,1].set_ylabel("Count"); ax[2,1].legend()
     
     plt.show()
 
@@ -113,7 +113,7 @@ def behavior_figure(ground_truth, estim_mean, raw_error, beh_perf):
 par = update_parameters(par)
 stimulus    = Stimulus(par)
 trial_info  = stimulus.generate_trial()
-pred_output = models['HL_Masse_mask'].rnn_model(trial_info['neural_input'])
+pred_output, _ = models['HL_Masse_mask'].rnn_model(trial_info['neural_input'])
 
 ## Quantities for plotting
 ground_truth, estim_mean, raw_error, beh_perf = behavior_summary(trial_info, pred_output, par=par)
@@ -149,8 +149,7 @@ behavior_figure(ground_truth, estim_mean, raw_error, beh_perf)
 
 res_DF = pd.read_pickle("/Volumes/Data_CSNL/project/RNN_study/20-06-19/HG/analysis/extended_perf_HL_Masse_mask.pkl")
 sns.lineplot(x="ExtendedTime", y="Performance", data=res_DF)
-plt.show()
-
+plt.ylim([-0.1,1.0]); plt.show()
 
 
 
