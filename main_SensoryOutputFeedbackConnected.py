@@ -7,7 +7,6 @@ import tensorflow as tf
 import time
 from shutil import copyfile
 
-
 nModel = np.array([3, 4])
 iteration = 2000
 stimulus = Stimulus()
@@ -17,12 +16,18 @@ BatchSize = 50
 orientation_cost = 1
 noise_rnn_sd = 0
 noise_in_sd = 0
+connect_prob = 0.1
+scale_w_rnn2in = 0.07
+alpha_input = 0.2
 
 par['n_tuned_input'] = n_orituned_neurons
 par['n_tuned_output'] = n_orituned_neurons
 par['n_ori'] = n_orituned_neurons
 par['batch_size'] = BatchSize
 par['orientation_cost'] = orientation_cost
+par['connect_prob'] = connect_prob
+par['scale_w_rnn2in'] = scale_w_rnn2in
+par['alpha_input'] = alpha_input
 # par['noise_rnn_sd'] = noise_rnn_sd
 # par['noise_in_sd'] =noise_in_sd
 
@@ -73,8 +78,8 @@ def initialize_parameters(iModel, par):
     ibatch_size = ipar['batch_size']
 
     isavedir = os.path.dirname(os.path.realpath(__file__)) + \
-               '/savedir/BatchSize' + str(BatchSize) +\
-               '/nIter' + str(iteration) + '/iModel' + str(iModel)
+               '/savedir/connect_prob' + str(connect_prob) + 'scale_w_rnn2in' + str(scale_w_rnn2in) + \
+               '/nIter' + str(iteration) + 'BatchSize' + str(BatchSize) + '/iModel' + str(iModel)
     if not os.path.isdir(isavedir):
         os.makedirs(isavedir)
         os.makedirs(isavedir + '/code/')
@@ -98,12 +103,13 @@ def rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn, w_in):
     noise_rnn = np.sqrt(2*par['alpha_neuron'])*par['noise_rnn_sd']
     h = tf.nn.relu((1 - par['alpha_neuron']) * h
          + par['alpha_neuron'] * (h_post @ w_rnn
-                                  + rnn_input @ w_in
-                                  + var_dict['b_rnn'])
+                                    + rnn_input @ w_in
+                                    + var_dict['b_rnn'])
          + tf.random.normal(h.shape, 0, noise_rnn, dtype=tf.float32))
     return h, syn_x, syn_u
 
 def run_model(in_data, syn_x_init, syn_u_init):
+
     self_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
     self_syn_x = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
     self_syn_u = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
@@ -115,14 +121,14 @@ def run_model(in_data, syn_x_init, syn_u_init):
     w_rnn = par['EImodular_mask'] @ tf.nn.relu(var_dict['w_rnn'])
     w_in = tf.nn.relu(var_dict['w_in'])
 
-    # w_rnn2in = par['EImodular_mask'] @ tf.nn.relu(var_dict['w_rnn2in'])
-    h_pre = tf.ones_like(h)
+    w_rnn2in = par['EImodular_mask'] @ tf.nn.relu(var_dict['w_rnn2in'] * par['w_rnn2in_sparse_mask'])
+    h_pre = np.float32(np.random.gamma(0.1, 0.2, size=h.shape))
 
     c = 0
     for rnn_input in in_data:
-
-        # rnn_input = rnn_input + h_pre @ w_rnn2in
-        # h_pre = h
+        #
+        rnn_input = tf.nn.relu(rnn_input + h_pre @ w_rnn2in)
+        h_pre = h
 
         h, syn_x, syn_u = rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn, w_in)
 
@@ -137,11 +143,11 @@ def run_model(in_data, syn_x_init, syn_u_init):
     self_syn_u = self_syn_u.stack()
     self_output = self_output.stack()
 
-    return self_h, self_output, self_syn_x, self_syn_u, w_rnn
+    return self_h, self_output, self_syn_x, self_syn_u, w_rnn, w_rnn2in
 
 def calc_loss(syn_x_init, syn_u_init, in_data, out_target, mask_train):
 
-    h, output, _, _, w_rnn = run_model(in_data, syn_x_init, syn_u_init)
+    h, output, _, _, w_rnn, w_rnn2in = run_model(in_data, syn_x_init, syn_u_init)
 
     starget = tf.reduce_sum(out_target, axis=2)
     starget = tf.expand_dims(starget, axis=2)
@@ -154,7 +160,7 @@ def calc_loss(syn_x_init, syn_u_init, in_data, out_target, mask_train):
 
     n = 2
     spike_loss = tf.reduce_sum(h**2)
-    weight_loss = tf.reduce_sum(tf.nn.relu(w_rnn) ** n)
+    weight_loss = tf.reduce_sum(tf.nn.relu(w_rnn) ** n) + tf.reduce_sum(tf.nn.relu(w_rnn2in) ** n)
     loss = par['orientation_cost'] * loss_orient + par['spike_cost'] * spike_loss + par['weight_cost'] * weight_loss
     return loss, loss_orient, spike_loss, weight_loss, loss_orient_print
 
@@ -164,6 +170,7 @@ def append_model_performance(model_performance, loss, loss_orient, spike_loss, i
     model_performance['loss_orient'].append(loss_orient)
     model_performance['spike_loss'].append(spike_loss)
     model_performance['iteration'].append(iteration)
+    model_performance['w_rnn2in_sparse_mask'] = par['w_rnn2in_sparse_mask']
 
     model_performance['w_in'].append(var_dict['w_in'])
     model_performance['w_rnn'].append(var_dict['w_rnn'])
@@ -171,8 +178,7 @@ def append_model_performance(model_performance, loss, loss_orient, spike_loss, i
     model_performance['w_out'].append(var_dict['w_out'])
     model_performance['b_out'].append(var_dict['b_out'])
     model_performance['h'].append(var_dict['h'])
-    # model_performance['w_rnn2in'].append(var_dict['w_rnn2in'])
-
+    model_performance['w_rnn2in'].append(var_dict['w_rnn2in'])
 
     return model_performance
 
@@ -206,6 +212,8 @@ for iModel in range(nModel[0], nModel[1]):
                 grad *= par['w_out_mask']
             elif 'w_in' in var.name:
                 grad *= par['w_in_mask']
+            elif 'w_rnn2in' in var.name:
+                grad *= par['w_rnn2in_sparse_mask']
             capped_gvs.append((tf.clip_by_norm(grad, par['clip_max_grad_val']), var))
         opt.apply_gradients(grads_and_vars=capped_gvs)
         return loss, loss_orient, spike_loss, loss_orient_print

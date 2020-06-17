@@ -9,9 +9,9 @@ def _initialize(dims, shape=0.1, scale=1.0):
 	return w
 
 # Inherited from JsL
-def _random_normal_abs(dims, ): # Todo (HL): random.gamma
-    y = np.random.gamma(0.1, 1, size=dims)
-    # y = np.abs(np.random.normal(0, 0.01, size=dims)).astype(np.float32)
+def _random_normal_abs(dims, std):
+    # y = np.random.gamma(0.1, scale, size=dims)
+    y = np.abs(np.random.normal(0, std, size=dims)).astype(np.float32)
     return np.float32(y)
 
 def _alternating(x, size):
@@ -45,7 +45,6 @@ def _w_EI_input_mask(n_input, n_hidden, exc_inh_prop, n_tuned_input):
 	EI_in2in_matrix = np.diag(EI_matrix[:,0])
 
 	return np.float32(EI_matrix), np.float32(EI_in2in_matrix)
-
 
 # Modular w_RNN mask
 def _modular_mask(connect_prob, n_hidden, exc_inh_prop):

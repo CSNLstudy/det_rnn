@@ -7,14 +7,18 @@ import tensorflow as tf
 import time
 iModel = 3
 iteration_goal = 2000
-iteration_load = 500
+iteration_load = 2000
 n_orituned_neurons = 30
 BatchSize = 50
 dxtick = 1000 # in ms
+connect_prob = 0.1
+scale_w_rnn2in = 0.07
 
 par['n_tuned_input'] = n_orituned_neurons
 par['n_tuned_output'] = n_orituned_neurons
 par['n_ori'] = n_orituned_neurons
+par['connect_prob'] = connect_prob
+par['scale_w_rnn2in'] = scale_w_rnn2in
 
 # par['design'].update({'iti'     : (0, 0.5),
 #                       'stim'    : (0.5,2.0),
@@ -22,15 +26,17 @@ par['n_ori'] = n_orituned_neurons
 #                       'estim'   : (4.5,6.0)})
 
 savedir = os.path.dirname(os.path.realpath(__file__)) + \
-          '/savedir/BatchSize' + str(BatchSize) +\
-          '/nIter' + str(iteration_goal) + '/iModel' + str(
-    iModel)
+           '/savedir/connect_prob' + str(connect_prob) + 'scale_w_rnn2in' + str(scale_w_rnn2in) + \
+           '/nIter' + str(iteration_goal) + 'BatchSize' + str(BatchSize) + '/iModel' + str(iModel)
+
 if not os.path.isdir(savedir + '/estimation/Iter' + str(iteration_load)):
     os.makedirs(savedir + '/estimation/Iter' + str(iteration_load))
 
 modelname = '/Iter' + str(iteration_load) + '.pkl'
 fn = savedir + modelname
 model = pickle.load(open(fn, 'rb'))
+
+w_rnn2in_sparse_mask = model['parameters']['w_rnn2in_sparse_mask']
 
 par['batch_size'] = BatchSize
 par = update_parameters(par)
@@ -41,12 +47,12 @@ w_in = model['w_in'][-1].numpy().astype('float32')
 w_rnn = model['w_rnn'][-1].numpy().astype('float32')
 b_rnn = model['b_rnn'][-1].numpy().astype('float32')
 w_out = model['w_out'][-1].numpy().astype('float32')
-# w_rnn2in = model['w_rnn2in'][-1].numpy().astype('float32')
+w_rnn2in = model['w_rnn2in'][-1].numpy().astype('float32')
 
 b_out = model['b_out'][-1].numpy().astype('float32')
 
 iw_rnn = par['EImodular_mask'] @ np.maximum(w_rnn, 0)
-# iw_rnn2in = par['EImodular_mask'] @ tf.nn.relu(w_rnn2in)
+iw_rnn2in = par['EImodular_mask'] @ tf.nn.relu(w_rnn2in)
 
 var_dict = {}
 var_dict['h'] = h
@@ -55,7 +61,7 @@ var_dict['w_rnn'] = w_rnn
 var_dict['b_rnn'] = b_rnn
 var_dict['w_out'] = w_out
 var_dict['b_out'] = b_out
-# var_dict['w_rnn2in'] = w_rnn2in
+var_dict['w_rnn2in'] = w_rnn2in
 
 dxtick = dxtick/10
 
@@ -88,11 +94,11 @@ plt.title('w_rnn')
 plt.ylabel('from RNN')
 plt.xlabel('to RNN')
 #
-# iax = plt.subplot(2, 3, 5)
-# plt.imshow(w_rnn2in, vmin=-MaxVal1, vmax=MaxVal1)
-# plt.title('w_rnn')
-# plt.ylabel('from RNN')
-# plt.xlabel('to RNN')
+iax = plt.subplot(2, 3, 5)
+plt.imshow(iw_rnn2in, vmin=-MaxVal1, vmax=MaxVal1)
+plt.title('w_rnn')
+plt.ylabel('from RNN')
+plt.xlabel('to inputs')
 
 iax = plt.subplot(1, 9, 7)
 plt.imshow((np.ones((5,1))@b_rnn[:, np.newaxis].T).T, vmin=0, vmax=MaxVal1)
@@ -122,7 +128,7 @@ plt.plot(np.asarray(model['spike_loss'])*par_model['spike_cost'], color='b', lab
 plt.legend()
 plt.xlabel('iteration')
 plt.ylabel('loss')
-plt.ylim(0, min(model['loss']).numpy()*2)
+plt.ylim(0, min(model['loss']).numpy()*5)
 plt.grid()
 plt.savefig(savedir + '/TrainingSummary_loss_Iter' + str(iteration_load) + '.png', bbox_inches='tight')
 
@@ -180,11 +186,14 @@ def run_model(in_data, var_dict, syn_x_init, syn_u_init):
     w_rnn = par['EImodular_mask'] @ np.maximum(var_dict['w_rnn'], 0)
     w_in = np.maximum(var_dict['w_in'], 0)
 
-    h_pre = h
+    w_rnn2in = par['EImodular_mask'] @ tf.nn.relu(var_dict['w_rnn2in'] * w_rnn2in_sparse_mask)
+    h_pre = np.float32(np.random.gamma(0.1, 0.2, size=h.shape))
+
     c = 0
     for rnn_input in in_data:
 
-        # rnn_input = rnn_input + h_pre @ w_rnn2in
+        rnn_input = tf.nn.relu(rnn_input + h_pre @ w_rnn2in)
+
         h_pre = h
 
         h, syn_x, syn_u = rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn, w_in)

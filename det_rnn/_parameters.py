@@ -34,10 +34,11 @@ par = {
 	'resp_decoding'			: 'disc', 	# 'conti', 'disc'
 
 	# Network configuration
-	'exc_inh_prop'          : 0.8,    # excitatory/inhibitory ratio
+	'exc_inh_prop'          : 0.8,    	# excitatory/inhibitory ratio
 	'modular'				: False,
-	'connect_prob'			: 0.1,    # modular connectivity
-	'recurrent_inhiddenout' : True,   # in-hidden-out neurons are recurrently connected
+	'connect_prob'			: 0.2,    	# modular connectivity
+	'scale_w_rnn2in' 			: 0.1, 		# w_rnn2in should have smaller scale than the other weights (=1)
+	'recurrent_inhiddenout' : True,   	# in-hidden-out neurons are recurrently connected
 
 	# Timings and rates
 	'dt'                    : 10,     # unit: ms
@@ -83,9 +84,9 @@ par = {
 	'n_hidden' 	 : 100,		 # number of rnn units TODO(HL): h_hidden to 100
 
 	# Experimental settings
-	'batch_size' 	: 1024,      # if image, 128 recommended
-	'alpha_neuron'  : 0.2,    # changed from tf.constant TODO(HL): alpha changed from 0.2 to 0.1 (Masse)
-	'alpha_input' 	: 0.7, # Chaudhuri et al., Neuron, 2015
+	'batch_size' 	: 1024, # if image, 128 recommended
+	'alpha_neuron'  : 0.2, 	# changed from tf.constant TODO(HL): alpha changed from 0.2 to 0.1 (Masse)
+	'alpha_input' 	: 0.7, 	# Chaudhuri et al., Neuron, 2015
 
 	# Optimizer
 	'optimizer' : 'Adam', # TODO(HG):  other optim. options?
@@ -150,7 +151,9 @@ def update_parameters(par):
 	else:
 		par['EImodular_mask'] = _w_rnn_mask(par['n_hidden'], par['exc_inh_prop'])
 
-	par['EI_input_mask'], par['EI_in2in_mask'] = _w_EI_input_mask(par['n_input'], par['n_hidden'], par['exc_inh_prop'], par['n_tuned_input'])
+	# par['EI_input_mask'], par['EI_in2in_mask'] = _w_EI_input_mask(par['n_input'], par['n_hidden'], par['exc_inh_prop'], par['n_tuned_input'])
+
+	par['w_rnn2in_sparse_mask'] = np.float32(1 * (np.random.uniform(size=(par['n_hidden'], par['n_input'])) < par['connect_prob']))
 
 	par.update({
 		'rg_exc': range(par['n_exc']),
@@ -167,14 +170,15 @@ def update_parameters(par):
 	# parameters
 	par.update({
 
-		'h0': _random_normal_abs((1, par['n_hidden'])),
-		'w_in0': _random_normal_abs((par['n_input'], par['n_hidden'])),
-		'w_rnn0': _random_normal_abs((par['n_hidden'], par['n_hidden'])),
+		'h0': _initialize((1, par['n_hidden'])),
+		'w_in0': _initialize((par['n_input'], par['n_hidden'])),
+		'w_rnn0': _initialize((par['n_hidden'], par['n_hidden'])),
 		'b_rnn0': np.zeros(par['n_hidden'], dtype=np.float32),
-		'w_out0': _random_normal_abs((par['n_hidden'],par['n_output'])) * par['w_out_mask'],
+		'w_out0': _initialize((par['n_hidden'],par['n_output'])) * par['w_out_mask'],
 		'b_out0': np.zeros(par['n_output'], dtype=np.float32),
 
-		# 'w_rnn2in0': _random_normal_abs((par['n_hidden'], par['n_input'])),
+		'w_rnn2in0': _initialize((par['n_hidden'], par['n_input']), par['scale_w_rnn2in']),
+		# 'h_in0': _initialize((1, par['n_input'])),
 
 		'syn_x_init': np.ones((par['batch_size'], par['n_hidden']), dtype=np.float32),
 		'syn_u_init': np.tile(_alternating((0.15, 0.45), par['n_hidden']), (par['batch_size'], 1)),
