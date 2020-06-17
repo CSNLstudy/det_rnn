@@ -182,13 +182,14 @@ par = update_parameters(par)
 
 hp  = {
 	'masse' : True,
+	'n_timesteps': 600, # TODO(HG): should be changed
 	'learning_rate' : 2e-2,	  # adam optimizer learning rate
 	'dt'            : 10.,
 	'clip_max_grad_val'  : 0.1,
 	'alpha_neuron'  : 0.1,
-
-	'syn_x_init': np.ones((par['batch_size'], par['n_hidden']), dtype=np.float32),
-	'syn_u_init': np.tile(_alternating((0.15, 0.45), par['n_hidden']), (par['batch_size'], 1)),
+	'spike_cost': 2e-5,
+	'weight_cost': 0.,
+	'noise_rnn_sd': 0.5,
 
 	'h0': _random_normal_abs((1, par['n_hidden'])),
 	'w_in0': _random_normal_abs((par['n_input'], par['n_hidden'])),
@@ -203,10 +204,6 @@ hp  = {
 	'alpha_stf': _alternating((0.00667, 0.05), par['n_hidden']),
 	'dynamic_synapse': np.ones(par['n_hidden'], dtype=np.float32),
 	'U': _alternating((0.15, 0.45), par['n_hidden']),
-
-	'spike_cost'            : 2e-5,
-	'weight_cost'           : 0.,
-	'noise_rnn_sd'          : 0.5,
 
 	'w_in_mask': np.ones((par['n_input'], par['n_hidden']), dtype=np.float32),
 	'w_rnn_mask': np.ones((par['n_hidden'], par['n_hidden']), dtype=np.float32) - np.eye(par['n_hidden'],dtype=np.float32),

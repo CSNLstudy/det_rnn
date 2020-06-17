@@ -6,52 +6,47 @@ __all__ = ['Model']
 class Model(tf.Module):
 	def __init__(self, hp=hp):
 		super(Model, self).__init__()
-		# self._set_params(par)
 		self._initialize_variable(hp)
 		self.optimizer = tf.optimizers.Adam(hp['learning_rate'])
 
 	@tf.function
 	def __call__(self, trial_info, hp):
-		y, loss = self.train_oneiter(trial_info['neural_input'],
-									 trial_info['desired_output'],
-									 trial_info['mask'], hp)
+		y, loss = self._train_oneiter(trial_info['neural_input'],
+									  trial_info['desired_output'],
+									  trial_info['mask'], hp)
 		return y, loss
 
-	@tf.function
+	@tf.function()
 	def rnn_model(self, input_data, hp):
-		# h : internal activity at current time, (batch_size, n_hidden)
-		# syn_x_stack, syn_u_stack, h_stack : (n_timesteps, batch_size, n_units)
-		# y_stack : (n_timesteps, batch_size, n_output)
-		# rnn_input: (batch_size, n_input), _h: (batch_size, n_hidden)
 		_syn_x = hp['syn_x_init']
 		_syn_u = hp['syn_u_init']
-		_h = tf.tile(self.var_dict['h'], (_syn_x.shape[0], 1))
-		_input_data = tf.unstack(input_data)
-		h_stack = []
-		y_stack = []
-		syn_x_stack = [] #TODO(HG): fix ad-hoc codes
-		syn_u_stack = []
-		for _iter, rnn_input in enumerate(_input_data):
-			_h, _syn_x, _syn_u = self._rnn_cell(_h, rnn_input, _syn_x, _syn_u, _iter, hp)
-			h_stack.append(_h)
-			y_stack.append(_h @ self.var_dict['w_out'] + self.var_dict['b_out'])
+		_h = tf.cast(tf.tile(self.var_dict['h'], (_syn_x.shape[0], 1)), tf.float32)
+		h_stack = tf.TensorArray(tf.float32, size=0, dynamic_size=True, infer_shape=False)
+		y_stack = tf.TensorArray(tf.float32, size=0, dynamic_size=True, infer_shape=False)
+		syn_x_stack = tf.TensorArray(tf.float32, size=0, dynamic_size=True, infer_shape=False)
+		syn_u_stack = tf.TensorArray(tf.float32, size=0, dynamic_size=True, infer_shape=False)
+		i = 0
+		for rnn_input in input_data:
+			_h, _syn_x, _syn_u = self._rnn_cell(_h, rnn_input, _syn_x, _syn_u, hp)
+			h_stack = h_stack.write(i, tf.cast(_h, tf.float32))
+			y_stack = y_stack.write(i, tf.cast(_h, tf.float32) @ self.var_dict['w_out'] + self.var_dict['b_out'])
 			if hp['masse']:
-				syn_x_stack.append(_syn_x)
-				syn_u_stack.append(_syn_u)
-		h_stack = tf.stack(h_stack)
-		y_stack = tf.stack(y_stack)
-		syn_x_stack = tf.stack(syn_x_stack)
-		syn_u_stack = tf.stack(syn_u_stack)
+				syn_x_stack = syn_x_stack.write(i, tf.cast(_syn_x, tf.float32))
+				syn_u_stack = syn_u_stack.write(i, tf.cast(_syn_u, tf.float32))
+			i += 1
+		h_stack = h_stack.stack()
+		y_stack = y_stack.stack()
+		syn_x_stack = syn_x_stack.stack()
+		syn_u_stack = syn_u_stack.stack()
 		return y_stack, h_stack, syn_x_stack, syn_u_stack
 
-	@tf.function
-	def train_oneiter(self, input_data, target_data, mask, hp):
+	def _train_oneiter(self, input_data, target_data, mask, hp):
 		with tf.GradientTape() as t:
 			_Y, _H, _, _ = self.rnn_model(input_data, hp)  # capitalized since they are stacked
-			perf_loss   = self._calc_loss(_Y, target_data, mask)
-			spike_loss  = tf.reduce_mean(tf.nn.relu(_H)**2)
+			perf_loss   = self._calc_loss(tf.cast(_Y,tf.float32), tf.cast(target_data,tf.float32), tf.cast(mask,tf.float32))
+			spike_loss  = tf.reduce_mean(tf.nn.relu(tf.cast(_H,tf.float32))**2)
 			weight_loss = tf.reduce_mean(tf.nn.relu(self.var_dict['w_rnn'])**2)
-			loss = perf_loss + hp['spike_cost']*spike_loss + hp['weight_cost']*weight_loss
+			loss = perf_loss + tf.cast(hp['spike_cost'],tf.float32)*spike_loss + tf.cast(hp['weight_cost'],tf.float32)*weight_loss
 
 		vars_and_grads = t.gradient(loss, self.var_dict)
 		capped_gvs = [] # gradient capping and clipping
@@ -66,15 +61,6 @@ class Model(tf.Module):
 		self.optimizer.apply_gradients(grads_and_vars=capped_gvs)
 		return _Y, {'loss':loss, 'perf_loss': perf_loss, 'spike_loss': spike_loss}
 
-	# def _set_params(self, par):
-	# 	for k, v in par.items():
-	# 		if type(v) is dict:
-	# 			for v_k, v_v in v.items():     # TODO(HG): should I remove nested dicts?
-	# 				v[v_k] = tf.constant(v_v)
-	# 			setattr(self, k, v)
-	# 		else:
-	# 			setattr(self, k, tf.constant(v))
-
 	def _initialize_variable(self,hp):
 		_var_dict = {}
 		for k, v in hp.items():
@@ -84,39 +70,25 @@ class Model(tf.Module):
 		self.var_dict = _var_dict
 
 	def _calc_loss(self, y, target, mask):
-		_target_sum = tf.reduce_sum(target, axis=2)
-		_target_sum = tf.expand_dims(_target_sum, axis=2)
-		_target_normalized = target / _target_sum
-		_y_normalized = tf.nn.softmax(y, axis=2)
+		# _target_sum = tf.reduce_sum(target, axis=2, keepdims=True)
+		# _target_sum = tf.expand_dims(_target_sum, axis=2)
+		_target_normalized = target / tf.reduce_sum(target, axis=2, keepdims=True)
+		_y_normalized = tf.nn.softmax(y) # , axis=2
 		loss = tf.reduce_mean(mask * (_target_normalized - _y_normalized) ** 2)
-		# loss = tf.reduce_mean(mask * (_target_normalized - _y_normalized) ** 2)
-		# if self.loss_fun == 'cosine':
-		# 	loss = tf.reduce_mean(-mask*tf.cos(2.*(y-target)))
-		# elif self.loss_fun == 'mse':
-		# 	loss = tf.reduce_mean(mask*(y-target)**2)
-		# elif self.loss_fun == 'mse_sigmoid':
-		# 	_target_sum = tf.reduce_sum(target, axis=2)
-		# 	_target_sum = tf.expand_dims(_target_sum, axis=2)
-		# 	_target_normalized = target/_target_sum
-		# 	_y_normalized = tf.nn.softmax(y, axis=2)
-		# 	loss = tf.reduce_mean(mask * (_target_normalized-_y_normalized)**2)
-		# else: loss = tf.constant(0.) #TODO(HG) what is it?
 		return loss
 
-	def _rnn_cell(self, _h, rnn_input, _syn_x, _syn_u, _iter, hp):
-		# w_rnn constrained by modular mask
-		_w_rnn = tf.nn.relu(self.var_dict['w_rnn']) * hp['EI_mask']
+	def _rnn_cell(self, _h, rnn_input, _syn_x, _syn_u, hp):
+		_w_rnn = tf.nn.relu(self.var_dict['w_rnn']) * tf.cast(hp['EI_mask'], tf.float32)
 		if hp['masse']:
-			_syn_x += hp['alpha_std'] * (1 - _syn_x) - hp['dt']/1000 * _syn_u * _syn_x * _h
-			_syn_u += hp['alpha_stf'] * (hp['U'] - _syn_u) + hp['dt']/1000 * hp['U'] * (1 - _syn_u) * _h
-			_syn_x = tf.minimum(tf.constant(1.), tf.nn.relu(_syn_x))
-			_syn_u = tf.minimum(tf.constant(1.), tf.nn.relu(_syn_u))
+			_syn_x += tf.cast(hp['alpha_std'] * (1. - _syn_x) - hp['dt']/1000 * _syn_u * _syn_x * _h, tf.float32)
+			_syn_u += tf.cast(hp['alpha_stf'] * (hp['U'] - _syn_u) + hp['dt']/1000 * hp['U'] * (1. - _syn_u) * _h, tf.float32)
+			_syn_x = tf.cast(tf.minimum(tf.constant(1.), tf.nn.relu(_syn_x)), tf.float32)
+			_syn_u = tf.cast(tf.minimum(tf.constant(1.), tf.nn.relu(_syn_u)), tf.float32)
 			_h_post = _syn_u * _syn_x * _h
 		else:
 			_h_post = _h
-		_h = tf.nn.relu(_h * (1 - hp['alpha_neuron'])
-						+ hp['alpha_neuron'] * (rnn_input @ tf.nn.relu(self.var_dict['w_in'])
-											 + _h_post @ _w_rnn + self.var_dict['b_rnn'])
+		_h = tf.nn.relu(tf.cast(_h, tf.float32) * (1. - hp['alpha_neuron'])
+						+ hp['alpha_neuron'] * (tf.cast(rnn_input, tf.float32) @ tf.nn.relu(self.var_dict['w_in'])
+											 + tf.cast(_h_post, tf.float32) @ _w_rnn + self.var_dict['b_rnn'])
 						+ tf.random.normal(_h.shape, 0, tf.sqrt(2*hp['alpha_neuron'])*hp['noise_rnn_sd'], dtype=tf.float32))
 		return _h, _syn_x, _syn_u
-
