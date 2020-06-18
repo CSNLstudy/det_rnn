@@ -56,7 +56,6 @@ par = {
 	'spike_regularization'  : 'L2',      # 'L1' or 'L2'
 	'spike_cost'            : 2e-5,
 	'weight_cost'           : 0.,
-	'clip_max_grad_val'     : 0.1,
 	'orientation_cost' 		: 1, # TODO(HL): cost for target-output
 
 	# Synaptic plasticity specs
@@ -182,7 +181,6 @@ par = update_parameters(par)
 
 hp  = {
 	'masse' : True,
-	'n_timesteps': 600, # TODO(HG): should be changed
 	'learning_rate' : 2e-2,	  # adam optimizer learning rate
 	'dt'            : 10.,
 	'clip_max_grad_val'  : 0.1,
@@ -208,9 +206,7 @@ hp  = {
 	'w_in_mask': np.ones((par['n_input'], par['n_hidden']), dtype=np.float32),
 	'w_rnn_mask': np.ones((par['n_hidden'], par['n_hidden']), dtype=np.float32) - np.eye(par['n_hidden'],dtype=np.float32),
 	'w_out_mask': np.concatenate((np.ones((par['n_exc'], par['n_output']),dtype=np.float32),
-									  np.zeros((par['n_hidden']-par['n_exc'], par['n_output']), dtype=np.float32)),
-									 axis=0), # Todo(HL): no input from inhibitory neurons
-
+									  np.zeros((par['n_hidden']-par['n_exc'], par['n_output']), dtype=np.float32)),axis=0), # Todo(HL): no input from inhibitory neurons
 	'EI_mask': par['EI_mask'],
 }
 

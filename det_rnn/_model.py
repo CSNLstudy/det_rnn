@@ -16,7 +16,7 @@ class Model(tf.Module):
 									  trial_info['mask'], hp)
 		return y, loss
 
-	@tf.function()
+	@tf.function
 	def rnn_model(self, input_data, hp):
 		_syn_x = hp['syn_x_init']
 		_syn_u = hp['syn_u_init']

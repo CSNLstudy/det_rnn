@@ -2,6 +2,11 @@ import tensorflow as tf
 import numpy as np
 from det_rnn import *
 
+par['design'].update({'iti'     : (0, 5.5),
+                      'stim'    : (5.5,7.0),
+                      'delay'   : (7.0,23.5),
+                      'estim'   : (23.5,28.0)})
+
 par = update_parameters(par)
 stimulus = Stimulus()
 trial_info = stimulus.generate_trial()
@@ -61,8 +66,7 @@ model.rnn_model.get_concrete_function(
     hp=hp_spec
 )
 
-
-for iter in range(200):
+for iter in range(4000):
     trial_info = stimulus.generate_trial()
     for k, v in trial_info.items():
         trial_info[k] = tf.constant(v, name=k)
@@ -76,8 +80,40 @@ model.model_performance = {'perf': tf.Variable(model_performance['perf'], traina
                            'perf_loss': tf.Variable(model_performance['perf_loss'], trainable=False),
                            'spike_loss': tf.Variable(model_performance['spike_loss'], trainable=False)}
 
-tf.saved_model.save(model, "/Volumes/Data_CSNL/project/RNN_study/20-06-19/HG/boost_wm/HL_booster6/")
-load_model = tf.saved_model.load("/Volumes/Data_CSNL/project/RNN_study/20-06-19/HG/boost_wm/HL_booster6/")
+tf.saved_model.save(model, "/Volumes/Data_CSNL/project/RNN_study/20-06-19/HG/boost_wm/HL_booster9/")
+
+
+load_model = tf.saved_model.load("/Volumes/Data_CSNL/project/RNN_study/20-06-19/HG/boost_wm/HL_booster9/")
+
+for k,v in load_model.model_performance.items():
+    model_performance[k] = v.numpy()
+
+
+for iter in range(4000,4200):
+    trial_info = stimulus.generate_trial()
+    for k, v in trial_info.items():
+        trial_info[k] = tf.constant(v, name=k)
+    Y, Loss = load_model(trial_info, hp)
+    model_performance = append_model_performance(model_performance, trial_info, Y, Loss, par)
+    if iter % 30 == 0:
+        print_results(model_performance, iter)
+
+
+
+
+
+
+for iter in range(2000,5000):
+    trial_info = stimulus.generate_trial()
+    for k, v in trial_info.items():
+        trial_info[k] = tf.constant(v, name=k)
+    Y, Loss = load_model(trial_info, hp)
+    model_performance = append_model_performance(model_performance, trial_info, Y, Loss, par)
+    if iter % 30 == 0:
+        print_results(model_performance, iter)
+
+
+
 
 
 Y, H, Sx, _ = load_model.rnn_model(trial_info['neural_input'], hp)
