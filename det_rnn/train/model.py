@@ -74,6 +74,14 @@ class Model(tf.Module):
 		_y_normalized = tf.nn.softmax(y)
 		loss = tf.reduce_mean(mask * (_target_normalized - _y_normalized) ** 2)
 		return loss
+    
+    
+    def _calc_loss2(self, y, target, mask):
+        _target_normalized = target / tf.reduce_sum(target, axis=2, keepdims=True)
+            
+        return loss
+    
+    
 
 	def _rnn_cell(self, _h, rnn_input, _syn_x, _syn_u, hp):
 		_w_rnn = tf.nn.relu(self.var_dict['w_rnn']) * tf.cast(hp['EI_mask'], tf.float32)
