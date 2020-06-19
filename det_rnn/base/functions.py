@@ -1,25 +1,25 @@
 import numpy as np
 
-__all__ = ['_initialize', '_random_normal_abs', '_alternating',
-		   '_w_rnn_mask', '_modular_mask', '_convert_to_rg']
+__all__ = ['initialize', 'random_normal_abs', 'alternating',
+		   'w_rnn_mask', 'modular_mask', 'convert_to_rg']
 
 # Inherited from Masse
-def _initialize(dims, shape=0.1, scale=1.0):
+def initialize(dims, shape=0.1, scale=1.0):
 	w = np.random.gamma(shape, scale, size=dims).astype(np.float32)
 	return w
 
 # Inherited from JsL
-def _random_normal_abs(dims): # Todo (HL): random.gamma
+def random_normal_abs(dims): # Todo (HL): random.gamma
     y = np.random.gamma(0.1, 1.0, size=dims)
     return np.float32(y)
 
-def _alternating(x, size):
+def alternating(x, size):
 	tmp = np.tile(np.array(x), np.int(np.ceil(size / 2)))
 	tmp2 = tmp[0:size]
 	return tmp2.astype(np.float32)
 
 # Nonmodular w_RNN mask
-def _w_rnn_mask(n_hidden, exc_inh_prop):
+def w_rnn_mask(n_hidden, exc_inh_prop):
 	n_exc = int(n_hidden * exc_inh_prop)
 	rg_inh = range(n_exc, n_hidden)
 	Crec = np.ones((n_hidden, n_hidden))
@@ -27,7 +27,7 @@ def _w_rnn_mask(n_hidden, exc_inh_prop):
 	return np.float32(Crec)
 
 # Modular w_RNN mask
-def _modular_mask(connect_prob, n_hidden, exc_inh_prop):
+def modular_mask(connect_prob, n_hidden, exc_inh_prop):
 	n_exc = int(n_hidden * exc_inh_prop)
 	rg_exc = range(n_exc)
 	rg_inh = range(n_exc, n_hidden)
@@ -62,7 +62,7 @@ def _modular_mask(connect_prob, n_hidden, exc_inh_prop):
 	return np.float32(Crec)
 
 # Convert range specs(dictionary) into time-step domain
-def _convert_to_rg(design, dt):
+def convert_to_rg(design, dt):
 	if type(design) == dict:
 		rg_dict = {}
 		for k,v in design.items():

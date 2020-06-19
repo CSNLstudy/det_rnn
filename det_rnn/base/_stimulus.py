@@ -1,5 +1,6 @@
 import numpy as np
 from ._parameters import par
+import randomgen.generator as random
 
 __all__ = ['Stimulus']
 
@@ -60,8 +61,7 @@ class Stimulus(object):
 
     def _gen_stim(self, stimulus_ori):
         # TODO(HG): need to be changed if n_ori =/= n_tuned
-        neural_input = np.random.normal(self.noise_mean, self.noise_sd,
-                                        size=(self.n_timesteps, self.batch_size, self.n_input))
+        neural_input = random.standard_normal(size=(self.n_timesteps, self.batch_size, self.n_input))*self.noise_sd + self.noise_mean
         neural_input[:,:,:self.n_rule_input] += self._gen_input_rule()
         for t in range(self.batch_size):
             neural_input[self.design_rg['stim'],t,self.n_rule_input:] += self.tuning_input[:,0,stimulus_ori[t]].reshape((1,-1))

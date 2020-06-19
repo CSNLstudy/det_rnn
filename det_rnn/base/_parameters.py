@@ -1,7 +1,7 @@
 import numpy as np
-from ._functions import *
+from .functions import convert_to_rg
 
-__all__ = ['par', 'update_parameters', 'hp']
+__all__ = ['par', 'update_parameters']
 
 # All the relevant parameters ========================================================================
 par = {
@@ -56,17 +56,7 @@ par = {
 	'kappa'                 : 2,        # concentration scaling factor for von Mises
 
 	# Loss parameters
-	'spike_regularization'  : 'L2',      # 'L1' or 'L2'
-	'spike_cost'            : 2e-5,
-	'weight_cost'           : 0.,
 	'orientation_cost' 		: 1, # TODO(HL): cost for target-output
-
-	# Synaptic plasticity specs
-	'masse'					: True,
-	'tau_fast'              : 200,
-	'tau_slow'              : 1500,
-	'U_stf'                 : 0.15,
-	'U_std'                 : 0.45,
 
 	# Training specs
 	'n_iterations'        : 300,
@@ -94,7 +84,7 @@ par = {
 
 def update_parameters(par):
 	# ranges and masks
-	par.update({'design_rg': _convert_to_rg(par['design'], par['dt'])})
+	par.update({'design_rg': convert_to_rg(par['design'], par['dt'])})
 
 	#
 	par.update({
@@ -110,30 +100,30 @@ def update_parameters(par):
 
 	# default settings
 	if par['output_range'] is 'design':
-		par['output_rg'] = _convert_to_rg(par['design']['estim'], par['dt'])
+		par['output_rg'] = convert_to_rg(par['design']['estim'], par['dt'])
 	else:
-		par['output_rg'] = _convert_to_rg(par['output_range'], par['dt'])
+		par['output_rg'] = convert_to_rg(par['output_range'], par['dt'])
 
 	# TODO(HG): this may not work if design['estim'] is 2-dimensional
 	if par['dead'] is 'design':
-		par['dead_rg'] = _convert_to_rg(((0,0.1),
+		par['dead_rg'] = convert_to_rg(((0,0.1),
 										 (par['design']['estim'][0],par['design']['estim'][0]+0.1)),par['dt'])
 	else:
-		par['dead_rg'] = _convert_to_rg(par['dead'], par['dt'])
+		par['dead_rg'] = convert_to_rg(par['dead'], par['dt'])
 
 	if par['input_rule'] is 'design':
-		par['input_rule_rg'] = _convert_to_rg({'fixation': (0,par['design']['estim'][1]),
+		par['input_rule_rg'] = convert_to_rg({'fixation': (0,par['design']['estim'][1]),
 											   'response': par['design']['estim']},par['dt'])
 		par['n_rule_input']  = 2
 	else:
-		par['input_rule_rg'] = _convert_to_rg(par['input_rule'], par['dt'])
+		par['input_rule_rg'] = convert_to_rg(par['input_rule'], par['dt'])
 		par['n_rule_input']  = len(par['input_rule'])
 
 	if par['output_rule'] is 'design':
-		par['output_rule_rg'] = _convert_to_rg({'fixation':(0,par['design']['delay'][1])}, par['dt'])
+		par['output_rule_rg'] = convert_to_rg({'fixation':(0,par['design']['delay'][1])}, par['dt'])
 		par['n_rule_output'] = 1
 	else:
-		par['output_rule_rg'] = _convert_to_rg(par['output_rule'], par['dt'])
+		par['output_rule_rg'] = convert_to_rg(par['output_rule'], par['dt'])
 		par['n_rule_output']  = len(par['output_rule'])
 
 	## set n_input
@@ -159,12 +149,6 @@ def update_parameters(par):
 	## stimulus normalization
 	par['stim_p'] = par['stim_p']/np.sum(par['stim_p'])
 
-	# EI maskk
-	if par['modular']:
-		par['EI_mask'] = _modular_mask(par['connect_prob'], par['n_hidden'], par['exc_inh_prop'])
-	else:
-		par['EI_mask'] = _w_rnn_mask(par['n_hidden'], par['exc_inh_prop'])
-
 	par.update({
 		'rg_exc': range(par['n_exc']),
 		'rg_inh': range(par['n_exc'], par['n_hidden']),
@@ -175,59 +159,8 @@ def update_parameters(par):
 									 axis=0) # Todo(HL): no input from inhibitory neurons
 	})
 
-	# parameters
-	par.update({
-		'h0': _random_normal_abs((1, par['n_hidden'])),
-		'w_in0': _random_normal_abs((par['n_input'], par['n_hidden'])),
-		'w_rnn0': _random_normal_abs((par['n_hidden'], par['n_hidden'])),
-		'b_rnn0': np.zeros(par['n_hidden'], dtype=np.float32),
-		'w_out0': _random_normal_abs((par['n_hidden'],par['n_output'])) * par['w_out_mask'],
-		'b_out0': np.zeros(par['n_output'], dtype=np.float32),
-
-		'syn_x_init': np.ones((par['batch_size'], par['n_hidden']), dtype=np.float32),
-		'syn_u_init': np.tile(_alternating((0.15, 0.45), par['n_hidden']), (par['batch_size'], 1)),
-		'alpha_std': _alternating((0.05, 0.00667), par['n_hidden']),
-		'alpha_stf': _alternating((0.00667, 0.05), par['n_hidden']),
-		'dynamic_synapse': np.ones(par['n_hidden'], dtype=np.float32),
-		'U': _alternating((0.15, 0.45), par['n_hidden']),
-	})
-
 	return par
 
 par = update_parameters(par)
-
-
-
-# Model hyperparameters(modifiable)
-hp  = {
-	'masse' : True,
-	'learning_rate' : 2e-2,	  # adam optimizer learning rate
-	'dt'            : 10.,
-	'clip_max_grad_val'  : 0.1,
-	'alpha_neuron'  : 0.1,
-	'spike_cost'  : 2e-5,
-	'weight_cost' : 0.,
-	'noise_rnn_sd': 0.5,
-
-	'h0': _random_normal_abs((1, par['n_hidden'])),
-	'w_in0': _random_normal_abs((par['n_input'], par['n_hidden'])),
-	'w_rnn0': _random_normal_abs((par['n_hidden'], par['n_hidden'])),
-	'b_rnn0': np.zeros(par['n_hidden'], dtype=np.float32),
-	'w_out0': _random_normal_abs((par['n_hidden'],par['n_output'])) * par['w_out_mask'],
-	'b_out0': np.zeros(par['n_output'], dtype=np.float32),
-
-	'syn_x_init': np.ones((par['batch_size'], par['n_hidden']), dtype=np.float32),
-	'syn_u_init': np.tile(_alternating((0.15, 0.45), par['n_hidden']), (par['batch_size'], 1)),
-	'alpha_std': _alternating((0.05, 0.00667), par['n_hidden']),
-	'alpha_stf': _alternating((0.00667, 0.05), par['n_hidden']),
-	'dynamic_synapse': np.ones(par['n_hidden'], dtype=np.float32),
-	'U': _alternating((0.15, 0.45), par['n_hidden']),
-
-	'w_in_mask': np.ones((par['n_input'], par['n_hidden']), dtype=np.float32),
-	'w_rnn_mask': np.ones((par['n_hidden'], par['n_hidden']), dtype=np.float32) - np.eye(par['n_hidden'],dtype=np.float32),
-	'w_out_mask': np.concatenate((np.ones((par['n_exc'], par['n_output']),dtype=np.float32),
-									  np.zeros((par['n_hidden']-par['n_exc'], par['n_output']), dtype=np.float32)),axis=0), # Todo(HL): no input from inhibitory neurons
-	'EI_mask': par['EI_mask'],
-}
 
 

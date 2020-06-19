@@ -1,20 +1,19 @@
-import pickle
 from det_rnn import *
+import det_rnn.train as dt
 
 par = update_parameters(par)
 stimulus = Stimulus()
-trial_info = stimulus.generate_trial()
+ti_spec  = dt.gen_ti_spec(stimulus.generate_trial())
 
-model = Model()
+model_performance = {'perf': [], 'loss': [], 'perf_loss': [], 'spike_loss': []}
+
+model = dt.initialize_rnn(ti_spec) # initialize RNN to be boosted
 for iter in range(3000):
-    trial_info = stimulus.generate_trial()
-    model(trial_info)
-    if iter % 10 == 0:
-        model.print_results(iter)
+    trial_info = dt.tensorize_trial(stimulus.generate_trial())
+    Y, Loss = model(trial_info, dt.hp)
+    model_performance = dt.append_model_performance(model_performance, trial_info, Y, Loss, par)
+    if iter % 30 == 0:
+        dt.print_results(model_performance, iter)
 
-with open('/Volumes/Data_CSNL/project/RNN_study/20-06-19/HG/boost_wm/HL_Masse_mask_moderate.pkl','wb') as f:
-    pickle.dump(model,f)
-
-
-
-##
+model.model_performance = dt.tensorize_model_performance(model_performance)
+# tf.saved_model.save(model, save_dir)

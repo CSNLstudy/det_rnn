@@ -1,5 +1,5 @@
 import tensorflow as tf
-from ._parameters import hp
+from .hyper import *
 
 __all__ = ['Model']
 
