@@ -23,15 +23,6 @@ output_path = "/Volumes/Data_CSNL/project/RNN_study/20-06-19/HG/output/"
 HL   = os.listdir(output_path)
 print(HL)
 
-## Functions
-def circ_mean(x,p):
-    # Assumes wrap-around period = pi(rad)
-    sinr = np.sum(np.sin(2*x) * p)
-    cosr = np.sum(np.cos(2*x) * p)
-    return np.arctan2(sinr, cosr)/2
-
-def cos_perf(pred, true):
-    return(np.cos(2.*(pred-true)))
 
 ## Load models 
 models = {}
@@ -44,6 +35,18 @@ for m,v in models.items():
 plt.xlim((0,500)); plt.xlabel('Iteration'); plt.ylabel('Loss')
 plt.legend(loc='upper right')
 plt.show()
+
+
+
+## Functions
+def circ_mean(x,p):
+    # Assumes wrap-around period = pi(rad)
+    sinr = np.sum(np.sin(2*x) * p)
+    cosr = np.sum(np.cos(2*x) * p)
+    return np.arctan2(sinr, cosr)/2
+
+def cos_perf(pred, true):
+    return(np.cos(2.*(pred-true)))
 
 def behavior_summary(trial_info, pred_output, par=par):
     # softmax the pred_output
@@ -154,6 +157,76 @@ plt.ylim([-0.1,1.0]); plt.show()
 
 
 
+## Behavior inspection for SavedModel ################################################################
+load_model = tf.saved_model.load("/Volumes/Data_CSNL/project/RNN_study/20-06-19/HG/boost_wm/HL_booster9/")
+par = update_parameters(par)
+stimulus    = Stimulus(par)
+trial_info  = stimulus.generate_trial()
+
+for k, v in trial_info.items():
+    trial_info[k] = tf.constant(v, name=k)
+
+for k, v in hp.items():
+    hp[k] = tf.constant(v, name=k)
+
+
+pred_output, H, _, _ = load_model.rnn_model(trial_info['neural_input'], hp)
+
+for k, v in trial_info.items():
+    trial_info[k] = v.numpy()
+
+ground_truth, estim_mean, raw_error, beh_perf = behavior_summary(trial_info, pred_output.numpy(), par=par)
+behavior_figure(ground_truth, estim_mean, raw_error, beh_perf)
+
+
+plt.plot(load_model.model_performance['perf'].numpy())
+plt.show()
+
+## resume training
+
+
+# ## 
+# N_iter      = 30
+# extend_time = np.arange(0,17.0,step=0.5)
+# perf_res    = np.empty((N_iter*len(extend_time),)) * np.nan
+
+# for i_t, et in enumerate(extend_time):
+#     for i_iter in range(N_iter):        
+#         par['design'].update({'iti'     : (0,  1.5),
+#                               'stim'    : (1.5,3.0),
+#                               'delay'   : (3.0,4.5+et),
+#                               'estim'   : (4.5+et,6.0+et)})
+#         par = update_parameters(par)
+#         stimulus    = Stimulus(par)
+#         trial_info  = stimulus.generate_trial()
+
+#         #
+#         for k, v in trial_info.items():
+#             trial_info[k] = tf.constant(v, name=k)
+
+#         # 
+#         pred_output, H, _, _ = load_model.rnn_model(trial_info['neural_input'], hp)
+
+#         # 
+#         for k, v in trial_info.items():
+#             trial_info[k] = v.numpy()
+
+#         #
+#         _, _, _, beh_perf = behavior_summary(trial_info, pred_output.numpy(), par=par)
+#         perf_res[int(i_t*N_iter+i_iter)] = np.mean(beh_perf)
+#     print(et, "complete")
+
+
+# res_DF = pd.DataFrame({'ExtendedTime': np.repeat(extend_time, N_iter),
+#                         'Performance' : perf_res})
+# res_DF.to_pickle("/Volumes/Data_CSNL/project/RNN_study/20-06-19/HG/analysis/extended_perf_HL_Masse_mask_savedmodel.pkl")
+
+res_DF = pd.read_pickle("/Volumes/Data_CSNL/project/RNN_study/20-06-19/HG/analysis/extended_perf_HL_Masse_mask_savedmodel.pkl")
+sns.lineplot(x="ExtendedTime", y="Performance", data=res_DF)
+plt.ylim([-0.1,1.0]); plt.show()
+
+
+
 # Trash bin ########################################################################################
 # Conventional correciton to map estim into [0,pi]
 # def wrap_correct():
@@ -177,3 +250,7 @@ plt.ylim([-0.1,1.0]); plt.show()
 # circvar([0, 2*np.pi/3, 5*np.pi/3])
 
 ####################################################################################################
+
+
+
+

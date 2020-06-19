@@ -20,18 +20,21 @@ par = {
 	# Rule specs
 	'input_rule' :  'design', # {'fixation': whole period, 'response':estim}
 	'output_rule'  : 'design', # {'fixation' : (0,before estim)}
-	'input_rule_strength'	: 0.8,  # TODO(HG): check this
+	'input_rule_strength'	: 0.8, 
 	'output_rule_strength' 	: 0.8,
 
 	# stimulus type
 	'type'					: 'orientation',  # size, orientation
 
+	# stimulus distribution
+	'stim_dist'				: 'uniform', # or a specific input
+
 	# multiple trials
-	'trial_per_subblock'	: 1,
+	'trial_per_subblock'	: 1, 	  # should divide the batch_size
 
 	# stimulus encoding/response decoding type
 	'stim_encoding'			: 'single',  # 'single', 'double'
-	'resp_decoding'			: 'disc', 	# 'conti', 'disc'
+	'resp_decoding'			: 'disc', 	 # 'conti', 'disc'
 
 	# Network configuration
 	'exc_inh_prop'          : 0.8,    # excitatory/inhibitory ratio
@@ -40,7 +43,7 @@ par = {
 
 	# Timings and rates
 	'dt'                    : 10.,     # unit: ms
-	'membrane_time_constant': 100,    # tau
+	'membrane_time_constant': 100,     # tau
 
 	# Input and noise
 	'input_mean'            : 0.0,
@@ -80,7 +83,7 @@ par = {
 	'n_hidden' 	 : 100,		 # number of rnn units TODO(HL): h_hidden to 100
 
 	# Experimental settings
-	'batch_size' 	: 128,      # if image, 128 recommended
+	'batch_size' 	: 128,    
 	'alpha_neuron'  : 0.1,    # changed from tf.constant TODO(HL): alpha changed from 0.2 to 0.1 (Masse)
 
 	# Optimizer
@@ -98,6 +101,12 @@ def update_parameters(par):
 		'n_timesteps' 		: sum([len(v) for _,v in par['design_rg'].items()]),
 		'n_exc'        		: int(par['n_hidden']*par['exc_inh_prop']),
 	})
+
+	# 
+	par.update({
+		'n_subblock' : int(par['batch_size']/par['trial_per_subblock'])
+	})
+	
 
 	# default settings
 	if par['output_range'] is 'design':
@@ -141,8 +150,16 @@ def update_parameters(par):
 	elif par['resp_decoding'] == 'disc':
 		par['n_output'] = par['n_rule_output'] + par['n_tuned_output']
 
+	## stimulus distribution TODO(HG): this is erroroneous
+	if par['stim_dist'] == 'uniform':
+		par['stim_p'] = np.ones(par['n_ori'])
+	else:
+		par['stim_p'] = par['stim_dist']
 
-	#
+	## stimulus normalization
+	par['stim_p'] = par['stim_p']/np.sum(par['stim_p'])
+
+	# EI maskk
 	if par['modular']:
 		par['EI_mask'] = _modular_mask(par['connect_prob'], par['n_hidden'], par['exc_inh_prop'])
 	else:
@@ -179,14 +196,17 @@ def update_parameters(par):
 
 par = update_parameters(par)
 
+
+
+# Model hyperparameters(modifiable)
 hp  = {
 	'masse' : True,
 	'learning_rate' : 2e-2,	  # adam optimizer learning rate
 	'dt'            : 10.,
 	'clip_max_grad_val'  : 0.1,
 	'alpha_neuron'  : 0.1,
-	'spike_cost': 2e-5,
-	'weight_cost': 0.,
+	'spike_cost'  : 2e-5,
+	'weight_cost' : 0.,
 	'noise_rnn_sd': 0.5,
 
 	'h0': _random_normal_abs((1, par['n_hidden'])),

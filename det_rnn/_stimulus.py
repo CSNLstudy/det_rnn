@@ -8,22 +8,25 @@ class Stimulus(object):
     This script is dedicated to generating delayed estimation stimuli @ CSNL.
     """
     def __init__(self, par=par):
-        # Equip the stimulus class with parameters
-        self.set_params(par)
-
-        # Generate tuning/input config
-        self._generate_tuning()
+        self.set_params(par) # Equip the stimulus class with parameters
+        self._generate_tuning() # Generate tuning/input config
 
     def set_params(self, par):
         for k, v in par.items():
             setattr(self, k, v)
 
     def generate_trial(self):
-        # TODO(HG): add "iti" as an output of _gen_stimseq()
         stimulus_ori    = self._gen_stimseq()
         neural_input    = self._gen_stim(stimulus_ori)
         desired_output  = self._gen_output(stimulus_ori)
         mask            = self._gen_mask()
+        if self.n_subblock > 1: # multi-trial settings
+            neural_input = neural_input.transpose((1,0,2)).\
+                reshape((self.n_subblock,-1,self.n_input)).transpose((1,0,2))
+            desired_output = desired_output.transpose((1,0,2)).\
+                reshape((self.n_subblock,-1,self.n_output)).transpose((1,0,2))
+            mask = mask.transpose((1,0,2)).\
+                reshape((self.n_subblock,-1,self.n_output)).transpose((1,0,2))
         return {'neural_input'  : neural_input.astype(np.float32),
                 'stimulus_ori'  : stimulus_ori,
                 'desired_output': desired_output.astype(np.float32),
@@ -31,9 +34,6 @@ class Stimulus(object):
 
     # TODO(HG): simplify here (Make n_ori flexible!!!)
     def _generate_tuning(self):
-        """
-        Input tuning shape maker
-        """
         _tuning_input  = np.zeros((self.n_tuned_input,  self.n_receptive_fields, self.n_ori))
         _tuning_output = np.zeros((self.n_tuned_output, self.n_receptive_fields, self.n_ori))
         stim_dirs = np.float32(np.arange(0,180,180/self.n_ori))
@@ -53,10 +53,9 @@ class Stimulus(object):
 
         self.tuning_output = _tuning_output
 
-        # TODO(HG): add self.stim_decoding
 
     def _gen_stimseq(self):
-        stimulus_ori = np.random.randint(self.n_ori, size=self.batch_size)
+        stimulus_ori = np.random.choice(np.arange(self.n_ori), p=self.stim_p, size=self.batch_size)
         return stimulus_ori
 
     def _gen_stim(self, stimulus_ori):

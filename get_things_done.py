@@ -2,10 +2,10 @@ import tensorflow as tf
 import numpy as np
 from det_rnn import *
 
-par['design'].update({'iti'     : (0, 5.5),
-                      'stim'    : (5.5,7.0),
-                      'delay'   : (7.0,23.5),
-                      'estim'   : (23.5,28.0)})
+stim_dist = np.ones(par['n_ori'])
+stim_dist[0] = 5.
+stim_dist[12] = 5.
+par['stim_dist'] = stim_dist
 
 par = update_parameters(par)
 stimulus = Stimulus()
@@ -66,7 +66,7 @@ model.rnn_model.get_concrete_function(
     hp=hp_spec
 )
 
-for iter in range(4000):
+for iter in range(2500, 3500):
     trial_info = stimulus.generate_trial()
     for k, v in trial_info.items():
         trial_info[k] = tf.constant(v, name=k)
@@ -80,9 +80,7 @@ model.model_performance = {'perf': tf.Variable(model_performance['perf'], traina
                            'perf_loss': tf.Variable(model_performance['perf_loss'], trainable=False),
                            'spike_loss': tf.Variable(model_performance['spike_loss'], trainable=False)}
 
-tf.saved_model.save(model, "/Volumes/Data_CSNL/project/RNN_study/20-06-19/HG/boost_wm/HL_booster9/")
-
-
+tf.saved_model.save(model, "/Volumes/Data_CSNL/project/RNN_study/20-06-19/HG/cardinal/1/")
 load_model = tf.saved_model.load("/Volumes/Data_CSNL/project/RNN_study/20-06-19/HG/boost_wm/HL_booster9/")
 
 for k,v in load_model.model_performance.items():

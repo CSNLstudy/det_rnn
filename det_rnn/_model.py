@@ -70,10 +70,8 @@ class Model(tf.Module):
 		self.var_dict = _var_dict
 
 	def _calc_loss(self, y, target, mask):
-		# _target_sum = tf.reduce_sum(target, axis=2, keepdims=True)
-		# _target_sum = tf.expand_dims(_target_sum, axis=2)
 		_target_normalized = target / tf.reduce_sum(target, axis=2, keepdims=True)
-		_y_normalized = tf.nn.softmax(y) # , axis=2
+		_y_normalized = tf.nn.softmax(y)
 		loss = tf.reduce_mean(mask * (_target_normalized - _y_normalized) ** 2)
 		return loss
 
