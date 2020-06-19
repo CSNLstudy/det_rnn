@@ -4,27 +4,32 @@ from det_rnn import *
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-import time
+
 iModel = 1
-iteration_goal = 1000
-iteration_load = 1000
+iteration_goal = 2000
+iteration_load = 2000
 n_orituned_neurons = 30
 BatchSize = 50
 dxtick = 1000 # in ms
+connect_prob = 0.1
+scale_w_rnn2in = 0.07
 
 par['n_tuned_input'] = n_orituned_neurons
 par['n_tuned_output'] = n_orituned_neurons
 par['n_ori'] = n_orituned_neurons
+par['connect_prob'] = connect_prob
+par['scale_w_rnn2in'] = scale_w_rnn2in
 
 # par['design'].update({'iti'     : (0, 0.5),
 #                       'stim'    : (0.5,2.0),
 #                       'delay'   : (2.0,4.5),
 #                       'estim'   : (4.5,6.0)})
 
+delay = par['design']['delay'][1] - par['design']['delay'][0]
 savedir = os.path.dirname(os.path.realpath(__file__)) + \
-          '/savedir/BatchSize' + str(BatchSize) +\
-          '/nIter' + str(iteration_goal) + '/iModel' + str(
-    iModel)
+           '/savedir/connect_prob' + str(connect_prob) + 'scale_w_rnn2in' + str(scale_w_rnn2in) + \
+           '/nIter' + str(iteration_goal) + 'BatchSize' + str(BatchSize) + '/delay' + str(delay) + '/iModel' + str(iModel)
+
 if not os.path.isdir(savedir + '/estimation/Iter' + str(iteration_load)):
     os.makedirs(savedir + '/estimation/Iter' + str(iteration_load))
 
@@ -91,10 +96,10 @@ plt.ylabel('from RNN')
 plt.xlabel('to RNN')
 #
 iax = plt.subplot(2, 3, 5)
-plt.imshow(w_rnn2in, vmin=-MaxVal1, vmax=MaxVal1)
+plt.imshow(iw_rnn2in, vmin=-MaxVal1, vmax=MaxVal1)
 plt.title('w_rnn')
 plt.ylabel('from RNN')
-plt.xlabel('to RNN')
+plt.xlabel('to inputs')
 
 iax = plt.subplot(1, 9, 7)
 plt.imshow((np.ones((5,1))@b_rnn[:, np.newaxis].T).T, vmin=0, vmax=MaxVal1)
@@ -189,6 +194,7 @@ def run_model(in_data, var_dict, syn_x_init, syn_u_init):
     for rnn_input in in_data:
 
         rnn_input = tf.nn.relu(rnn_input + h_pre @ w_rnn2in)
+
         h_pre = h
 
         h, syn_x, syn_u = rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn, w_in)

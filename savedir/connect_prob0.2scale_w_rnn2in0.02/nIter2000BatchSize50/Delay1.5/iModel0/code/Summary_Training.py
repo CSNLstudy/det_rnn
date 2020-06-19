@@ -5,14 +5,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 
-iModel = 0
+iModel = 1
 iteration_goal = 2000
-iteration_load = 2000
+iteration_load = 1500
 n_orituned_neurons = 30
 BatchSize = 50
 dxtick = 1000 # in ms
-connect_prob = 0.2
-scale_w_rnn2in = 0.02
+connect_prob = 0.1
+scale_w_rnn2in = 0.07
 
 par['n_tuned_input'] = n_orituned_neurons
 par['n_tuned_output'] = n_orituned_neurons

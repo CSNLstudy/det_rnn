@@ -4,10 +4,10 @@ from det_rnn import *
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-import time
+
 iModel = 1
 iteration_goal = 2000
-iteration_load = 2000
+iteration_load = 1500
 n_orituned_neurons = 30
 BatchSize = 50
 dxtick = 1000 # in ms
@@ -20,14 +20,15 @@ par['n_ori'] = n_orituned_neurons
 par['connect_prob'] = connect_prob
 par['scale_w_rnn2in'] = scale_w_rnn2in
 
-# par['design'].update({'iti'     : (0, 0.5),
-#                       'stim'    : (0.5,2.0),
-#                       'delay'   : (2.0,4.5),
-#                       'estim'   : (4.5,6.0)})
+# par['design'].update({'iti'     : (0, 1.5),
+#                       'stim'    : (1.5, 3.0),
+#                       'delay'   : (3.0, 6.0),
+#                       'estim'   : (6.0, 7.5)})
 
+delay = par['design']['delay'][1] - par['design']['delay'][0]
 savedir = os.path.dirname(os.path.realpath(__file__)) + \
            '/savedir/connect_prob' + str(connect_prob) + 'scale_w_rnn2in' + str(scale_w_rnn2in) + \
-           '/nIter' + str(iteration_goal) + 'BatchSize' + str(BatchSize) + '/iModel' + str(iModel)
+           '/nIter' + str(iteration_goal) + 'BatchSize' + str(BatchSize) + '/delay' + str(delay) + '/iModel' + str(iModel)
 
 if not os.path.isdir(savedir + '/estimation/Iter' + str(iteration_load)):
     os.makedirs(savedir + '/estimation/Iter' + str(iteration_load))
@@ -36,7 +37,7 @@ modelname = '/Iter' + str(iteration_load) + '.pkl'
 fn = savedir + modelname
 model = pickle.load(open(fn, 'rb'))
 
-w_rnn2in_sparse_mask = model['parameters']['w_rnn2in_sparse_mask']
+w_rnn2in_sparse_mask = model['parameters']['w_rnn2in_sparse_mask'] # this sparse mask should be identical with the training and testing
 
 par['batch_size'] = BatchSize
 par = update_parameters(par)
@@ -188,11 +189,13 @@ def run_model(in_data, var_dict, syn_x_init, syn_u_init):
 
     w_rnn2in = par['EImodular_mask'] @ tf.nn.relu(var_dict['w_rnn2in'] * w_rnn2in_sparse_mask)
     h_pre = np.float32(np.random.gamma(0.1, 0.2, size=h.shape))
+    # h_in = np.ones((par['batch_size'], 1)) @ var_dict['h_in']
 
     c = 0
     for rnn_input in in_data:
 
         rnn_input = tf.nn.relu(rnn_input + h_pre @ w_rnn2in)
+        # rnn_input = tf.nn.relu((1 - par['alpha_input'])*h_in + par['alpha_neuron'] * (rnn_input + h_pre @ w_rnn2in))
 
         h_pre = h
 

@@ -84,9 +84,9 @@ par = {
 	'n_hidden' 	 : 100,		 # number of rnn units TODO(HL): h_hidden to 100
 
 	# Experimental settings
-	'batch_size' 	: 1024,      # if image, 128 recommended
-	'alpha_neuron'  : 0.2,    # changed from tf.constant TODO(HL): alpha changed from 0.2 to 0.1 (Masse)
-	'alpha_input' 	: 0.7, # Chaudhuri et al., Neuron, 2015
+	'batch_size' 	: 1024, # if image, 128 recommended
+	'alpha_neuron'  : 0.2, 	# changed from tf.constant TODO(HL): alpha changed from 0.2 to 0.1 (Masse)
+	'alpha_input' 	: 0.7, 	# Chaudhuri et al., Neuron, 2015
 
 	# Optimizer
 	'optimizer' : 'Adam', # TODO(HG):  other optim. options?
@@ -178,6 +178,7 @@ def update_parameters(par):
 		'b_out0': np.zeros(par['n_output'], dtype=np.float32),
 
 		'w_rnn2in0': _initialize((par['n_hidden'], par['n_input']), par['scale_w_rnn2in']),
+		'h_in0': _initialize((1, par['n_input'])),
 
 		'syn_x_init': np.ones((par['batch_size'], par['n_hidden']), dtype=np.float32),
 		'syn_u_init': np.tile(_alternating((0.15, 0.45), par['n_hidden']), (par['batch_size'], 1)),

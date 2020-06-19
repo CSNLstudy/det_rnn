@@ -7,7 +7,7 @@ import tensorflow as tf
 import time
 from shutil import copyfile
 
-nModel = np.array([3, 4])
+nModel = np.array([0, 1])
 iteration = 2000
 stimulus = Stimulus()
 
@@ -16,9 +16,8 @@ BatchSize = 50
 orientation_cost = 1
 noise_rnn_sd = 0
 noise_in_sd = 0
-connect_prob = 0.1
-scale_w_rnn2in = 0.07
-alpha_input = 0.2
+connect_prob = 0.2
+scale_w_rnn2in = 0.02
 
 par['n_tuned_input'] = n_orituned_neurons
 par['n_tuned_output'] = n_orituned_neurons
@@ -27,38 +26,14 @@ par['batch_size'] = BatchSize
 par['orientation_cost'] = orientation_cost
 par['connect_prob'] = connect_prob
 par['scale_w_rnn2in'] = scale_w_rnn2in
-par['alpha_input'] = alpha_input
-# par['noise_rnn_sd'] = noise_rnn_sd
-# par['noise_in_sd'] =noise_in_sd
 
-# par['design'].update({'iti'     : (0, 0.5),
-#                       'stim'    : (0.5,2.0),
-#                       'delay'   : (2.0,4.5),
-#                       'estim'   : (4.5,6.0)})
-
-# par['design'].update({'iti'     : (0, 0.5),
-#                       'stim'    : (0.5,2.0),
-#                       'delay'   : (2.0,8.0),
-#                       'estim'   : (8.0,9.5)})
+# par['design'].update({'iti'     : (0, 1.5),
+#                       'stim'    : (1.5, 3.0),
+#                       'delay'   : (3.0, 6.0),
+#                       'estim'   : (6.0, 7.5)})
 
 par = update_parameters(par)
 stimulus = Stimulus(par)
-
-##
-
-# trial_info = stimulus.generate_trial()
-# in_data = tf.constant(trial_info['neural_input'].astype('float32')).numpy()
-# out_target = tf.constant(trial_info['desired_output']).numpy()
-# mask_train = tf.constant(trial_info['mask']).numpy()
-# #
-# plt.close()
-# fig, axes = plt.subplots(3,1, figsize=(13,8))
-# TEST_TRIAL = np.random.randint(stimulus.batch_size)
-# a0 = axes[0].imshow(in_data[:,TEST_TRIAL,:].T, aspect='auto'); axes[0].set_title("Neural Input"); fig.colorbar(a0, ax=axes[0])
-# a1 = axes[1].imshow(out_target[:,TEST_TRIAL,:].T, aspect='auto'); axes[1].set_title("Desired Output"); fig.colorbar(a1, ax=axes[1])
-# a2 = axes[2].imshow(mask_train[:,TEST_TRIAL,:].T, aspect='auto'); axes[2].set_title("Training Mask"); fig.colorbar(a2, ax=axes[2]) # a bug here
-# fig.tight_layout(pad=2.0)
-# plt.show()
 
 ##
 
@@ -77,9 +52,10 @@ def initialize_parameters(iModel, par):
     isyn_u_init = tf.constant(ipar['syn_u_init'])
     ibatch_size = ipar['batch_size']
 
+    delay = par['design']['delay'][1] - par['design']['delay'][0]
     isavedir = os.path.dirname(os.path.realpath(__file__)) + \
                '/savedir/connect_prob' + str(connect_prob) + 'scale_w_rnn2in' + str(scale_w_rnn2in) + \
-               '/nIter' + str(iteration) + 'BatchSize' + str(BatchSize) + '/iModel' + str(iModel)
+               '/nIter' + str(iteration) + 'BatchSize' + str(BatchSize) + '/Delay' + str(delay) + '/iModel' + str(iModel)
     if not os.path.isdir(isavedir):
         os.makedirs(isavedir)
         os.makedirs(isavedir + '/code/')
@@ -124,10 +100,13 @@ def run_model(in_data, syn_x_init, syn_u_init):
     w_rnn2in = par['EImodular_mask'] @ tf.nn.relu(var_dict['w_rnn2in'] * par['w_rnn2in_sparse_mask'])
     h_pre = np.float32(np.random.gamma(0.1, 0.2, size=h.shape))
 
+    # h_in = np.ones((par['batch_size'], 1)) @ var_dict['h_in']
+
     c = 0
     for rnn_input in in_data:
         #
         rnn_input = tf.nn.relu(rnn_input + h_pre @ w_rnn2in)
+        # rnn_input = tf.nn.relu((1 - par['alpha_input'])*h_in + par['alpha_neuron'] * (rnn_input + h_pre @ w_rnn2in))
         h_pre = h
 
         h, syn_x, syn_u = rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn, w_in)
