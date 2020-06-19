@@ -1,41 +1,33 @@
 import numpy as np
 
-__all__ = ['_initialize', '_random_normal_abs', '_alternating',
-		   '_w_rnn_mask', '_modular_mask', '_convert_to_rg']
+__all__ = ['initialize', 'random_normal_abs', 'alternating',
+		   'w_rnn_mask', 'modular_mask', 'convert_to_rg']
 
 # Inherited from Masse
-def _initialize(dims, shape=0.1, scale=1.0):
+def initialize(dims, shape=0.1, scale=1.0):
 	w = np.random.gamma(shape, scale, size=dims).astype(np.float32)
 	return w
 
 # Inherited from JsL
-def _random_normal_abs(dims): # Todo (HL): random.gamma
+def random_normal_abs(dims): # Todo (HL): random.gamma
     y = np.random.gamma(0.1, 1.0, size=dims)
-    # y = np.abs(np.random.normal(0, 0.01, size=dims)).astype(np.float32)
     return np.float32(y)
 
-def _alternating(x, size):
+def alternating(x, size):
 	tmp = np.tile(np.array(x), np.int(np.ceil(size / 2)))
 	tmp2 = tmp[0:size]
 	return tmp2.astype(np.float32)
 
 # Nonmodular w_RNN mask
-def _w_rnn_mask(n_hidden, exc_inh_prop):
+def w_rnn_mask(n_hidden, exc_inh_prop):
 	n_exc = int(n_hidden * exc_inh_prop)
 	rg_inh = range(n_exc, n_hidden)
-	Crec = np.ones((n_hidden, n_hidden))-np.eye(n_hidden)
-	Crec[:,rg_inh] = Crec[:,rg_inh]*(-1.)
-
-	# Todo(HL): revised following Masse et al., 2019
-	n_inh = n_hidden - n_exc
-	EI_list = np.ones(n_hidden, dtype=np.float32)
-	EI_list[-n_inh:] = -1.
-	EI_matrix = np.diag(EI_list)
-
-	return np.float32(EI_matrix)
+	Crec = np.ones((n_hidden, n_hidden))
+	Crec[rg_inh,:] = Crec[rg_inh,:]*(-1.)
+	return np.float32(Crec)
 
 # Modular w_RNN mask
-def _modular_mask(connect_prob, n_hidden, exc_inh_prop):
+def modular_mask(connect_prob, n_hidden, exc_inh_prop):
 	n_exc = int(n_hidden * exc_inh_prop)
 	rg_exc = range(n_exc)
 	rg_inh = range(n_exc, n_hidden)
@@ -70,24 +62,24 @@ def _modular_mask(connect_prob, n_hidden, exc_inh_prop):
 	return np.float32(Crec)
 
 # Convert range specs(dictionary) into time-step domain
-def _convert_to_rg(design, dt):
+def convert_to_rg(design, dt):
 	if type(design) == dict:
 		rg_dict = {}
 		for k,v in design.items():
 			if len(np.shape(v)) == 1:
 				start_step = round(v[0] / dt * 1000.)
 				end_step = round(v[1] / dt * 1000.)
-				rg_dict[k] = np.arange(start_step, end_step)
+				rg_dict[k] = np.arange(start_step, end_step, dtype=np.int32)
 			else:
-				rg_dict[k] = np.concatenate([np.arange(round(i[0] / dt * 1000.),round(i[1] / dt * 1000.)) for i in v])
+				rg_dict[k] = np.concatenate([np.arange(round(i[0] / dt * 1000.),round(i[1] / dt * 1000.), dtype=np.int32) for i in v])
 		return rg_dict
 
 	elif type(design) in (tuple, list):
 		if len(np.shape(design)) == 1:
 			start_step = round(design[0] / dt * 1000.)
 			end_step = round(design[1] / dt * 1000.)
-			rg = np.arange(start_step, end_step)
+			rg = np.arange(start_step, end_step, dtype=np.int32)
 		else:
-			rg = np.concatenate([np.arange(round(i[0] / dt * 1000.), round(i[1] / dt * 1000.)) for i in design])
+			rg = np.concatenate([np.arange(round(i[0] / dt * 1000.), round(i[1] / dt * 1000.), dtype=np.int32) for i in design])
 		return rg
 

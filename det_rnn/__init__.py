@@ -1,5 +1,8 @@
-from ._parameters import par, update_parameters
-from ._model import Model
-from ._stimulus import Stimulus
+from det_rnn import base
+from det_rnn import analysis
+from det_rnn import train
 
-__all__ = ['par', 'update_parameters', 'Model', 'Stimulus']
+from det_rnn.base import *
+
+__all__ = ['base', 'analysis', 'train',
+           'par', 'update_parameters', 'Stimulus']

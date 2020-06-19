@@ -1,3 +1,12 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu May 28 23:47:12 2020
+
+@author: jaeseob
+"""
+
+
 import pickle
 import os
 from det_rnn import *
@@ -5,14 +14,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 import time
-iModel = 1
-iteration = 2000
+nModel = 5
+iModel = 2
+
+iteration = 3000
 stimulus = Stimulus()
+
 
 # par['design'].update({'iti'     : (0, 0.5),
 #                       'stim'    : (0.5,2.0),
 #                       'delay'   : (2.0,4.5),
 #                       'estim'   : (4.5,6.0)})
+
+# par['batch_size'] = 200
 
 # par['design'].update({'iti'     : (0, 0.5),
 #                       'stim'    : (0.5,2.0),
@@ -24,14 +38,14 @@ stimulus = Stimulus(par)
 trial_info = stimulus.generate_trial()
 
 ##
-
-fig, axes = plt.subplots(3,1, figsize=(10,8))
-TEST_TRIAL = np.random.randint(stimulus.batch_size)
-a0 = axes[0].imshow(trial_info['neural_input'][:,TEST_TRIAL,:].T, aspect='auto'); axes[0].set_title("Neural Input"); fig.colorbar(a0, ax=axes[0])
-a1 = axes[1].imshow(trial_info['desired_output'][:,TEST_TRIAL,:].T, aspect='auto'); axes[1].set_title("Desired Output"); fig.colorbar(a1, ax=axes[1])
-a2 = axes[2].imshow(trial_info['mask'][:,TEST_TRIAL,:].T, aspect='auto'); axes[2].set_title("Training Mask"); fig.colorbar(a2, ax=axes[2]) # a bug here
-fig.tight_layout(pad=2.0)
-plt.show()
+#
+# fig, axes = plt.subplots(3,1, figsize=(10,8))
+# TEST_TRIAL = np.random.randint(stimulus.batch_size)
+# a0 = axes[0].imshow(trial_info['neural_input'][:,TEST_TRIAL,:].T, aspect='auto'); axes[0].set_title("Neural Input"); fig.colorbar(a0, ax=axes[0])
+# a1 = axes[1].imshow(trial_info['desired_output'][:,TEST_TRIAL,:].T, aspect='auto'); axes[1].set_title("Desired Output"); fig.colorbar(a1, ax=axes[1])
+# a2 = axes[2].imshow(trial_info['mask'][:,TEST_TRIAL,:].T, aspect='auto'); axes[2].set_title("Training Mask"); fig.colorbar(a2, ax=axes[2]) # a bug here
+# fig.tight_layout(pad=2.0)
+# plt.show()
 
 ##
 
@@ -50,14 +64,14 @@ def initialize_parameters(iModel, par):
     isyn_u_init = tf.constant(ipar['syn_u_init'])
     ibatch_size = ipar['batch_size']
 
-    isavedir = os.path.dirname(os.path.realpath(__file__)) + '/savedir/iModel' + str(iModel)
+    isavedir = os.path.dirname(os.path.realpath('__file__')) + '/savedir/iModel' + str(iModel)
     if not os.path.isdir(isavedir):
         os.makedirs(isavedir)
 
     return ipar, ivar_dict, ivar_list, isyn_x_init, isyn_u_init, ibatch_size, isavedir
 
 def rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn):
-    syn_x += (par['alpha_std'] * (1 - syn_x) - par['dt']/1000 * syn_u * syn_x * h) 
+    syn_x += (par['alpha_std'] * (1 - syn_x) - par['dt']/1000 * syn_u * syn_x * h)  # what is alpha_std???
     syn_u += (par['alpha_stf'] * (par['U'] - syn_u) + par['dt']/1000 * par['U'] * (1 - syn_u) * h)
 
     syn_x = tf.minimum(np.float32(1), tf.nn.relu(syn_x))
@@ -79,10 +93,11 @@ def run_model(in_data, syn_x_init, syn_u_init):
     self_syn_u = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
     self_output = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
 
+    # h = np.ones((par['batch_size'], 1)) @ var_dict['h']
     h = np.ones((par['batch_size'], 1)) @ var_dict['h']
     syn_x = syn_x_init
     syn_u = syn_u_init
-    w_rnn = par['EImodular_mask'] @ tf.nn.relu(var_dict['w_rnn'])
+    w_rnn = par['EI_mask'] @ tf.nn.relu(var_dict['w_rnn'])
 
     c = 0
     for rnn_input in in_data:
@@ -102,23 +117,36 @@ def run_model(in_data, syn_x_init, syn_u_init):
 
     return self_h, self_output, self_syn_x, self_syn_u, w_rnn
 
-def calc_loss(syn_x_init, syn_u_init, in_data, out_target):
+def calc_loss(syn_x_init, syn_u_init, in_data, out_target, mask):
 
     h, output, _, _, w_rnn = run_model(in_data, syn_x_init, syn_u_init)
 
     starget = tf.reduce_sum(out_target, axis=2)
     starget = tf.expand_dims(starget, axis=2)
-    ntarget = out_target / tf.repeat(starget, par['n_output'], axis=2)
+    p = out_target / starget
 
-    cenoutput = tf.nn.softmax(output, axis=2)
+    log_q = tf.nn.log_softmax(output, axis=-1)
+    CE = -p * log_q
 
-    loss_orient = tf.reduce_sum((ntarget-cenoutput)**2)
+    loss_orient = tf.reduce_mean(CE*mask)
 
     n = 2
-    spike_loss = tf.reduce_sum(h**2)
-    weight_loss = tf.reduce_sum(tf.nn.relu(w_rnn) ** n)
+    spike_loss = tf.reduce_mean(h**2)
+    weight_loss = tf.reduce_mean(tf.nn.relu(w_rnn) ** n)
     loss = par['orientation_cost'] * loss_orient + par['spike_cost'] * spike_loss + par['weight_cost'] * weight_loss
     return loss, loss_orient, spike_loss, weight_loss
+
+
+#
+# def calc_loss_smCE(y, targ, loss_mask, axis = -1):
+#     p = targ/tf.stack([tf.reduce_sum(targ, axis = axis)]*targ.shape[axis], axis = 2)
+#     log_q = tf.nn.log_softmax(y, axis = axis)
+#     CE = -p*log_q
+#
+#     loss = tf.reduce_mean(loss_mask*CE)
+#     return loss
+
+
 
 def append_model_performance(model_performance, loss, loss_orient, spike_loss, i, var_dict):
     model_performance['loss'].append(loss)
@@ -148,10 +176,10 @@ opt = tf.optimizers.Adam(learning_rate=par['learning_rate'])
 model_performance = {'loss': [], 'loss_orient': [], 'spike_loss': [], 'iteration': [], 'w_in': [],
                      'w_rnn': [], 'b_rnn': [], 'w_out': [], 'b_out': [], 'h': []}
 
-@ tf.function
-def train_onestep(syn_x_init, syn_u_init, in_data, out_target):
+# @ tf.function
+def train_onestep(syn_x_init, syn_u_init, in_data, out_target, mask):
     with tf.GradientTape() as t:
-        loss, loss_orient, spike_loss, weight_loss = calc_loss(syn_x_init, syn_u_init, in_data, out_target)
+        loss, loss_orient, spike_loss, weight_loss = calc_loss(syn_x_init, syn_u_init, in_data, out_target, mask)
     grads = t.gradient(loss, var_list)
     grads_and_vars = list(zip(grads, var_list))
     capped_gvs = []
@@ -174,7 +202,7 @@ for i in range(0, iteration):
     out_target = tf.constant(trial_info['desired_output'])
     mask_train = tf.constant(trial_info['mask'])
 
-    loss, loss_orient, spike_loss = train_onestep(syn_x_init, syn_u_init, in_data, out_target)
+    loss, loss_orient, spike_loss = train_onestep(syn_x_init, syn_u_init, in_data, out_target, mask_train)
     model_performance = append_model_performance(model_performance, loss, loss_orient, spike_loss, i, var_dict)
 
     print('iModel=', iModel , ', iter=', i+1,
