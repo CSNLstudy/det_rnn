@@ -18,9 +18,9 @@ model_performance = {'perf': [], 'loss': [], 'perf_loss': [], 'spike_loss': []}
 # Resume boosting
 N_boost_max = 100000
 perf_crit   = 0.95 # Human mean performance level
+fall_crit   = 0.7  # Resume the current level
 recency     = 50   # Number of 'recent' epochs to be assayed
 boost_step  = 1.5  # How much step should we increase
-fall_crit   = 0.7  # Resume the current level
 
 extend_time = np.arange(boost_step,15.5,step=boost_step)
 mileage_lim = len(extend_time)
@@ -90,7 +90,7 @@ while iter < N_boost_max:
 
     iter += 1
 
-    if dt.cull_criterion(iter, perf_crit, recency, milestones[mileage], model_performance):
+    if dt.cull_criterion(iter, fall_crit, recency, milestones[mileage], model_performance):
         print("#" * 80 + "\nModel Failed! Retried!\t" +
               "Again training : {:0.1f}\n".format(extend_time[mileage]) + "#" * 80)
         model = tf.saved_model.load(model_dir + "/model_level" + str(mileage))
