@@ -75,12 +75,12 @@ class Model(tf.Module):
 		loss = tf.reduce_mean(mask * (_target_normalized - _y_normalized) ** 2)
 		return loss
     
-    def _calc_loss_CE(self, y, target, mask):
-        _target_normalized = target / tf.reduce_sum(target, axis=2, keepdims=True)
-        _y_logsft = tf.nn.log_softmax(y, axis = 2)
+	def _calc_loss_CE(self, y, target, mask):
+		_target_normalized = target / tf.reduce_sum(target, axis=2, keepdims=True)
+		_y_logsft = tf.nn.log_softmax(y, axis = 2)
 		CE = -_target_normalized * _y_logsft
 		loss = tf.reduce_sum(mask*CE)
-        return loss
+		return loss
 
 	def _rnn_cell(self, _h, rnn_input, _syn_x, _syn_u, hp):
 		_w_rnn = tf.nn.relu(self.var_dict['w_rnn']) * tf.cast(hp['EI_mask'], tf.float32)
