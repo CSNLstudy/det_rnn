@@ -7,7 +7,7 @@ import tensorflow as tf
 
 iModel = 4
 iteration_goal              = 10000
-iteration_load              = 10000
+iteration_load              = 8000
 BatchSize                   = 100
 scale_gamma                 = 0.5
 n_hidden                    = 150

@@ -5,16 +5,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 
-iModel = 4
+iModel = 2
 iteration_goal              = 10000
 iteration_load              = 10000
 BatchSize                   = 100
 scale_gamma                 = 0.5
-n_hidden                    = 150
-connect_p_within            = 0.8
-connect_p_adjacent_forward  = 0.7
+n_hidden                    = 100
+connect_p_within            = 0.6
+connect_p_adjacent_forward  = 0.5
 connect_p_distant_forward   = 0.0
-connect_p_adjacent_back     = 0.3
+connect_p_adjacent_back     = 0.2
 connect_p_distant_back      = 0.0
 n_orituned_neurons          = 30
 dxtick                      = 1000 # in ms

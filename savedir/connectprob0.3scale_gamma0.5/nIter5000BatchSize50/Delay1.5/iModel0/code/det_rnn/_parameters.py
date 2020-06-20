@@ -34,15 +34,14 @@ par = {
 	'resp_decoding'			: 'disc', 	# 'conti', 'disc'
 
 	# Network configuration
-	'exc_inh_prop'          				: 0.8,    	# excitatory/inhibitory ratio
-	'modular'								: False,
-	'connect_prob_within_module'			: 0.8,
-	'connect_prob_adjacent_module_forward'	: 0.4,
-	'connect_prob_distant_module_forward'	: 0.2,
-	'connect_prob_adjacent_module_back'		: 0.4,
-	'connect_prob_distant_module_back'		: 0.2,
-	'scale_gamma' 							: 0.1, 		# w_rnn2in should have smaller scale than the other weights (=1)
-	'recurrent_inhiddenout' 				: True,   	# in-hidden-out neurons are recurrently connected
+	'exc_inh_prop'          			: 0.8,    	# excitatory/inhibitory ratio
+	'modular'							: False,
+	'connect_prob'						: 0.2,    	# modular connectivity
+ 	'connect_prob_within_module'		: 0.8,
+	'connect_prob_adjacent_module'		: 0.4,
+	'connect_prob_distant_module'		: 0.2,
+	'scale_gamma' 						: 0.1, 		# w_rnn2in should have smaller scale than the other weights (=1)
+	'recurrent_inhiddenout' 			: True,   	# in-hidden-out neurons are recurrently connected
 
 	# Timings and rates
 	'dt'                    : 10,     # unit: ms
@@ -51,6 +50,7 @@ par = {
 
 	# Input and noise
 	'input_mean'            : 0.0,
+	'noise_in_sd'           : 0.1,
 	'noise_rnn_sd'          : 0.5,    # TODO(HL): rnn_sd changed from 0.05 to 0.5 (Masse)
 
 	# Tuning function data
@@ -78,13 +78,13 @@ par = {
 
 	# Neuronal settings
 	'n_receptive_fields': 1,
-	'n_tuned_input'	 	: 24,  # number of possible orientation-tuned neurons (input)
-	'n_tuned_output' 	: 24,  # number of possible orientation-tuned neurons (input)
-	'n_ori'	 	 		: 24 , # number of possible orientaitons (output)
-	'noise_mean' 		: 0,
-	'noise_sd'   		: 0.005,     # 0.05
-	'n_recall_tuned' 	: 24,   # precision at the moment of recall
-	'n_hidden' 	 		: 100,		 # number of rnn units TODO(HL): h_hidden to 100
+	'n_tuned_input'	 : 24,  # number of possible orientation-tuned neurons (input)
+	'n_tuned_output' : 24,  # number of possible orientation-tuned neurons (input)
+	'n_ori'	 	 : 24 , # number of possible orientaitons (output)
+	'noise_mean' : 0,
+	'noise_sd'   : 0.005,     # 0.05
+	'n_recall_tuned' : 24,   # precision at the moment of recall
+	'n_hidden' 	 : 100,		 # number of rnn units TODO(HL): h_hidden to 100
 
 	# Experimental settings
 	'batch_size' 	: 1024, # if image, 128 recommended
@@ -151,11 +151,8 @@ def update_parameters(par):
 	#
 	par['EI_mask'] = _EI_mask(par['n_hidden'], par['exc_inh_prop'])
 	par['modular_sparse_mask'] = _modular_sparse_mask(par['n_input'], par['n_hidden'], par['n_output'],
-											   par['connect_prob_within_module'],
-											   par['connect_prob_adjacent_module_forward'],
-											   par['connect_prob_distant_module_forward'],
-											   par['connect_prob_adjacent_module_back'],
-											   par['connect_prob_distant_module_back'])
+											   par['connect_prob_within_module'], par['connect_prob_adjacent_module'],
+											   par['connect_prob_distant_module'])
 	# par['w_rnn_sparse_mask'] = np.float32(1 * (np.random.uniform(size=(par['n_hidden'], par['n_hidden'])) < par['connect_prob']))
 
 	par.update({

@@ -1,7 +1,7 @@
 import numpy as np
 
 __all__ = ['_initialize', '_random_normal_abs', '_alternating',
-		   '_EI_mask', '_modular_sparse_mask', '_convert_to_rg']
+		   '_w_rnn_mask', '_modular_mask', '_convert_to_rg']
 
 # Inherited from Masse
 def _initialize(dims, shape=0.1, scale=1.0):
@@ -20,7 +20,7 @@ def _alternating(x, size):
 	return tmp2.astype(np.float32)
 
 # Nonmodular w_RNN mask
-def _EI_mask(n_hidden, exc_inh_prop):
+def _w_rnn_mask(n_hidden, exc_inh_prop):
 	n_exc = int(n_hidden * exc_inh_prop)
 	n_inh = n_hidden - n_exc
 	ind_inh = np.round(np.linspace(1, n_hidden-1, n_inh)).astype(int)
@@ -30,32 +30,6 @@ def _EI_mask(n_hidden, exc_inh_prop):
 	EI_matrix = np.diag(EI_list)
 
 	return np.float32(EI_matrix)
-
-def _modular_sparse_mask(n_input, n_hidden, n_output,
-						 connect_prob_within_module, connect_prob_adjacent_module_f, connect_prob_distant_module_f,
-						 connect_prob_adjacent_module_b, connect_prob_distant_module_b):
-
-	n_pure_hidden = n_hidden - n_input - n_output
-
-	in2in = (np.random.uniform(size=(n_input, n_input)) < connect_prob_within_module)*1
-	in2h = (np.random.uniform(size=(n_input, n_pure_hidden)) < connect_prob_adjacent_module_f)*1
-	in2out = (np.random.uniform(size=(n_input, n_output)) < connect_prob_distant_module_f)*1
-
-	h2in = (np.random.uniform(size=(n_pure_hidden, n_input)) < connect_prob_adjacent_module_b)*1
-	h2h = (np.random.uniform(size=(n_pure_hidden, n_pure_hidden)) < connect_prob_within_module)*1
-	h2out = (np.random.uniform(size=(n_pure_hidden, n_output)) < connect_prob_adjacent_module_f)*1
-
-	out2in = (np.random.uniform(size=(n_output, n_input)) < connect_prob_distant_module_b)*1
-	out2h = (np.random.uniform(size=(n_output, n_pure_hidden)) < connect_prob_adjacent_module_b)*1
-	out2out = (np.random.uniform(size=(n_output, n_output)) < connect_prob_within_module)*1
-
-	in2 = np.concatenate((in2in, in2h, in2out), axis=1)
-	h2 = np.concatenate((h2in, h2h, h2out), axis=1)
-	out2 = np.concatenate((out2in, out2h, out2out), axis=1)
-
-	imask = np.concatenate((in2, h2, out2), axis=0)
-
-	return np.float32(imask)
 
 # Modular w_RNN mask
 def _modular_mask(connect_prob, n_hidden, exc_inh_prop):

@@ -51,6 +51,7 @@ par = {
 
 	# Input and noise
 	'input_mean'            : 0.0,
+	'noise_in_sd'           : 0.1,
 	'noise_rnn_sd'          : 0.5,    # TODO(HL): rnn_sd changed from 0.05 to 0.5 (Masse)
 
 	# Tuning function data
@@ -78,13 +79,13 @@ par = {
 
 	# Neuronal settings
 	'n_receptive_fields': 1,
-	'n_tuned_input'	 	: 24,  # number of possible orientation-tuned neurons (input)
-	'n_tuned_output' 	: 24,  # number of possible orientation-tuned neurons (input)
-	'n_ori'	 	 		: 24 , # number of possible orientaitons (output)
-	'noise_mean' 		: 0,
-	'noise_sd'   		: 0.005,     # 0.05
-	'n_recall_tuned' 	: 24,   # precision at the moment of recall
-	'n_hidden' 	 		: 100,		 # number of rnn units TODO(HL): h_hidden to 100
+	'n_tuned_input'	 : 24,  # number of possible orientation-tuned neurons (input)
+	'n_tuned_output' : 24,  # number of possible orientation-tuned neurons (input)
+	'n_ori'	 	 : 24 , # number of possible orientaitons (output)
+	'noise_mean' : 0,
+	'noise_sd'   : 0.005,     # 0.05
+	'n_recall_tuned' : 24,   # precision at the moment of recall
+	'n_hidden' 	 : 100,		 # number of rnn units TODO(HL): h_hidden to 100
 
 	# Experimental settings
 	'batch_size' 	: 1024, # if image, 128 recommended

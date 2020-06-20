@@ -31,22 +31,20 @@ def _EI_mask(n_hidden, exc_inh_prop):
 
 	return np.float32(EI_matrix)
 
-def _modular_sparse_mask(n_input, n_hidden, n_output,
-						 connect_prob_within_module, connect_prob_adjacent_module_f, connect_prob_distant_module_f,
-						 connect_prob_adjacent_module_b, connect_prob_distant_module_b):
+def _modular_sparse_mask(n_input, n_hidden, n_output, connect_prob_within_module, connect_prob_adjacent_module, connect_prob_distant_module):
 
 	n_pure_hidden = n_hidden - n_input - n_output
 
 	in2in = (np.random.uniform(size=(n_input, n_input)) < connect_prob_within_module)*1
-	in2h = (np.random.uniform(size=(n_input, n_pure_hidden)) < connect_prob_adjacent_module_f)*1
-	in2out = (np.random.uniform(size=(n_input, n_output)) < connect_prob_distant_module_f)*1
+	in2h = (np.random.uniform(size=(n_input, n_pure_hidden)) < connect_prob_adjacent_module)*1
+	in2out = (np.random.uniform(size=(n_input, n_output)) < connect_prob_distant_module)*1
 
-	h2in = (np.random.uniform(size=(n_pure_hidden, n_input)) < connect_prob_adjacent_module_b)*1
+	h2in = (np.random.uniform(size=(n_pure_hidden, n_input)) < connect_prob_adjacent_module)*1
 	h2h = (np.random.uniform(size=(n_pure_hidden, n_pure_hidden)) < connect_prob_within_module)*1
-	h2out = (np.random.uniform(size=(n_pure_hidden, n_output)) < connect_prob_adjacent_module_f)*1
+	h2out = (np.random.uniform(size=(n_pure_hidden, n_output)) < connect_prob_adjacent_module)*1
 
-	out2in = (np.random.uniform(size=(n_output, n_input)) < connect_prob_distant_module_b)*1
-	out2h = (np.random.uniform(size=(n_output, n_pure_hidden)) < connect_prob_adjacent_module_b)*1
+	out2in = (np.random.uniform(size=(n_output, n_input)) < connect_prob_distant_module)*1
+	out2h = (np.random.uniform(size=(n_output, n_pure_hidden)) < connect_prob_adjacent_module)*1
 	out2out = (np.random.uniform(size=(n_output, n_output)) < connect_prob_within_module)*1
 
 	in2 = np.concatenate((in2in, in2h, in2out), axis=1)
