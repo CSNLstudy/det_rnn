@@ -8,11 +8,12 @@ __all__ = ['hp', 'hp_spec']
 # Model hyperparameters(modifiable)
 hp  = {
 	'masse' : True,
+	'loss_fun'	: 1, # 0:'mse', 1:'centropy'
 	'learning_rate' : 2e-2,	  # adam optimizer learning rate
 	'dt'            : 10.,
 	'clip_max_grad_val'  : 0.1,
 	'alpha_neuron'  : 0.1,
-	'spike_cost'  : 2e-5,
+	'spike_cost'  : 2e-4, # mse: 2e-5, centropy: 2e-3
 	'weight_cost' : 0.,
 	'noise_rnn_sd': 0.5,
 
@@ -49,5 +50,4 @@ for k, v in hp.items():
 # hp_spec
 hp_spec = {}
 for k, v in hp.items():
-    hp_spec[k] = tf.TensorSpec(v.numpy().shape, tf.dtypes.as_dtype(v.numpy().dtype), name=k)
-
+	hp_spec[k] = tf.TensorSpec(v.numpy().shape, tf.dtypes.as_dtype(v.numpy().dtype), name=k)

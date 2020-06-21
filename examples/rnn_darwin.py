@@ -6,7 +6,7 @@ sys.path.append('../')
 import det_rnn.train as dt
 from det_rnn import *
 
-model_dir = "/Volumes/Data_CSNL/project/RNN_study/20-06-19/HG/boost_wm/HL_booster11"
+model_dir = "/Volumes/Data_CSNL/project/RNN_study/20-06-19/HG/boost_wm/boost_wm_example"
 os.makedirs(model_dir, exist_ok=True)
 
 par = update_parameters(par)
@@ -26,7 +26,7 @@ extend_time = np.arange(boost_step,15.5,step=boost_step)
 mileage_lim = len(extend_time)
 
 ## Resume model
-mileage = 7 # restart from level 7
+mileage = 5 # restart from level 7
 model = tf.saved_model.load(model_dir + "/model_level" + str(mileage))
 
 ## load model_performance

@@ -43,7 +43,7 @@ class Model(tf.Module):
 	def _train_oneiter(self, input_data, target_data, mask, hp):
 		with tf.GradientTape() as t:
 			_Y, _H, _, _ = self.rnn_model(input_data, hp)  # capitalized since they are stacked
-			perf_loss   = self._calc_loss(tf.cast(_Y,tf.float32), tf.cast(target_data,tf.float32), tf.cast(mask,tf.float32))
+			perf_loss   = self._calc_loss(tf.cast(_Y,tf.float32), tf.cast(target_data,tf.float32), tf.cast(mask,tf.float32), hp)
 			spike_loss  = tf.reduce_mean(tf.nn.relu(tf.cast(_H,tf.float32))**2)
 			weight_loss = tf.reduce_mean(tf.nn.relu(self.var_dict['w_rnn'])**2)
 			loss = perf_loss + tf.cast(hp['spike_cost'],tf.float32)*spike_loss + tf.cast(hp['weight_cost'],tf.float32)*weight_loss
@@ -69,10 +69,16 @@ class Model(tf.Module):
 				_var_dict[name] = tf.Variable(hp[k], name=name, dtype='float32')
 		self.var_dict = _var_dict
 
-	def _calc_loss(self, y, target, mask):
+	def _calc_loss(self, y, target, mask, hp):
 		_target_normalized = target / tf.reduce_sum(target, axis=2, keepdims=True)
-		_y_normalized = tf.nn.softmax(y)
-		loss = tf.reduce_mean(mask * (_target_normalized - _y_normalized) ** 2)
+		if hp['loss_fun'] == 0:
+			_y_normalized = tf.nn.softmax(y)
+			loss = tf.reduce_mean(mask * (_target_normalized - _y_normalized) ** 2)
+		elif hp['loss_fun'] == 1:
+			_y_logsft = tf.nn.log_softmax(y)
+			loss = tf.reduce_mean(mask* (-_target_normalized * _y_logsft))
+		else:
+			loss = 0.
 		return loss
 
 	def _rnn_cell(self, _h, rnn_input, _syn_x, _syn_u, hp):
