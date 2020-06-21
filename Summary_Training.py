@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 
-iModel = 4
+iModel = 5
 iteration_goal              = 10000
 iteration_load              = 10000
 BatchSize                   = 100
