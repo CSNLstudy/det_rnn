@@ -1,7 +1,7 @@
 import numpy as np
 
 __all__ = ['_initialize', '_random_normal_abs', '_alternating',
-		   '_EI_mask', '_modular_sparse_mask', '_convert_to_rg']
+		   '_EI_mask', '_modular_sparse_mask', '_convert_to_rg', '_silencing_mask']
 
 # Inherited from Masse
 def _initialize(dims, shape=0.1, scale=1.0):
@@ -56,6 +56,39 @@ def _modular_sparse_mask(n_input, n_hidden, n_output,
 	imask = np.concatenate((in2, h2, out2), axis=0)
 
 	return np.float32(imask)
+
+def _silencing_mask(n_input, n_hidden, n_output):
+
+	n_pure_hidden = n_hidden - n_input - n_output
+
+	in2in = np.ones((n_input, n_input))
+	in2h = np.ones((n_input, n_pure_hidden))
+	in2out = np.ones((n_input, n_output))
+
+	h2in = np.ones((n_pure_hidden, n_input))
+	h2h = np.ones((n_pure_hidden, n_pure_hidden))
+	h2out = np.ones((n_pure_hidden, n_output))
+
+	out2in = np.ones((n_output, n_input))
+	out2h = np.ones((n_output, n_pure_hidden))
+	out2out = np.ones((n_output, n_output))
+
+	in2 = np.concatenate((in2in, in2h * 0, in2out * 0), axis=1)
+	h2 = np.concatenate((h2in * 0, h2h, h2out), axis=1)
+	out2 = np.concatenate((out2in * 0, out2h, out2out), axis=1)
+	mask_silencing_input = np.concatenate((in2, h2, out2), axis=0)
+
+	in2 = np.concatenate((in2in, in2h * 0, in2out), axis=1)
+	h2 = np.concatenate((h2in * 0, h2h, h2out * 0), axis=1)
+	out2 = np.concatenate((out2in, out2h * 0, out2out), axis=1)
+	mask_silencing_hidden = np.concatenate((in2, h2, out2), axis=0)
+
+	in2 = np.concatenate((in2in, in2h, in2out * 0), axis=1)
+	h2 = np.concatenate((h2in, h2h, h2out * 0), axis=1)
+	out2 = np.concatenate((out2in * 0, out2h * 0, out2out), axis=1)
+	mask_silencing_out = np.concatenate((in2, h2, out2), axis=0)
+
+	return np.float32(mask_silencing_input), np.float32(mask_silencing_hidden), np.float32(mask_silencing_out)
 
 # Modular w_RNN mask
 def _modular_mask(connect_prob, n_hidden, exc_inh_prop):
