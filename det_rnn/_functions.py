@@ -2,8 +2,12 @@ import numpy as np
 
 __all__ = ['_initialize', '_random_normal_abs', '_alternating',
 <<<<<<< HEAD
+<<<<<<< HEAD
 		   '_EI_mask', '_modular_sparse_mask', '_convert_to_rg',
 		   '_silencing_mask', '_alpha_mask']
+=======
+		   '_EI_mask', '_modular_sparse_mask', '_convert_to_rg']
+>>>>>>> parent of 37f1236... Decoding_Silencing_workwell
 =======
 		   '_EI_mask', '_modular_sparse_mask', '_convert_to_rg']
 >>>>>>> parent of 37f1236... Decoding_Silencing_workwell
@@ -63,6 +67,7 @@ def _modular_sparse_mask(n_input, n_hidden, n_output,
 	return np.float32(imask)
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 def _silencing_mask(n_input, n_hidden, n_output):
 
 	n_pure_hidden = n_hidden - n_input - n_output
@@ -108,6 +113,8 @@ def _alpha_mask(n_input, n_hidden, n_output, alpha_input, alpha_hidden, alpha_ou
 
 	return np.float32(alpha_mask)
 
+=======
+>>>>>>> parent of 37f1236... Decoding_Silencing_workwell
 =======
 >>>>>>> parent of 37f1236... Decoding_Silencing_workwell
 # Modular w_RNN mask
