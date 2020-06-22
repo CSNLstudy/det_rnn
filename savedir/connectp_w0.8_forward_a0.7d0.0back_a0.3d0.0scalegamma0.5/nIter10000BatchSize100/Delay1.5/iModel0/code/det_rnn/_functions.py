@@ -2,7 +2,7 @@ import numpy as np
 
 __all__ = ['_initialize', '_random_normal_abs', '_alternating',
 		   '_EI_mask', '_modular_sparse_mask', '_convert_to_rg',
-		   '_silencing_mask', '_alpha_mask']
+		   '_alpha_mask', '_silencing_mask']
 
 # Inherited from Masse
 def _initialize(dims, shape=0.1, scale=1.0):

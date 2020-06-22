@@ -7,7 +7,7 @@ import tensorflow as tf
 import time
 from shutil import copyfile
 
-nModel = np.array([3, 6])
+nModel = np.array([0, 2])
 iteration = 10000
 stimulus = Stimulus()
 
@@ -77,6 +77,7 @@ def initialize_parameters(iModel, par):
     isavedir = os.path.dirname(os.path.realpath(__file__)) + \
                '/savedir/connectp_w' + str(connect_p_within) + '_forward_a' + str(connect_p_adjacent_forward) + 'd' + str(connect_p_distant_forward) + \
                'back_a' + str(connect_p_adjacent_back) + 'd' + str(connect_p_distant_back) + 'scalegamma' + str(scale_gamma) + \
+               '/alpha_in' + str(par['alpha_input']) + '_h' + str(par['alpha_hidden']) + '_out' + str(par['alpha_output']) + \
                '/nIter' + str(iteration) + 'BatchSize' + str(BatchSize) + '/Delay' + str(delay) + '/iModel' + str(iModel)
     if not os.path.isdir(isavedir):
         os.makedirs(isavedir)
