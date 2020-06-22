@@ -22,7 +22,7 @@ def alternating(x, size):
 def w_rnn_mask(n_hidden, exc_inh_prop):
 	n_exc = int(n_hidden * exc_inh_prop)
 	rg_inh = range(n_exc, n_hidden)
-	Crec = np.ones((n_hidden, n_hidden))
+	Crec = np.ones((n_hidden, n_hidden)) - np.eye(n_hidden)
 	Crec[rg_inh,:] = Crec[rg_inh,:]*(-1.)
 	return np.float32(Crec)
 
