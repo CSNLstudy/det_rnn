@@ -50,7 +50,7 @@ for iter in range(N_boost_max):
         milestones[mileage] = iter
         timestones[mileage] = check_time-start_time
 
-        ## Attach to the model
+        ## Attach to the model # josh: why attach??
         model.model_performance = dt.tensorize_model_performance(model_performance)
         model.milestones = tf.Variable(milestones, trainable=False)
         model.timestones = tf.Variable(timestones, trainable=False)

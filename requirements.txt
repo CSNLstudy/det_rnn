@@ -4,3 +4,6 @@ numpy
 tensorflow
 matplotlib
 tf-nightly
+seaborn
+
+randomgen

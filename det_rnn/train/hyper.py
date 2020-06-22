@@ -11,10 +11,14 @@ hp  = {
 	'learning_rate' : 2e-2,	  # adam optimizer learning rate
 	'dt'            : 10.,
 	'clip_max_grad_val'  : 0.1,
-	'alpha_neuron'  : 0.1,
+	'alpha_neuron'  : 0.1, # time constant = dt/alpha ~ i.e. 10/0.1 = 100ms
 	'spike_cost'  : 2e-5,
 	'weight_cost' : 0.,
 	'noise_rnn_sd': 0.5,
+
+	'n_hidden': par['n_hidden'],
+	'n_input': par['n_input'],
+	'n_tuned_input': par['n_tuned_input'],
 
 	'h0': random_normal_abs((1, par['n_hidden'])),
 	'w_in0': random_normal_abs((par['n_input'], par['n_hidden'])),
@@ -25,8 +29,8 @@ hp  = {
 
 	'syn_x_init': np.ones((par['batch_size'], par['n_hidden']), dtype=np.float32),
 	'syn_u_init': np.tile(alternating((0.15, 0.45), par['n_hidden']), (par['batch_size'], 1)),
-	'alpha_std': alternating((0.05, 0.00667), par['n_hidden']),
-	'alpha_stf': alternating((0.00667, 0.05), par['n_hidden']),
+	'alpha_std': alternating((0.05, 0.00667), par['n_hidden']), # efficacy time constant #josh: what is alternating??
+	'alpha_stf': alternating((0.00667, 0.05), par['n_hidden']), # utilization time constant
 	'dynamic_synapse': np.ones(par['n_hidden'], dtype=np.float32),
 	'U': alternating((0.15, 0.45), par['n_hidden']),
 
@@ -35,12 +39,14 @@ hp  = {
 	'w_out_mask': np.concatenate((np.ones((par['n_exc'], par['n_output']),dtype=np.float32),
 									  np.zeros((par['n_hidden']-par['n_exc'], par['n_output']), dtype=np.float32)),axis=0), # Todo(HL): no input from inhibitory neurons
 
+	'exc_inh_prop': par['exc_inh_prop'],
+	'connect_prob': par['connect_prob']
 }
 
 if par['modular']:
-	hp['EI_mask'] = modular_mask(par['connect_prob'], par['n_hidden'], par['exc_inh_prop'])
+	hp['EI_mask'] = modular_mask(hp['connect_prob'], hp['n_hidden'], hp['exc_inh_prop'])
 else:
-	hp['EI_mask'] = w_rnn_mask(par['n_hidden'], par['exc_inh_prop'])
+	hp['EI_mask'] = w_rnn_mask(hp['n_hidden'], hp['exc_inh_prop'])
 
 # Tensorize hp
 for k, v in hp.items():

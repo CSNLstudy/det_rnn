@@ -14,7 +14,7 @@ def random_normal_abs(dims): # Todo (HL): random.gamma
     return np.float32(y)
 
 def alternating(x, size):
-	tmp = np.tile(np.array(x), np.int(np.ceil(size / 2)))
+	tmp = np.tile(np.array(x), np.int(np.ceil(size / len(x))))
 	tmp2 = tmp[0:size]
 	return tmp2.astype(np.float32)
 

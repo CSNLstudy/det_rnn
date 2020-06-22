@@ -34,7 +34,6 @@ axes[2].imshow(pred_output[:,TEST_TRIAL,:].T,  aspect='auto', vmin=0, vmax=0.15)
 fig.tight_layout(pad=2.0)
 plt.show()
 
-
 trial_info = dt.numpy_trial(trial_info)
 ground_truth, estim_mean, raw_error, beh_perf = da.behavior_summary(trial_info, pred_output, par=par)
 da.behavior_figure(ground_truth, estim_mean, raw_error, beh_perf)
