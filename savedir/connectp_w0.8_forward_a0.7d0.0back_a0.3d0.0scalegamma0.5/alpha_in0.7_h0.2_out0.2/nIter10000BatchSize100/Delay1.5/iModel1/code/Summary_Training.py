@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 
-iModel = 0
+iModel = 5
 iteration_goal              = 10000
 iteration_load              = 10000
 BatchSize                   = 100
@@ -37,15 +37,9 @@ par['connect_prob_distant_module_back'] = connect_p_distant_back
 #                       'estim'   : (6.0, 7.5)})
 
 delay = par['design']['delay'][1] - par['design']['delay'][0]
-# savedir = os.path.dirname(os.path.realpath(__file__)) + \
-#            '/savedir/connectp_w' + str(connect_p_within) + '_forward_a' + str(connect_p_adjacent_forward) + 'd' + str(connect_p_distant_forward) + \
-#            'back_a' + str(connect_p_adjacent_back) + 'd' + str(connect_p_distant_back) + 'scalegamma' + str(scale_gamma) + \
-#            '/nIter' + str(iteration_goal) + 'BatchSize' + str(BatchSize) + '/Delay' + str(delay) + '/iModel' + str(iModel)
-
 savedir = os.path.dirname(os.path.realpath(__file__)) + \
            '/savedir/connectp_w' + str(connect_p_within) + '_forward_a' + str(connect_p_adjacent_forward) + 'd' + str(connect_p_distant_forward) + \
            'back_a' + str(connect_p_adjacent_back) + 'd' + str(connect_p_distant_back) + 'scalegamma' + str(scale_gamma) + \
-           '/alpha_in' + str(par['alpha_input']) + '_h' + str(par['alpha_hidden']) + '_out' + str(par['alpha_output']) + \
            '/nIter' + str(iteration_goal) + 'BatchSize' + str(BatchSize) + '/Delay' + str(delay) + '/iModel' + str(iModel)
 
 if not os.path.isdir(savedir + '/estimation/Iter' + str(iteration_load)):
@@ -176,9 +170,9 @@ def rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn):
     h_post = syn_u * syn_x * h
     # h_post = h
 
-    noise_rnn = np.sqrt(2*par['alpha_mask'])*par['noise_rnn_sd']
-    h = tf.nn.relu((1 - par['alpha_mask']) * h
-         + par['alpha_mask'] * (rnn_input
+    noise_rnn = np.sqrt(2*par['alpha_neuron'])*par['noise_rnn_sd']
+    h = tf.nn.relu((1 - par['alpha_neuron']) * h
+         + par['alpha_neuron'] * (rnn_input
                                   + h_post @ w_rnn
                                   + var_dict['b_rnn'])
          + tf.random.normal(h.shape, 0, noise_rnn, dtype=tf.float32))
