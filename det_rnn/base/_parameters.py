@@ -27,9 +27,11 @@ par = {
 
 	# stimulus type
 	'type'					: 'orientation',  # size, orientation
+#	'stim_cont' 			: False, # not yet implemented.
 
 	# stimulus distribution
-	'stim_dist'				: 'uniform', # or a specific input
+	'stim_dist'				: 'uniform', # or a specific input, (uniform, natural)
+	'natural_a' 			: 2e-4, # only for nautral scene distribution, slope of quadratic approximation of distribution
 
 	# multiple trials
 	'trial_per_subblock'	: 1, 	  # should divide the batch_size
@@ -66,9 +68,9 @@ par = {
 
 	# Neuronal settings
 	'n_receptive_fields': 1,
-	'n_tuned_input'	 : 24,  # number of possible orientation-tuned neurons (input)
-	'n_tuned_output' : 24,  # number of possible orientation-tuned neurons (input)
-	'n_ori'	 	 : 24 , # number of possible orientaitons (output)
+	'n_tuned_input'	 : 24,  # number of possible orientation-tuned neurons (input) => for stimulus generation?
+	'n_tuned_output' : 24,  # number of possible orientation-tuned neurons (output)
+	'n_ori'	 	 : 24 , # number of possible orientations (output) josh: input orientations?
 	'noise_mean' : 0,
 	'noise_sd'   : 0.005,     # 0.05
 	'n_recall_tuned' : 24,   # precision at the moment of recall
@@ -144,6 +146,17 @@ def update_parameters(par):
 	## stimulus distribution TODO(HG): this is erroroneous
 	if par['stim_dist'] == 'uniform':
 		par['stim_p'] = np.ones(par['n_ori'])
+	elif par['stim_dist'] == 'natural':
+		# use a rough quadratic approximation of Girshick et al. 2011... todo: make it more accurate.
+		dori = 180 / par['n_ori']
+		a = par['natural_a']
+		stim_dirs = np.float32(np.arange(0, 180, dori))
+		midindx = np.argmin(np.abs(stim_dirs - 90))
+		par['stim_p'] = np.zeros(par['n_ori'])
+		par['stim_p'][:midindx] += a * (np.arange(0, stim_dirs[midindx], stim_dirs[midindx] / midindx) - 45) ** 2 + 1
+		par['stim_p'][midindx:] += a * (np.arange(stim_dirs[midindx + 1],
+										  180, (180 - stim_dirs[midindx + 1]) / (par['n_ori'] - midindx)
+										  ) - 135) ** 2 + 1
 	else:
 		par['stim_p'] = par['stim_dist']
 

@@ -48,7 +48,7 @@ class Model(tf.Module):
 			weight_loss = tf.reduce_mean(tf.nn.relu(self.var_dict['w_rnn'])**2)
 			loss = perf_loss + tf.cast(hp['spike_cost'],tf.float32)*spike_loss + tf.cast(hp['weight_cost'],tf.float32)*weight_loss
 
-		vars_and_grads = t.gradient(loss, self.var_dict)
+			vars_and_grads = t.gradient(loss, self.var_dict) # josh: with GradientTape?
 		capped_gvs = [] # gradient capping and clipping
 		for var, grad in vars_and_grads.items():
 			if 'w_rnn' in var:
@@ -91,6 +91,7 @@ class Model(tf.Module):
 			_h_post = _syn_u * _syn_x * _h
 		else:
 			_h_post = _h
+		# josh: hp['alpha_neuron'] or dt/T
 		_h = tf.nn.relu(tf.cast(_h, tf.float32) * (1. - hp['alpha_neuron'])
 						+ hp['alpha_neuron'] * (tf.cast(rnn_input, tf.float32) @ tf.nn.relu(self.var_dict['w_in'])
 											 + tf.cast(_h_post, tf.float32) @ _w_rnn + self.var_dict['b_rnn'])

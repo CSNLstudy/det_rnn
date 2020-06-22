@@ -27,14 +27,39 @@ class Stimulus(object):
                 'desired_output': desired_output.astype(np.float32),
                 'mask'          : mask}
 
+    # TODO(HG): simplify here (Make n_ori flexible!!!)
+    def _generate_tuning(self):
+        # Tuning function is a von Mises distribution
+        # Tuning input shape = (n_input, 1, n_orientations)??
+        _tuning_input  = np.zeros((self.n_tuned_input,  self.n_receptive_fields, self.n_ori))
+        _tuning_output = np.zeros((self.n_tuned_output, self.n_receptive_fields, self.n_ori))
+        stim_dirs = np.float32(np.arange(0,180,180/self.n_ori))
+        pref_dirs = np.float32(np.arange(0,180,180/(self.n_ori)))
+
+        for n in range(self.n_tuned_input):
+            for i in range(self.n_ori):
+                d = np.cos((stim_dirs[i] - pref_dirs[n])/90*np.pi)
+                _tuning_input[n,0,i]  = self.strength_input*np.exp(self.kappa*d)/np.exp(self.kappa) #np.exp(kappa) is the height at mode
+                _tuning_output[n,0,i] = self.strength_output*np.exp(self.kappa*d)/np.exp(self.kappa)
+
+        if self.stim_encoding == 'single':
+            self.tuning_input  = _tuning_input
+
+        elif self.stim_encoding == 'double':
+            self.tuning_input = np.tile(_tuning_input,(2,1))
+
+        self.tuning_output  = _tuning_output
+        self._pref_dirs      = pref_dirs
+
     def _gen_stimseq(self):
         stimulus_ori = np.random.choice(np.arange(self.n_ori), p=self.stim_p, size=self.batch_size)
         return stimulus_ori
 
     def _gen_stim(self, stimulus_ori):
         # TODO(HG): need to be changed if n_ori =/= n_tuned
+        # neural_input.shape = (stimulus time, batchsize, neuron index)
         neural_input = random.standard_normal(size=(self.n_timesteps, self.batch_size, self.n_input))*self.noise_sd + self.noise_mean
-        neural_input[:,:,:self.n_rule_input] += self._gen_input_rule()
+        neural_input[:,:,:self.n_rule_input] += self._gen_input_rule() # add rules
         for t in range(self.batch_size):
             neural_input[self.design_rg['stim'],t,self.n_rule_input:] += self.tuning_input[:,0,stimulus_ori[t]].reshape((1,-1))
         if self.n_subblock > 1: # multi-trial settings
@@ -121,26 +146,3 @@ class Stimulus(object):
         fig.tight_layout(pad=2.0)
 
         plt.show()
-
-    # TODO(HG): simplify here (Make n_ori flexible!!!)
-    def _generate_tuning(self):
-        _tuning_input  = np.zeros((self.n_tuned_input,  self.n_receptive_fields, self.n_ori))
-        _tuning_output = np.zeros((self.n_tuned_output, self.n_receptive_fields, self.n_ori))
-        stim_dirs = np.float32(np.arange(0,180,180/self.n_ori))
-        pref_dirs = np.float32(np.arange(0,180,180/(self.n_ori)))
-        for n in range(self.n_tuned_input):
-            for i in range(self.n_ori):
-                d = np.cos((stim_dirs[i] - pref_dirs[n])/90*np.pi)
-                _tuning_input[n,0,i]  = self.strength_input*np.exp(self.kappa*d)/np.exp(self.kappa)
-                if self.resp_decoding == 'onehot':
-                    _tuning_output[n,0,i] = self.strength_output*(1.*(d==1.))
-                else:
-                    _tuning_output[n,0,i] = self.strength_output*np.exp(self.kappa*d)/np.exp(self.kappa)
-
-        if self.stim_encoding == 'single':
-            self.tuning_input  = _tuning_input
-
-        elif self.stim_encoding == 'double':
-            self.tuning_input = np.tile(_tuning_input,(2,1))
-
-        self.tuning_output = _tuning_output
