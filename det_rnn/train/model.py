@@ -2,6 +2,7 @@ import tensorflow as tf
 from .hyper import *
 from det_rnn.base.functions import alternating
 
+EPSILON = 1e-7
 
 __all__ = ['Model']
 
@@ -95,19 +96,19 @@ class Model(tf.Module):
 	def _calc_loss(self, y, target, mask, hp):
 		target_ori = target[:,:,self.n_rule_output:]
 		y_ori = y[:,:,self.n_rule_output:]
-		_target_normalized = target_ori / (tf.reduce_sum(target_ori, axis=2, keepdims=True) + 1e-7) #add epsilon?
+		_target_normalized = target_ori / (tf.reduce_sum(target_ori, axis=2, keepdims=True) + EPSILON) #add epsilon?
 		mask_ori = mask[:,:,self.n_rule_output:]
 		if hp['loss_fun'] == 0:
-			_y_normalized = tf.nn.softmax(y_ori)
+			_y_normalized = tf.nn.softmax(y_ori + EPSILON)
 			loss = tf.reduce_mean(mask_ori * (_target_normalized - _y_normalized) ** 2)
 		elif hp['loss_fun'] == 1:
-			_y_logsft = tf.nn.log_softmax(y_ori)
-			loss = tf.reduce_mean(mask_ori* (-_target_normalized * _y_logsft))
+			_y_logsft = tf.nn.log_softmax(y_ori + EPSILON)
+			loss = tf.reduce_mean(mask_ori * (-_target_normalized * _y_logsft))
 		else:
 			loss = 0.
 
 		# add rule loss:
-		rulelosses = (target[:,:,:self.n_rule_output] - y[:,:,:self.n_rule_output])
+		rulelosses = (target[:,:,:self.n_rule_output] - y[:,:,:self.n_rule_output])**2 # use mse loss for rules
 		loss += tf.reduce_mean(mask[:,:,:self.n_rule_output] * rulelosses)
 
 		#debug losse
@@ -153,7 +154,7 @@ class Model(tf.Module):
 		return loss
 
 	def _rnn_cell(self, _h, rnn_input, _syn_x, _syn_u, hp):
-		_w_rnn = tf.math.abs(self.var_dict['w_rnn']) * tf.cast(hp['EI_mask'], tf.float32) #josh: tf.nn.relu or tf.math.abs
+		_w_rnn = tf.nn.relu(self.var_dict['w_rnn']) * tf.cast(hp['EI_mask'], tf.float32) #josh: tf.nn.relu or tf.abs
 
 		if hp['masse']:
 			_syn_x += tf.cast(hp['alpha_std'] * (1. - _syn_x) - hp['dt']/1000 * _syn_u * _syn_x * _h, tf.float32)

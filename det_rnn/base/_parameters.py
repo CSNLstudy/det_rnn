@@ -77,7 +77,7 @@ par = {
 	'n_hidden' 	 : 100,		 # number of rnn units TODO(HL): h_hidden to 100
 
 	# Experimental settings
-	'batch_size' 	: 128,    
+	'batch_size' 	: 2024,
 	'alpha_neuron'  : 0.1,    # changed from tf.constant TODO(HL): alpha changed from 0.2 to 0.1 (Masse)
 
 	# Optimizer
@@ -153,8 +153,7 @@ def update_parameters(par):
 		par['stim_p'] = np.zeros(par['n_ori'])
 		par['stim_p'][:midindx] += a * (np.arange(0, stim_dirs[midindx], stim_dirs[midindx] / midindx) - 45) ** 2 + 1
 		par['stim_p'][midindx:] += a * (np.arange(stim_dirs[midindx + 1],
-										  180, (180 - stim_dirs[midindx + 1]) / (par['n_ori'] - midindx)
-										  ) - 135) ** 2 + 1
+									  180, (180 - stim_dirs[midindx + 1]) / (par['n_ori'] - midindx)) - 135) ** 2 + 1
 	else:
 		par['stim_p'] = par['stim_dist']
 

@@ -69,8 +69,10 @@ def behavior_figure(ground_truth, estim_mean, raw_error, beh_perf):
     #plt.legend()
     
     ax[2,1].set_title("Estimation Distribution")
-    ax[2,1].hist(estim_mean%(np.pi), bins=30)
-    ax[2,1].set_xlabel(r"$\hat{\theta}$(rad)"); ax[2,1].set_ylabel("Count");
+    ax[2,1].hist(estim_mean%(np.pi), bins=np.arange(0,np.pi+0.01,np.pi/48))
+    ax[2,1].set_xlabel(r"$\hat{\theta}$(rad)");
+    ax[2,1].set_xlim([0,np.pi]);
+    ax[2,1].set_ylabel("Count");
     #ax[2,1].legend()
     
     plt.show()
