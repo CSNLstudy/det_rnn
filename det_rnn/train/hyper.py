@@ -14,13 +14,16 @@ hp  = {
 	'clip_max_grad_val'  : 0.1,
 
 	'alpha_neuron'  : 0.1, # time constant = dt/alpha ~ i.e. 10/0.1 = 100ms
-	'spike_cost'  : 2e-5,
+	'spike_cost'  : 2e-3,
 	'weight_cost' : 0.,
 	'noise_rnn_sd': 0.5,
 
+	 # inherited from par (stimulus structures)
 	'n_hidden': par['n_hidden'],
 	'n_input': par['n_input'],
 	'n_tuned_input': par['n_tuned_input'],
+	'n_rule_input': par['n_rule_input'],
+	'n_rule_output': par['n_rule_output'],
 
 	'h0': random_normal_abs((1, par['n_hidden'])),
 	'w_in0': random_normal_abs((par['n_input'], par['n_hidden'])),
@@ -29,8 +32,9 @@ hp  = {
 	'w_out0': random_normal_abs((par['n_hidden'],par['n_output'])) * par['w_out_mask'],
 	'b_out0': np.zeros(par['n_output'], dtype=np.float32),
 
-	'syn_x_init': np.ones((par['batch_size'], par['n_hidden']), dtype=np.float32),
-	'syn_u_init': np.tile(alternating((0.15, 0.45), par['n_hidden']), (par['batch_size'], 1)),
+	'syn_x_init': np.ones((par['batch_size'], par['n_hidden']), dtype=np.float32), # do we need to initialize this here?
+	'syn_u_init': np.tile(alternating((0.15, 0.45), par['n_hidden']), (par['batch_size'], 1)), # josh: why alternating?
+
 	'alpha_std': alternating((0.05, 0.00667), par['n_hidden']), # efficacy time constant #josh: what is alternating??
 	'alpha_stf': alternating((0.00667, 0.05), par['n_hidden']), # utilization time constant
 	'dynamic_synapse': np.ones(par['n_hidden'], dtype=np.float32),

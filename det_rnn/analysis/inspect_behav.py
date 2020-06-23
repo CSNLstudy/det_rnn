@@ -13,10 +13,10 @@ def softmax_pred_output(pred_output):
     return cenoutput
 
 def behavior_summary(trial_info, pred_output, par):
-    cenoutput = softmax_pred_output(pred_output)
+    cenoutput = softmax_pred_output(pred_output[:,:,par['n_rule_output']:])
     
     # posterior mean as a function of time
-    post_prob = cenoutput[:,:,par['n_rule_output']:]
+    post_prob = cenoutput[:,:,:]
     post_prob = post_prob/(np.sum(post_prob, axis=2, keepdims=True)+np.finfo(np.float32).eps) # Dirichlet normaliation
     post_support = np.linspace(0,np.pi,par['n_ori'],endpoint=False) + np.pi/par['n_ori']/2
     post_sinr = np.sin(2*post_support)
@@ -30,6 +30,8 @@ def behavior_summary(trial_info, pred_output, par):
     
     ## Quantities for plotting
     ground_truth  = trial_info['stimulus_ori']
+    if tf.is_tensor(ground_truth):
+        ground_truth = ground_truth.cpu().numpy()
     ground_truth  = ground_truth * np.pi/par['n_ori']
     raw_error = estim_mean - ground_truth
     beh_perf  = np.cos(2.*(ground_truth - estim_mean))
@@ -56,15 +58,19 @@ def behavior_figure(ground_truth, estim_mean, raw_error, beh_perf):
     ax[1,0].set_xlabel(r"$\theta$(rad)"); ax[1,0].set_ylabel(r"$\cos(2\hat{\theta}$)"); ax[1,0].legend()
     
     ax[1,1].set_title("Estimation(Cosine Transformed)")
-    sns.regplot(x='GT', y='CosBehav', data=pd.DataFrame({'GT':np.cos(ground_truth*2), 'CosBehav':np.cos(estim_mean*2)}), ax=ax[1,1])
+    sns.regplot(x='GT', y='CosBehav',
+                data=pd.DataFrame({'GT':np.cos(ground_truth*2), 'CosBehav':np.cos(estim_mean*2)}),
+                ax=ax[1,1], label= "reg.")
     ax[1,1].set_xlabel(r"$\cos(2\theta$)"); ax[1,1].set_ylabel(r"$\cos(2\hat{\theta}$)"); ax[1,1].legend()
     
     ax[2,0].set_title("Error Distribution")
     sns.scatterplot(x='GT', y='Error', data=pd.DataFrame({'GT':ground_truth, 'Error':np.arcsin(np.sin(2*raw_error))}), ax=ax[2,0])
-    ax[2,0].set_xlabel(r"$\theta$(rad)"); ax[2,0].set_ylabel(r"$\hat{\theta} - \theta$"); plt.legend()
+    ax[2,0].set_xlabel(r"$\theta$(rad)"); ax[2,0].set_ylabel(r"$\hat{\theta} - \theta$");
+    #plt.legend()
     
     ax[2,1].set_title("Estimation Distribution")
     ax[2,1].hist(estim_mean%(np.pi), bins=30)
-    ax[2,1].set_xlabel(r"$\hat{\theta}$(rad)"); ax[2,1].set_ylabel("Count"); ax[2,1].legend()
+    ax[2,1].set_xlabel(r"$\hat{\theta}$(rad)"); ax[2,1].set_ylabel("Count");
+    #ax[2,1].legend()
     
     plt.show()

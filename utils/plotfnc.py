@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import tensorflow as tf
 
 ## todo: put this function here or in the stimulus?
 
@@ -8,27 +9,37 @@ def plot_rnn_output(par,trial_info,pred_output,stim, TEST_TRIAL=None):
         TEST_TRIAL = np.random.randint(stim.batch_size)
 
     fig, axes = plt.subplots(4, 1, figsize=(8, 12))
-    axes[0].imshow(trial_info['neural_input'][:, TEST_TRIAL, :].T,
-                   interpolation='none',
-                   aspect='auto');
+    if tf.is_tensor(trial_info['neural_input']):
+        a0 = trial_info['neural_input'].cpu().numpy()
+    else:
+        a0 = trial_info['neural_input']
+    if tf.is_tensor(trial_info['desired_output']):
+        a1 = trial_info['desired_output'].cpu().numpy()
+    else:
+        a1 = trial_info['desired_output']
+    if tf.is_tensor(pred_output):
+        a2 = pred_output.cpu().numpy()
+    else:
+        a2 = pred_output
+
+    axes[0].imshow(a0[:, TEST_TRIAL, :].T,interpolation='none',aspect='auto');
     axes[0].set_title("Neural Input")
     if par['resp_decoding'] == 'conti':
-        axes[1].plot(trial_info['desired_output'][:, TEST_TRIAL, :]);
+        axes[1].plot(a1[:, TEST_TRIAL, :].T);
         axes[1].set_ylim([-np.pi, np.pi]);
         axes[1].set_title("Desired Output")
-        axes[2].plot(pred_output[0].numpy()[:, TEST_TRIAL, :]);
+        axes[2].plot(a2[:, TEST_TRIAL, :]);
         axes[2].set_ylim([-np.pi, np.pi]);
         axes[2].set_title("Predicted output")
     elif par['resp_decoding'] == 'disc':
-        axes[1].imshow(trial_info['desired_output'][:, TEST_TRIAL, :].T,
+        axes[1].imshow(a1[:, TEST_TRIAL, :].T, interpolation='none', aspect='auto');
+        axes[1].set_title("Desired Output")
+
+        axes[2].imshow(a2[:, TEST_TRIAL, :stim.n_rule_output].T,
                        interpolation='none',
                        aspect='auto');
-        axes[1].set_title("Desired Output Rules")
-        axes[2].imshow(pred_output[0].numpy()[:, TEST_TRIAL, :stim.n_rule_output].T,
-                       interpolation='none',
-                       aspect='auto');
-        axes[2].set_title("Predicted output")
-        axes[3].imshow(pred_output[0].numpy()[:, TEST_TRIAL, stim.n_rule_output:].T,
+        axes[2].set_title("Predicted output rules")
+        axes[3].imshow(a2[:, TEST_TRIAL, stim.n_rule_output:].T,
                        interpolation='none',
                        aspect='auto');
         axes[3].set_title("Predicted output")
@@ -38,7 +49,10 @@ def plot_trial(stim, trial_info, TEST_TRIAL=None):
     if TEST_TRIAL is None:
         TEST_TRIAL = np.random.randint(stim.batch_size)
 
-    fig, axes = plt.subplots(6, 1, figsize=(10, 8))
+    axes = {}
+    fig = plt.figure(constrained_layout=True, figsize=(10, 8))
+    gs = fig.add_gridspec(6, 2)
+    axes[0] = fig.add_subplot(gs[0, 0])
     im0 = axes[0].imshow(trial_info['neural_input'][:, TEST_TRIAL, :stim.n_rule_input].T,
                          interpolation='none',
                          aspect='auto');
@@ -46,29 +60,7 @@ def plot_trial(stim, trial_info, TEST_TRIAL=None):
     axes[0].set_xlabel("Time (frames)")
     fig.colorbar(im0, ax=axes[0])
 
-    im1 = axes[1].imshow(trial_info['neural_input'][:, TEST_TRIAL, stim.n_rule_input:].T,
-                         interpolation='none',
-                         aspect='auto');
-    axes[1].set_title("Neural Input")
-    axes[1].set_xlabel("Time (frames)")
-    axes[1].set_ylabel("Neuron")
-    fig.colorbar(im1, ax=axes[1])
-
-    im2 = axes[2].imshow(trial_info['desired_output'][:, TEST_TRIAL, :stim.n_rule_output].T,
-                         interpolation='none',
-                         aspect='auto');
-    axes[2].set_title("Desired Output Rules")
-    axes[2].set_xlabel("Time (frames)")
-    fig.colorbar(im2, ax=axes[2])
-
-    im2 = axes[3].imshow(trial_info['desired_output'][:, TEST_TRIAL, stim.n_rule_output:].T,
-                         interpolation='none',
-                         aspect='auto');
-    axes[3].set_title("Desired Output")
-    axes[3].set_xlabel("Time (frames)")
-    axes[3].set_ylabel("Neuron")
-    fig.colorbar(im2, ax=axes[3])
-
+    axes[4] = fig.add_subplot(gs[1, 0])
     im3 = axes[4].imshow(trial_info['mask'][:, TEST_TRIAL, :stim.n_rule_output].T,
                          interpolation='none',
                          aspect='auto');
@@ -76,6 +68,7 @@ def plot_trial(stim, trial_info, TEST_TRIAL=None):
     axes[4].set_xlabel("Time (frames)")
     fig.colorbar(im3, ax=axes[4])
 
+    axes[5] = fig.add_subplot(gs[1, 1])
     im4 = axes[5].imshow(trial_info['mask'][:, TEST_TRIAL, stim.n_rule_output:].T,
                          interpolation='none',
                          aspect='auto');
@@ -84,7 +77,38 @@ def plot_trial(stim, trial_info, TEST_TRIAL=None):
     axes[5].set_ylabel("Neuron")
     fig.colorbar(im4, ax=axes[5])
 
-    fig.tight_layout(pad=2.0)
+    axes[2] = fig.add_subplot(gs[0, 1])
+    im2 = axes[2].imshow(trial_info['desired_output'][:, TEST_TRIAL, :stim.n_rule_output].T,
+                         interpolation='none',
+                         aspect='auto');
+    axes[2].set_title("Desired Output Rules")
+    axes[2].set_xlabel("Time (frames)")
+    fig.colorbar(im2, ax=axes[2])
+
+
+    axes[1] = fig.add_subplot(gs[2:4, :])
+    im1 = axes[1].imshow(trial_info['neural_input'][:, TEST_TRIAL, stim.n_rule_input:].T,
+                         extent=[0, trial_info['neural_input'].shape[0], stim.pref_dirs[0], stim.pref_dirs[-1]],
+                         origin='lower',
+                         interpolation='none',
+                         aspect='auto');
+    axes[1].set_title("Neural Input")
+    axes[1].set_xlabel("Time (frames)")
+    axes[1].set_ylabel("Neuron (pref. ori. deg)")
+    fig.colorbar(im1, ax=axes[1])
+
+    axes[3] = fig.add_subplot(gs[4:6, :])
+    im2 = axes[3].imshow(trial_info['desired_output'][:, TEST_TRIAL, stim.n_rule_output:].T,
+                         #extent=[0, trial_info['neural_input'].shape[0], stim.pref_dirs[0], stim.pref_dirs[-1]],
+                         origin='lower',
+                         interpolation='none',
+                         aspect='auto');
+    axes[3].set_title("Desired Output")
+    axes[3].set_xlabel("Time (frames)")
+    axes[3].set_ylabel("Neuron (#)")
+    fig.colorbar(im2, ax=axes[3])
+
+    #fig.tight_layout(pad=2.0)
     plt.show()
 
 def make_var_dict_figure(model):

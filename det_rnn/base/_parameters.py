@@ -99,7 +99,6 @@ def update_parameters(par):
 	par.update({
 		'n_subblock' : int(par['batch_size']/par['trial_per_subblock'])
 	})
-	
 
 	# default settings
 	if par['output_range'] is 'design':
@@ -114,6 +113,7 @@ def update_parameters(par):
 	else:
 		par['dead_rg'] = convert_to_rg(par['dead'], par['dt'])
 
+	# todo: make more rules?
 	if par['input_rule'] is 'design':
 		par['input_rule_rg'] = convert_to_rg({'fixation': (0,par['design']['estim'][1]),
 											   'response': par['design']['estim']},par['dt'])
@@ -132,14 +132,12 @@ def update_parameters(par):
 	## set n_input
 	if par['stim_encoding'] == 'single':
 		par['n_input'] = par['n_rule_input'] + par['n_tuned_input']
-
 	elif par['stim_encoding'] == 'double':
 		par['n_input'] = par['n_rule_input'] + par['n_tuned_input'] * 2
 
 	## set n_estim_output
 	if par['resp_decoding'] == 'conti':
 		par['n_output'] = par['n_rule_output'] + 1
-
 	elif par['resp_decoding'] in ['disc', 'onehot']:
 		par['n_output'] = par['n_rule_output'] + par['n_tuned_output']
 

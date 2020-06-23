@@ -6,13 +6,16 @@ import matplotlib.pyplot as plt
 
 sys.path.append('../')
 from det_rnn import *
-import det_rnn.train as train_utils
+import det_rnn.train as utils_train
+import det_rnn.analysis as utils_analysis
 import tensorflow as tf
 from det_rnn.train.model import Model
+from utils.plotfnc import *
 
-model_dir = "/Users/JRyu/github/det_rnn/experiments/naturalprior/200622/"
+#model_dir = "/Users/JRyu/github/det_rnn/experiments/naturalprior/200622/"
+#model_dir = "D:/proj/det_rnn/experiments/naturalprior/200622/"
+model_dir = "../experiments/naturalprior/200622/"
 os.makedirs(model_dir, exist_ok=True)
-
 
 ###### Generate stimulus ######
 
@@ -35,31 +38,45 @@ N_iter = 3000
 N_save = 50  # save model every N_save iterations
 
 # define model
-hp = train_utils.hp
+hp = utils_train.hp
 hp['learning_rate'] = 5e-1
 model = Model(hp=hp)
 
-ti_spec = train_utils.gen_ti_spec(stim_train.generate_trial())
+ti_spec = utils_train.gen_ti_spec(stim_train.generate_trial())
+
 alllosses =[]
 performance_train = {'perf': [], 'loss': [], 'perf_loss': [], 'spike_loss': []}
 performance_test = {'perf': [], 'loss': [], 'perf_loss': [], 'spike_loss': []}
 
 for iter_n in range(N_iter+1):
     # train on testing set
-    train_data = train_utils.tensorize_trial(stim_train.generate_trial())
+    train_data = utils_train.tensorize_trial(stim_train.generate_trial())
     Y, Loss = model(train_data, hp)
 
-    performance_train = train_utils.append_model_performance(performance_train,
+    performance_train = utils_train.append_model_performance(performance_train,
                                                              train_data, Y, Loss, par_train)
     # append performance on testing set
-    test_data = train_utils.tensorize_trial(stim_test.generate_trial())
-    performance_test = train_utils.append_model_performance(performance_test,
-                                                             test_data, Y, Loss, par_test)
+    test_data = utils_train.tensorize_trial(stim_test.generate_trial(balanced=True))
+    test_Y, test_loss = model.return_losses(test_data['neural_input'], test_data['desired_output'],
+                                            test_data['mask'], hp)
+    performance_test = utils_train.append_model_performance(performance_test,
+                                                            test_data, test_Y, test_loss, par_test)
 
     if (iter_n % N_save) == 0:
-        print('\nTraining performance: ')
-        train_utils.print_results(performance_train, iter_n)
-        #print('Testing performance: ')
-        #train_utils.print_results(performance_test, iter_n)
+        print('\n Training performance: ')
+        utils_train.print_results(performance_train, iter_n)
 
+        # predict from testing set
+        print('Testing performance: ')
+        utils_train.print_results(performance_test, iter_n)
+        plot_rnn_output(par_test, test_data, test_Y, stim_test, TEST_TRIAL=None)
+
+        test_Y = utils_analysis.softmax_pred_output(test_Y) # change to softmax
+        ground_truth, estim_mean, raw_error, beh_perf = utils_analysis.behavior_summary(test_data, test_Y, par=par_test)
+        utils_analysis.behavior_figure(ground_truth, estim_mean, raw_error, beh_perf)
+
+        tf.saved_model.save(model, os.path.join(model_dir, "cont_iter" + str(iter_n)))
+
+    # save final model
+    if iter_n == N_iter:
         tf.saved_model.save(model, os.path.join(model_dir, "cont_iter" + str(iter_n)))
