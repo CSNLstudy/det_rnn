@@ -102,9 +102,9 @@ def rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn):
     h_post = syn_u * syn_x * h
     # h_post = h
 
-    noise_rnn = np.sqrt(2*par['alpha_mask'])*par['noise_rnn_sd']
-    h = tf.nn.relu((1 - par['alpha_mask']) * h
-         + par['alpha_mask'] * (rnn_input
+    noise_rnn = np.sqrt(2*par['alpha_neuron'])*par['noise_rnn_sd']
+    h = tf.nn.relu((1 - par['alpha_neuron']) * h
+         + par['alpha_neuron'] * (rnn_input
                                   + h_post @ w_rnn
                                   + var_dict['b_rnn'])
          + tf.random.normal(h.shape, 0, noise_rnn, dtype=tf.float32))

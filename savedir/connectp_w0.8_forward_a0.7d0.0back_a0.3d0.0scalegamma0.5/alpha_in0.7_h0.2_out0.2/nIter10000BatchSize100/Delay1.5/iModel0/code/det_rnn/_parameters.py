@@ -157,7 +157,9 @@ def update_parameters(par):
 											   par['connect_prob_distant_module_forward'],
 											   par['connect_prob_adjacent_module_back'],
 											   par['connect_prob_distant_module_back'])
-	# par['w_rnn_sparse_mask'] = np.float32(1 * (np.random.uniform(size=(par['n_hidden'], par['n_hidden'])) < par['connect_prob']))
+
+	par['input_silencing_mask'], par['hidden_silencing_mask'], par['out_silencing_mask'] \
+		= _silencing_mask(par['n_input'], par['n_hidden'], par['n_output'])
 
 	par['alpha_mask'] = _alpha_mask(par['n_input'], par['n_hidden'], par['n_output'],
 									par['alpha_input'], par['alpha_hidden'], par['alpha_output'],
