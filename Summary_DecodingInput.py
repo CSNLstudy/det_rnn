@@ -7,8 +7,8 @@ import tensorflow as tf
 from sklearn.svm import SVC
 from scipy import stats
 
-iModel = 4
-BatchSize_svm = 300
+iModel = 0
+BatchSize_svm = 100
 
 iteration_goal              = 10000
 iteration_load              = 10000
@@ -22,6 +22,7 @@ connect_p_adjacent_back     = 0.3
 connect_p_distant_back      = 0.0
 n_orituned_neurons          = 30
 dxtick                      = 1000 # in ms
+test_delay                  = 3.0
 
 nCrossVal = 10
 
@@ -43,13 +44,15 @@ par['connect_prob_distant_module_back'] = connect_p_distant_back
 #                       'estim'   : (4.5,6.0)})
 
 delay = par['design']['delay'][1] - par['design']['delay'][0]
+
 savedir = os.path.dirname(os.path.realpath(__file__)) + \
            '/savedir/connectp_w' + str(connect_p_within) + '_forward_a' + str(connect_p_adjacent_forward) + 'd' + str(connect_p_distant_forward) + \
            'back_a' + str(connect_p_adjacent_back) + 'd' + str(connect_p_distant_back) + 'scalegamma' + str(scale_gamma) + \
+           '/alpha_in' + str(par['alpha_input']) + '_h' + str(par['alpha_hidden']) + '_out' + str(par['alpha_output']) + \
            '/nIter' + str(iteration_goal) + 'BatchSize' + str(BatchSize) + '/Delay' + str(delay) + '/iModel' + str(iModel)
 
-if not os.path.isdir(savedir + '/svm/Batchsize' + str(BatchSize_svm)):
-    os.makedirs(savedir + '/svm/Batchsize' + str(BatchSize_svm))
+if not os.path.isdir(savedir + '/svm/Batchsize' + str(BatchSize_svm) + '_test_delay' + str(test_delay)):
+    os.makedirs(savedir + '/svm/Batchsize' + str(BatchSize_svm) + '_test_delay' + str(test_delay))
 
 modelname = '/Iter' + str(iteration_load) + '.pkl'
 fn = savedir + modelname
@@ -97,9 +100,9 @@ def rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn):
     h_post = syn_u * syn_x * h
     # h_post = h
 
-    noise_rnn = np.sqrt(2*par['alpha_neuron'])*par['noise_rnn_sd']
-    h = tf.nn.relu((1 - par['alpha_neuron']) * h
-                   + par['alpha_neuron'] * (rnn_input
+    noise_rnn = np.sqrt(2*par['alpha_mask'])*par['noise_rnn_sd']
+    h = tf.nn.relu((1 - par['alpha_mask']) * h
+                   + par['alpha_mask'] * (rnn_input
                                             + h_post @ w_rnn
                                             + var_dict['b_rnn'])
                    + tf.random.normal(h.shape, 0, noise_rnn, dtype=tf.float32))
@@ -202,7 +205,7 @@ plt.plot(np.array([1, 1])*stim_onoff[1], np.array([0, 1]),'k--')
 plt.plot(np.array([1, 1])*itime_train, np.array([0, 1]),'r--')
 plt.xlabel('time point')
 plt.ylabel('classification accuracy')
-plt.savefig(savedir + '/svm/Batchsize' + str(BatchSize_svm) + '/Accuracy_input' + str(iteration_load) + '.png', bbox_inches='tight')
+plt.savefig(savedir + '/svm/Batchsize' + str(BatchSize_svm) + '_test_delay' + str(test_delay) + '/Accuracy_input' + str(iteration_load) + '.png', bbox_inches='tight')
 
 ## 2, decoding from hidden firing rate - vector
 
@@ -256,7 +259,7 @@ plt.plot(np.array([1, 1])*stim_onoff[1], np.array([0, 1]),'k--')
 plt.plot(np.array([1, 1])*itime_train, np.array([0, 1]),'r--')
 plt.xlabel('time point')
 plt.ylabel('classification accuracy')
-plt.savefig(savedir + '/svm/Batchsize' + str(BatchSize_svm) + '/Accuracy_hidden' + str(iteration_load) + '.png', bbox_inches='tight')
+plt.savefig(savedir + '/svm/Batchsize' + str(BatchSize_svm) + '_test_delay' + str(test_delay) + '/Accuracy_hidden' + str(iteration_load) + '.png', bbox_inches='tight')
 
 ## 3. decoding from hidden firing rate - maxtix
 
@@ -286,7 +289,7 @@ plt.title('by hidden firing rate')
 plt.xlim([0, par['n_timesteps']])
 plt.ylim([0, par['n_timesteps']])
 plt.colorbar()
-plt.savefig(savedir + '/svm/Batchsize' + str(BatchSize_svm) + '/Accuracy_hidden_matrix' + str(iteration_load) + '.png', bbox_inches='tight')
+plt.savefig(savedir + '/svm/Batchsize' + str(BatchSize_svm) + '_test_delay' + str(test_delay) + '/Accuracy_hidden_matrix' + str(iteration_load) + '.png', bbox_inches='tight')
 
 ## 4. decoding from input firing rate - matrix
 
@@ -316,7 +319,7 @@ plt.title('by input firing rate')
 plt.xlim([0, par['n_timesteps']])
 plt.ylim([0, par['n_timesteps']])
 plt.colorbar()
-plt.savefig(savedir + '/svm/Batchsize' + str(BatchSize_svm) + '/Accuracy_input_matrix' + str(iteration_load) + '.png', bbox_inches='tight')
+plt.savefig(savedir + '/svm/Batchsize' + str(BatchSize_svm) + '_test_delay' + str(test_delay) + '/Accuracy_input_matrix' + str(iteration_load) + '.png', bbox_inches='tight')
 
 ## 5. decoding from input synapse - vector
 
@@ -372,7 +375,7 @@ plt.plot(np.array([1, 1])*stim_onoff[1], np.array([0, 1]),'k--')
 plt.plot(np.array([1, 1])*itime_train, np.array([0, 1]),'r--')
 plt.xlabel('time point')
 plt.ylabel('classification accuracy')
-plt.savefig(savedir + '/svm/Batchsize' + str(BatchSize_svm) + '/Accuracy_syn_input' + str(iteration_load) + '.png', bbox_inches='tight')
+plt.savefig(savedir + '/svm/Batchsize' + str(BatchSize_svm) + '_test_delay' + str(test_delay) + '/Accuracy_syn_input' + str(iteration_load) + '.png', bbox_inches='tight')
 
 ## 6, decoding from hidden synapse - vector
 
@@ -426,7 +429,7 @@ plt.plot(np.array([1, 1])*stim_onoff[1], np.array([0, 1]),'k--')
 plt.plot(np.array([1, 1])*itime_train, np.array([0, 1]),'r--')
 plt.xlabel('time point')
 plt.ylabel('classification accuracy')
-plt.savefig(savedir + '/svm/Batchsize' + str(BatchSize_svm) + '/Accuracy_syn_hidden' + str(iteration_load) + '.png', bbox_inches='tight')
+plt.savefig(savedir + '/svm/Batchsize' + str(BatchSize_svm) + '_test_delay' + str(test_delay) + '/Accuracy_syn_hidden' + str(iteration_load) + '.png', bbox_inches='tight')
 
 ## 7. decoding from hidden synapse - maxtix
 
@@ -456,7 +459,7 @@ plt.title('by hidden synapse')
 plt.xlim([0, par['n_timesteps']])
 plt.ylim([0, par['n_timesteps']])
 plt.colorbar()
-plt.savefig(savedir + '/svm/Batchsize' + str(BatchSize_svm) + '/Accuracy_syn_hidden_matrix' + str(iteration_load) + '.png', bbox_inches='tight')
+plt.savefig(savedir + '/svm/Batchsize' + str(BatchSize_svm) + '_test_delay' + str(test_delay) + '/Accuracy_syn_hidden_matrix' + str(iteration_load) + '.png', bbox_inches='tight')
 
 ## 8. decoding from input synapse - matrix
 
@@ -486,7 +489,7 @@ plt.title('by input synapse')
 plt.xlim([0, par['n_timesteps']])
 plt.ylim([0, par['n_timesteps']])
 plt.colorbar()
-plt.savefig(savedir + '/svm/Batchsize' + str(BatchSize_svm) + '/Accuracy_syn_input_matrix' + str(iteration_load) + '.png', bbox_inches='tight')
+plt.savefig(savedir + '/svm/Batchsize' + str(BatchSize_svm) + '_test_delay' + str(test_delay) + '/Accuracy_syn_input_matrix' + str(iteration_load) + '.png', bbox_inches='tight')
 
 
 svm_results = { 'Accuracy_input': Accuracy_input,
@@ -503,5 +506,5 @@ svm_results = { 'Accuracy_input': Accuracy_input,
                 'Accuracy_acrosstime_matrix_syn_input': Accuracy_acrosstime_matrix_syn_input,
                 'Accuracy_acrosstime_matrix_syn_hidden': Accuracy_acrosstime_matrix_syn_hidden
                 }
-pickle.dump(svm_results, open(savedir + '/svm/Batchsize' + str(BatchSize_svm) + '/svm_results.pkl', 'wb'))
-# model = pickle.load(open(savedir + '/svm/Batchsize' + str(BatchSize_svm) + '/svm_results.pkl', 'rb'))
+pickle.dump(svm_results, open(savedir + '/svm/Batchsize' + str(BatchSize_svm) + '_test_delay' + str(test_delay) + '/svm_results.pkl', 'wb'))
+# model = pickle.load(open(savedir + '/svm/Batchsize' + str(BatchSize_svm) + '_test_delay' + str(test_delay) + '/svm_results.pkl', 'rb'))
