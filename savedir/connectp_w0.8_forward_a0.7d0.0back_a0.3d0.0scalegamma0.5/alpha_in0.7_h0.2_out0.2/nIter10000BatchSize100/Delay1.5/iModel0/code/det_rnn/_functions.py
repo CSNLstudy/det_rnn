@@ -159,4 +159,3 @@ def _convert_to_rg(design, dt):
 		else:
 			rg = np.concatenate([np.arange(round(i[0] / dt * 1000.), round(i[1] / dt * 1000.)) for i in design])
 		return rg
-

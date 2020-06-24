@@ -7,13 +7,12 @@ import tensorflow as tf
 import time
 from shutil import copyfile
 
-nModel = np.array([0, 2])
+nModel = np.array([0, 5])
 iteration = 10000
 stimulus = Stimulus()
 
 n_orituned_neurons = 30
 BatchSize = 100
-# noise_rnn_sd = 0
 noise_sd = 0 # input noise
 scale_gamma = 0.5
 n_hidden = 150
@@ -22,6 +21,9 @@ connect_p_adjacent_forward = 0.7
 connect_p_distant_forward = 0.0
 connect_p_adjacent_back = 0.3
 connect_p_distant_back = 0.0
+alpha_input = 0.7 	# Chaudhuri et al., Neuron, 2015
+alpha_hidden = 0.2
+alpha_output = 0.5  # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex's decay is in between input and hidden
 
 par['n_hidden'] = n_hidden
 par['n_tuned_input'] = n_orituned_neurons
@@ -35,6 +37,9 @@ par['connect_prob_distant_module_forward'] = connect_p_distant_forward
 par['connect_prob_adjacent_module_back'] = connect_p_adjacent_back
 par['connect_prob_distant_module_back'] = connect_p_distant_back
 par['noise_sd'] = noise_sd
+par['alpha_input'] = alpha_input 	# Chaudhuri et al., Neuron, 2015
+par['alpha_hidden'] = alpha_hidden
+par['alpha_output'] = alpha_output  # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex has similar decay profile with sensory cortex
 
 par = update_parameters(par)
 stimulus = Stimulus(par)
