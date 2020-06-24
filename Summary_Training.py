@@ -18,7 +18,6 @@ connect_p_adjacent_back     = 0.3
 connect_p_distant_back      = 0.0
 n_orituned_neurons          = 30
 dxtick                      = 1000 # in ms
-test_delay                  = 3.0
 
 par['n_tuned_input'] = n_orituned_neurons
 par['n_tuned_output'] = n_orituned_neurons
@@ -32,25 +31,25 @@ par['connect_prob_distant_module_forward'] = connect_p_distant_forward
 par['connect_prob_adjacent_module_back'] = connect_p_adjacent_back
 par['connect_prob_distant_module_back'] = connect_p_distant_back
 
+# par['design'].update({'iti'     : (0, 1.5),
+#                       'stim'    : (1.5, 3.0),
+#                       'delay'   : (3.0, 6.0),
+#                       'estim'   : (6.0, 7.5)})
+
 delay = par['design']['delay'][1] - par['design']['delay'][0]
 savedir = os.path.dirname(os.path.realpath(__file__)) + \
            '/savedir/connectp_w' + str(connect_p_within) + '_forward_a' + str(connect_p_adjacent_forward) + 'd' + str(connect_p_distant_forward) + \
            'back_a' + str(connect_p_adjacent_back) + 'd' + str(connect_p_distant_back) + 'scalegamma' + str(scale_gamma) + \
            '/nIter' + str(iteration_goal) + 'BatchSize' + str(BatchSize) + '/Delay' + str(delay) + '/iModel' + str(iModel)
 
-if not os.path.isdir(savedir + '/estimation/Iter' + str(iteration_load) + '/test_delay' + str(test_delay)):
-    os.makedirs(savedir + '/estimation/Iter' + str(iteration_load) + '/test_delay' + str(test_delay))
+if not os.path.isdir(savedir + '/estimation/Iter' + str(iteration_load)):
+    os.makedirs(savedir + '/estimation/Iter' + str(iteration_load))
 
 modelname = '/Iter' + str(iteration_load) + '.pkl'
 fn = savedir + modelname
 model = pickle.load(open(fn, 'rb'))
 
 w_rnn2in_sparse_mask = model['parameters']['modular_sparse_mask'] # this sparse mask should be identical with the training and testing
-
-par['design'].update({'iti'     : (0, 1.5),
-                      'stim'    : (1.5, 3.0),
-                      'delay'   : (3.0, 3.0 + test_delay),
-                      'estim'   : (3.0 + test_delay, 3.0 + test_delay + 1.5)})
 
 par['batch_size'] = BatchSize
 par = update_parameters(par)
@@ -253,4 +252,4 @@ for i in range(30):
     plt.imshow(a.T, aspect='auto', vmin=ivmin, vmax=ivmax)
     plt.colorbar()
 
-    plt.savefig(savedir + '/estimation/Iter' + str(iteration_load) + '/test_delay' + str(test_delay) + '/' + str(i) + '.png', bbox_inches='tight')
+    plt.savefig(savedir + '/estimation/Iter' + str(iteration_load) + '/' + str(i) + '.png', bbox_inches='tight')
