@@ -9,6 +9,7 @@ __all__ = ['hp', 'hp_spec']
 hp  = {
 	'masse' : True,
 	'loss_fun'	: 1, # 0:'mse', 1:'centropy'
+	'mse_weight' : 0.01,
 	'learning_rate' : 2e-2,	  # adam optimizer learning rate
 	'dt'            : 10.,
 	'clip_max_grad_val'  : 0.1,

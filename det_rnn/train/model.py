@@ -11,6 +11,7 @@ class Model(tf.Module):
 		super(Model, self).__init__()
 		self._initialize_variable(hp)
 		self.n_rule_output = hp['n_rule_output'] #
+		self.mse_weight = hp['mse_weight']
 		self.optimizer = tf.optimizers.Adam(hp['learning_rate']) #josh: do we want optimizer inside the model?
 
 	@tf.function
@@ -91,6 +92,7 @@ class Model(tf.Module):
 			if k[-1] == '0': #make this more robust. how to add weights in tf?
 				name = k[:-1]
 				_var_dict[name] = tf.Variable(hp[k], name=name, dtype='float32')
+			# todo: also save other variables?
 		self.var_dict = _var_dict
 
 	def _calc_loss(self, y, target, mask, hp):
@@ -110,6 +112,10 @@ class Model(tf.Module):
 		# add rule loss:
 		rulelosses = (target[:,:,:self.n_rule_output] - y[:,:,:self.n_rule_output])**2 # use mse loss for rules
 		loss += tf.reduce_mean(mask[:,:,:self.n_rule_output] * rulelosses)
+
+		# add MSE loss
+		_y_normalized = tf.nn.softmax(y_ori + EPSILON)
+		loss += self.mse_weight*tf.reduce_mean(mask_ori * (_target_normalized - _y_normalized) ** 2)
 
 		#debug losse
 		"""
