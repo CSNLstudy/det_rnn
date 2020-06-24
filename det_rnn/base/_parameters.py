@@ -77,7 +77,7 @@ par = {
 	'n_hidden' 	 : 100,		 # number of rnn units TODO(HL): h_hidden to 100
 
 	# Experimental settings
-	'batch_size' 	: 2024,
+	'batch_size' 	: 128,
 	'alpha_neuron'  : 0.1,    # changed from tf.constant TODO(HL): alpha changed from 0.2 to 0.1 (Masse)
 
 	# Optimizer
