@@ -7,7 +7,7 @@ import tensorflow as tf
 from sklearn.svm import SVC
 from scipy import stats
 
-iModel = 0
+iModel = 4
 BatchSize_svm = 100
 silence_timestep_in2in = np.array([0, 0]) # stimon=[150, 300], est=[450, 600]
 time_train = np.array([225, 375, 525])
@@ -26,8 +26,8 @@ n_orituned_neurons          = 30
 dxtick                      = 1000 # in ms
 alpha_input                 = 0.7 # Chaudhuri et al., Neuron, 2015
 alpha_hidden                = 0.2
-alpha_output                = 0.2 # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex's decay is in between input and hidden
-
+alpha_output                = 0.5 # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex's decay is in between input and hidden
+delay_train                 = 1.5
 
 nCrossVal = 10
 
@@ -47,18 +47,16 @@ par['alpha_input'] = alpha_input 	# Chaudhuri et al., Neuron, 2015
 par['alpha_hidden'] = alpha_hidden
 par['alpha_output'] = alpha_output  # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex has similar decay profile with sensory cortex
 
-# par['design'].update({'iti'     : (0, 0.5),
-#                       'stim'    : (0.5,2.0),
-#                       'delay'   : (2.0,4.5),
-#                       'estim'   : (4.5,6.0)})
-
-delay = par['design']['delay'][1] - par['design']['delay'][0]
+par['design'].update({'iti'     : (0, 1.5),
+                      'stim'    : (1.5, 3.0),
+                      'delay'   : (3.0, 3.0 + delay_train),
+                      'estim'   : (3.0 + delay_train, 4.5 + delay_train)})
 
 savedir = os.path.dirname(os.path.realpath(__file__)) + \
            '/savedir/connectp_w' + str(connect_p_within) + '_forward_a' + str(connect_p_adjacent_forward) + 'd' + str(connect_p_distant_forward) + \
            'back_a' + str(connect_p_adjacent_back) + 'd' + str(connect_p_distant_back) + 'scalegamma' + str(scale_gamma) + \
            '/alpha_in' + str(par['alpha_input']) + '_h' + str(par['alpha_hidden']) + '_out' + str(par['alpha_output']) + \
-           '/nIter' + str(iteration_goal) + 'BatchSize' + str(BatchSize) + '/Delay' + str(delay) + '/iModel' + str(iModel)
+           '/nIter' + str(iteration_goal) + 'BatchSize' + str(BatchSize) + '/Delay' + str(delay_train) + '/iModel' + str(iModel)
 
 svmdir = '/svm/Batchsize' + str(BatchSize_svm) + '/silencing_input' + str(silence_timestep_in2in[0]) + 'to' + str(silence_timestep_in2in[1])
 
@@ -230,7 +228,7 @@ plt.savefig(savedir + svmdir + '/1_Accuracy_input' + str(iteration_load) + '.png
 
 Accuracy_hidden = np.zeros(par['n_timesteps'])
 for itime in range(par['n_timesteps']):
-    print('2, decoding from hidden firing rate 1 - vector ' + str(itime))
+    print('2. decoding from hidden firing rate 1 - vector ' + str(itime))
     ipredict = np.zeros((par['batch_size']))
     for iCrossVal in range(nCrossVal):
         iInd_test = np.arange(boundCrossVal[iCrossVal], boundCrossVal[iCrossVal+1])
@@ -256,7 +254,7 @@ for itime_train in time_train:
     itrain_h = hidden[itime_train, :, :]
     svm_model_linear = SVC(kernel='linear', C=1).fit(itrain_h, itrain_stim)
     for itime in range(par['n_timesteps']):
-        print('2, decoding from hidden firing rate ' + str(q+2) + ' - vector ' + str(itime))
+        print('2. decoding from hidden firing rate ' + str(q+2) + ' - vector ' + str(itime))
         ipredict = np.zeros((par['batch_size']))
         for iCrossVal in range(nCrossVal):
             iInd_test = np.arange(boundCrossVal[iCrossVal], boundCrossVal[iCrossVal+1])
@@ -287,7 +285,7 @@ plt.savefig(savedir + svmdir + '/2_Accuracy_hidden' + str(iteration_load) + '.pn
 
 Accuracy_output = np.zeros(par['n_timesteps'])
 for itime in range(par['n_timesteps']):
-    print('3, decoding from out firing rate 1 - vector ' + str(itime))
+    print('3. decoding from out firing rate 1 - vector ' + str(itime))
     ipredict = np.zeros((par['batch_size']))
     for iCrossVal in range(nCrossVal):
         iInd_test = np.arange(boundCrossVal[iCrossVal], boundCrossVal[iCrossVal+1])
@@ -312,7 +310,7 @@ for itime_train in time_train:
     itrain_out = output[itime_train, :, :]
     svm_model_linear = SVC(kernel='linear', C=1).fit(itrain_out, itrain_stim)
     for itime in range(par['n_timesteps']):
-        print('3, decoding from out firing rate ' + str(q+2) + ' - vector ' + str(itime))
+        print('3. decoding from out firing rate ' + str(q+2) + ' - vector ' + str(itime))
         ipredict = np.zeros((par['batch_size']))
         for iCrossVal in range(nCrossVal):
             iInd_test = np.arange(boundCrossVal[iCrossVal], boundCrossVal[iCrossVal+1])

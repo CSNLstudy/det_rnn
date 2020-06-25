@@ -24,7 +24,6 @@ alpha_input                 = 0.7 # Chaudhuri et al., Neuron, 2015
 alpha_hidden                = 0.2
 alpha_output                = 0.4 # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex's decay is in between input and hidden
 
-delay_test                  = 0
 delay_initial               = 0
 delta_delay_update          = 0.5 # if estimation errors of consecutive "N_conseq_epoch_est_error" is lower than "criterion_est_error", delay increases by "delta_delay_update"
 criterion_est_error         = 10
@@ -58,9 +57,10 @@ par['Darwin_EstError'] = Darwin_EstError
 par['delay_initial'] = delay_initial
 par['design'].update({'iti'     : (0, 1.5),
                       'stim'    : (1.5, 3.0),
-                      'delay'   : (3.0, 3.0 + delay_initial + delay_test),
-                      'estim'   : (3.0 + delay_initial + delay_test, 4.5 + delay_initial + delay_test)})
+                      'delay'   : (3.0, 3.0 + delay_initial),
+                      'estim'   : (3.0 + delay_initial, 4.5 + delay_initial)})
 
+delay = par['design']['delay'][1] - par['design']['delay'][0]
 # savedir = os.path.dirname(os.path.realpath(__file__)) + \
 #            '/savedir/connectp_w' + str(connect_p_within) + '_forward_a' + str(connect_p_adjacent_forward) + 'd' + str(connect_p_distant_forward) + \
 #            'back_a' + str(connect_p_adjacent_back) + 'd' + str(connect_p_distant_back) + 'scalegamma' + str(scale_gamma) + \
@@ -72,10 +72,11 @@ savedir = os.path.dirname(os.path.realpath(__file__)) + \
                '/alpha_in' + str(par['alpha_input']) + '_h' + str(par['alpha_hidden']) + '_out' + str(par['alpha_output']) + \
                '/delay_Init' + str(par['delay_initial']) + '_Delta' + str(par['delta_delay_update']) + '_ErrorCri' + str(par['criterion_est_error']) + '_Ntrial' + str(par['N_conseq_epoch_est_error']) + \
                '/nIter' + str(iteration_goal) + 'BatchSize' + str(BatchSize) + \
+               '/Delay' + str(delay) + \
                '/iModel' + str(iModel)
 
-if not os.path.isdir(savedir + '/estimation/delay_test' + str(delay_test) + '/Iter' + str(iteration_load)):
-    os.makedirs(savedir + '/estimation/delay_test' + str(delay_test) + '/Iter' + str(iteration_load))
+if not os.path.isdir(savedir + '/estimation/Iter' + str(iteration_load)):
+    os.makedirs(savedir + '/estimation/Iter' + str(iteration_load))
 
 modelname = '/Iter' + str(iteration_load) + '.pkl'
 fn = savedir + modelname
@@ -296,4 +297,4 @@ for i in range(30):
     plt.imshow(a.T, aspect='auto', vmin=ivmin, vmax=ivmax)
     plt.colorbar()
 
-    plt.savefig(savedir + '/estimation/delay_test' + str(delay_test) + '/Iter' + str(iteration_load) + '/' + str(i) + '.png', bbox_inches='tight')
+    plt.savefig(savedir + '/estimation/Iter' + str(iteration_load) + '/' + str(i) + '.png', bbox_inches='tight')

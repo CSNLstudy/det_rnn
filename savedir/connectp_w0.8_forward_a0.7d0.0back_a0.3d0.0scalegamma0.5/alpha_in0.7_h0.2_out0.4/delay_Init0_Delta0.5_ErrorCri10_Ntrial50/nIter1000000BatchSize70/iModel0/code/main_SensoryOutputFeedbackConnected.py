@@ -31,8 +31,8 @@ alpha_output                = 0.4 # Chaudhuri et al., Neuron, 2015; Motor (F1) c
 
 delay_initial               = 0
 delta_delay_update          = 0.5 # if estimation errors of consecutive "N_conseq_epoch_est_error" is lower than "criterion_est_error", delay increases by "delta_delay_update"
-criterion_est_error         = 8
-N_conseq_epoch_est_error    = 100
+criterion_est_error         = 10
+N_conseq_epoch_est_error    = 50
 goal_delay                  = 17
 Darwin_Iter                 = 2000
 Darwin_EstError             = 30
@@ -108,6 +108,7 @@ def initialize_parameters(iModel, par):
                '/alpha_in' + str(par['alpha_input']) + '_h' + str(par['alpha_hidden']) + '_out' + str(par['alpha_output']) + \
                '/delay_Init' + str(par['delay_initial']) + '_Delta' + str(par['delta_delay_update']) + '_ErrorCri' + str(par['criterion_est_error']) + '_Ntrial' + str(par['N_conseq_epoch_est_error']) + \
                '/nIter' + str(iteration) + 'BatchSize' + str(BatchSize) + \
+               '/Delay' + str(delay) + \
                '/iModel' + str(iModel)
     if not os.path.isdir(isavedir):
         os.makedirs(isavedir)

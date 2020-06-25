@@ -5,35 +5,23 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 
-iModel = 0
+iModel = 4
 
-iteration_goal              = 1000000
-iteration_load              = 1474
-n_orituned_neurons          = 25
-BatchSize                   = 70
-n_hidden                    = 130
+iteration_goal              = 10000
+iteration_load              = 3000
+BatchSize                   = 100
 scale_gamma                 = 0.5
-
+n_hidden                    = 150
 connect_p_within            = 0.8
 connect_p_adjacent_forward  = 0.7
 connect_p_distant_forward   = 0.0
 connect_p_adjacent_back     = 0.3
 connect_p_distant_back      = 0.0
-
+n_orituned_neurons          = 30
+dxtick                      = 1000 # in ms
 alpha_input                 = 0.7 # Chaudhuri et al., Neuron, 2015
 alpha_hidden                = 0.2
-alpha_output                = 0.4 # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex's decay is in between input and hidden
-
-delay_test                  = 0
-delay_initial               = 0
-delta_delay_update          = 0.5 # if estimation errors of consecutive "N_conseq_epoch_est_error" is lower than "criterion_est_error", delay increases by "delta_delay_update"
-criterion_est_error         = 10
-N_conseq_epoch_est_error    = 50
-goal_delay                  = 17
-Darwin_Iter                 = 2000
-Darwin_EstError             = 30
-
-dxtick                      = 1000 # in ms
+alpha_output                = 0.5 # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex's decay is in between input and hidden
 
 par['n_tuned_input'] = n_orituned_neurons
 par['n_tuned_output'] = n_orituned_neurons
@@ -49,39 +37,32 @@ par['connect_prob_distant_module_back'] = connect_p_distant_back
 par['alpha_input'] = alpha_input 	# Chaudhuri et al., Neuron, 2015
 par['alpha_hidden'] = alpha_hidden
 par['alpha_output'] = alpha_output  # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex has similar decay profile with sensory cortex
-par['delta_delay_update'] = delta_delay_update
-par['criterion_est_error'] = criterion_est_error
-par['N_conseq_epoch_est_error'] = N_conseq_epoch_est_error
-par['goal_delay'] = goal_delay
-par['Darwin_Iter'] = Darwin_Iter
-par['Darwin_EstError'] = Darwin_EstError
-par['delay_initial'] = delay_initial
+
 par['design'].update({'iti'     : (0, 1.5),
                       'stim'    : (1.5, 3.0),
-                      'delay'   : (3.0, 3.0 + delay_initial + delay_test),
-                      'estim'   : (3.0 + delay_initial + delay_test, 4.5 + delay_initial + delay_test)})
+                      'delay'   : (3.0, 4.5),
+                      'estim'   : (4.5, 6.0)})
 
+delay = par['design']['delay'][1] - par['design']['delay'][0]
 # savedir = os.path.dirname(os.path.realpath(__file__)) + \
 #            '/savedir/connectp_w' + str(connect_p_within) + '_forward_a' + str(connect_p_adjacent_forward) + 'd' + str(connect_p_distant_forward) + \
 #            'back_a' + str(connect_p_adjacent_back) + 'd' + str(connect_p_distant_back) + 'scalegamma' + str(scale_gamma) + \
 #            '/nIter' + str(iteration_goal) + 'BatchSize' + str(BatchSize) + '/Delay' + str(delay) + '/iModel' + str(iModel)
 
 savedir = os.path.dirname(os.path.realpath(__file__)) + \
-               '/savedir/connectp_w' + str(connect_p_within) + '_forward_a' + str(connect_p_adjacent_forward) + 'd' + str(connect_p_distant_forward) + \
-                    'back_a' + str(connect_p_adjacent_back) + 'd' + str(connect_p_distant_back) + 'scalegamma' + str(scale_gamma) + \
-               '/alpha_in' + str(par['alpha_input']) + '_h' + str(par['alpha_hidden']) + '_out' + str(par['alpha_output']) + \
-               '/delay_Init' + str(par['delay_initial']) + '_Delta' + str(par['delta_delay_update']) + '_ErrorCri' + str(par['criterion_est_error']) + '_Ntrial' + str(par['N_conseq_epoch_est_error']) + \
-               '/nIter' + str(iteration_goal) + 'BatchSize' + str(BatchSize) + \
-               '/iModel' + str(iModel)
+           '/savedir/connectp_w' + str(connect_p_within) + '_forward_a' + str(connect_p_adjacent_forward) + 'd' + str(connect_p_distant_forward) + \
+           'back_a' + str(connect_p_adjacent_back) + 'd' + str(connect_p_distant_back) + 'scalegamma' + str(scale_gamma) + \
+           '/alpha_in' + str(par['alpha_input']) + '_h' + str(par['alpha_hidden']) + '_out' + str(par['alpha_output']) + \
+           '/nIter' + str(iteration_goal) + 'BatchSize' + str(BatchSize) + '/Delay' + str(delay) + '/iModel' + str(iModel)
 
-if not os.path.isdir(savedir + '/estimation/delay_test' + str(delay_test) + '/Iter' + str(iteration_load)):
-    os.makedirs(savedir + '/estimation/delay_test' + str(delay_test) + '/Iter' + str(iteration_load))
+if not os.path.isdir(savedir + '/estimation/Iter' + str(iteration_load)):
+    os.makedirs(savedir + '/estimation/Iter' + str(iteration_load))
 
 modelname = '/Iter' + str(iteration_load) + '.pkl'
 fn = savedir + modelname
 model = pickle.load(open(fn, 'rb'))
 
-w_rnn2in_sparse_mask = model['parameters']['modular_sparse_mask_initial'] # this sparse mask should be identical with the training and testing
+w_rnn2in_sparse_mask = model['parameters']['modular_sparse_mask'] # this sparse mask should be identical with the training and testing
 
 par['batch_size'] = BatchSize
 par = update_parameters(par)
@@ -296,4 +277,4 @@ for i in range(30):
     plt.imshow(a.T, aspect='auto', vmin=ivmin, vmax=ivmax)
     plt.colorbar()
 
-    plt.savefig(savedir + '/estimation/delay_test' + str(delay_test) + '/Iter' + str(iteration_load) + '/' + str(i) + '.png', bbox_inches='tight')
+    plt.savefig(savedir + '/estimation/Iter' + str(iteration_load) + '/' + str(i) + '.png', bbox_inches='tight')

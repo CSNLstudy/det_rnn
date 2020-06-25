@@ -9,8 +9,8 @@ from shutil import copyfile
 import operator
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
-nModel = np.array([0, 10])
-iteration = 1000000
+nModel = np.array([3, 10])
+iteration = 100000
 stimulus = Stimulus()
 
 n_orituned_neurons          = 25
@@ -25,17 +25,17 @@ connect_p_distant_forward   = 0.0
 connect_p_adjacent_back     = 0.3
 connect_p_distant_back      = 0.0
 
-alpha_input                 = 0.7 # Chaudhuri et al., Neuron, 2015
+alpha_input                 = 0.7 	# Chaudhuri et al., Neuron, 2015
 alpha_hidden                = 0.2
-alpha_output                = 0.4 # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex's decay is in between input and hidden
+alpha_output                = 0.4  # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex's decay is in between input and hidden
 
-delay_initial               = 0
 delta_delay_update          = 0.5 # if estimation errors of consecutive "N_conseq_epoch_est_error" is lower than "criterion_est_error", delay increases by "delta_delay_update"
-criterion_est_error         = 8
-N_conseq_epoch_est_error    = 100
-goal_delay                  = 17
+criterion_est_error         = 10
+N_conseq_epoch_est_error    = 10
+goal_delay                  = 15
 Darwin_Iter                 = 2000
 Darwin_EstError             = 30
+
 
 par['n_hidden'] = n_hidden
 par['n_tuned_input'] = n_orituned_neurons
@@ -58,11 +58,6 @@ par['N_conseq_epoch_est_error'] = N_conseq_epoch_est_error
 par['goal_delay'] = goal_delay
 par['Darwin_Iter'] = Darwin_Iter
 par['Darwin_EstError'] = Darwin_EstError
-par['delay_initial'] = delay_initial
-par['design'].update({'iti'     : (0, 1.5),
-                      'stim'    : (1.5, 3.0),
-                      'delay'   : (3.0, 3.0 + delay_initial),
-                      'estim'   : (3.0 + delay_initial, 4.5 + delay_initial)})
 
 par = update_parameters(par)
 stimulus = Stimulus(par)
@@ -106,8 +101,9 @@ def initialize_parameters(iModel, par):
                '/connectp_w' + str(connect_p_within) + '_forward_a' + str(connect_p_adjacent_forward) + 'd' + str(connect_p_distant_forward) + \
                     'back_a' + str(connect_p_adjacent_back) + 'd' + str(connect_p_distant_back) + 'scalegamma' + str(scale_gamma) + \
                '/alpha_in' + str(par['alpha_input']) + '_h' + str(par['alpha_hidden']) + '_out' + str(par['alpha_output']) + \
-               '/delay_Init' + str(par['delay_initial']) + '_Delta' + str(par['delta_delay_update']) + '_ErrorCri' + str(par['criterion_est_error']) + '_Ntrial' + str(par['N_conseq_epoch_est_error']) + \
+               '/delay_Delta' + str(par['delta_delay_update']) + '_ErrorCri' + str(par['criterion_est_error']) + '_Ntrial' + str(par['N_conseq_epoch_est_error']) + \
                '/nIter' + str(iteration) + 'BatchSize' + str(BatchSize) + \
+               '/Delay' + str(delay) + \
                '/iModel' + str(iModel)
     if not os.path.isdir(isavedir):
         os.makedirs(isavedir)
@@ -243,7 +239,6 @@ for iModel in range(nModel[0], nModel[1]):
         return loss, loss_orient, spike_loss, loss_orient_print, est_error
 
     i = 0
-    cAfterUpdate = 1
     cUpdate = 1
     for i in range(0, iteration):
 
@@ -256,7 +251,7 @@ for iModel in range(nModel[0], nModel[1]):
             = train_onestep(syn_x_init, syn_u_init, in_data, out_target, mask_train, trial_info)
 
         itime = np.around((time.time() - t0) / 60, decimals=1)
-        idelay = par['delay_initial'] + (cUpdate-1)*par['delta_delay_update']
+        idelay = 1.5 + (cUpdate-1)*par['delta_delay_update']
         print('iModel=', iModel , ', iter=', i+1, ', delay=', idelay,
               ', loss=', loss.numpy(), ', loss_orient=', np.round(loss_orient.numpy()*par['orientation_cost']),
               ', spike_loss=', np.around(spike_loss.numpy()*par['spike_cost'], decimals=1),
@@ -282,23 +277,19 @@ for iModel in range(nModel[0], nModel[1]):
             print('##')
             break
 
-        if i > 10 and cAfterUpdate > 10:
+        if i > 10:
             if np.mean(model_performance['est_error'][-par['N_conseq_epoch_est_error']:]) < par['criterion_est_error']:
                 par['design'].update({'iti'     : (0, 1.5),
                                       'stim'    : (1.5, 3.0),
-                                      'delay'   : (3.0, 3.0 + par['delay_initial'] + cUpdate*par['delta_delay_update']),
-                                      'estim'   : (3.0 + par['delay_initial'] + cUpdate*par['delta_delay_update'], 4.5 + par['delay_initial'] + cUpdate*par['delta_delay_update'])})
+                                      'delay'   : (3.0, 3.5 + cUpdate*par['delta_delay_update']),
+                                      'estim'   : (3.5 + cUpdate*par['delta_delay_update'], 5.0 + cUpdate*par['delta_delay_update'])})
                 par = update_parameters(par)
                 stimulus = Stimulus(par)
                 print('##')
                 print(str(cUpdate) + ' Delay Update, from '
-                      + str(par['delay_initial'] + (cUpdate-1)*par['delta_delay_update']) +
-                      ' to ' + str(par['delay_initial'] + cUpdate*par['delta_delay_update']))
+                      + str(1.5 + (cUpdate-1)*par['delta_delay_update']) +
+                      ' to ' + str(1.5 + cUpdate*par['delta_delay_update']))
                 print('##')
-                save_results(model_performance, par, i+1)
-                cUpdate += 1
-                cAfterUpdate = 1
-
-        cAfterUpdate += 1
+                cUpdate += cUpdate
 
     save_results(model_performance, par, i+1)
