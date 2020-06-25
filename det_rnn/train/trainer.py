@@ -66,12 +66,11 @@ def cull_criterion(iter,fall_crit,recency,milestone,model_performance):
     perf_vec = np.array(model_performance['perf'])[indx_inters]
     return (np.mean(perf_vec) < fall_crit) & (len(perf_vec) >= recency)
 
-
 def gen_ti_spec(trial_info) :
     ti_spec = {}
     for k, v in trial_info.items():
         _shape = list(v.shape)
-        if len(_shape) > 1: _shape[0] = None
+        if len(_shape) > 1: _shape[0] = None; _shape[1] = None
         ti_spec[k] = tf.TensorSpec(_shape, tf.dtypes.as_dtype(v.dtype), name=k)
     return ti_spec
 

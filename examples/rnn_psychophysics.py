@@ -16,7 +16,7 @@ import det_rnn.train as dt
 ############################################################################################################
 ## Inspect current best model
 ## you can inspect your own model by slightly modifying the below code
-curr_best_dir = "/Volumes/Data_CSNL/project/RNN_study/20-06-19/HG/current_best/"
+curr_best_dir = "/Volumes/Data_CSNL/project/RNN_study/20-06-19/HG/current_best_CE"
 
 par   = update_parameters(par)
 stimulus    = Stimulus(par)
@@ -33,7 +33,6 @@ axes[1].imshow(trial_info['desired_output'][:,TEST_TRIAL,:].numpy().T, aspect='a
 axes[2].imshow(pred_output[:,TEST_TRIAL,:].T,  aspect='auto', vmin=0, vmax=0.15)
 fig.tight_layout(pad=2.0)
 plt.show()
-
 
 trial_info = dt.numpy_trial(trial_info)
 ground_truth, estim_mean, raw_error, beh_perf = da.behavior_summary(trial_info, pred_output, par=par)

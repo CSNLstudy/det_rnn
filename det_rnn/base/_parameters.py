@@ -14,8 +14,11 @@ par = {
 
 	# Mask specs
 	'dead': 'design', # ((0,0.1),(estim_start, estim_start+0.1))
-	'mask': {'iti'	: 1., 'stim' : 1., 'delay'	: 1., 'estim' : 5.,
-			 'rule_iti' : 2., 'rule_stim' : 2., 'rule_delay' : 2., 'rule_estim' : 10.},  # strength
+	'mask': {'iti'	: 1., 'stim' : 1., 'delay'	: 1., 'estim' : 10.,
+			 'rule_iti' : 2., 'rule_stim' : 2., 'rule_delay' : 2., 'rule_estim' : 20.},  # strength
+
+	## for onehot output, 'estim' : 20., 'rule_estim' : 20. worked
+
 
 	# Rule specs
 	'input_rule' :  'design', # {'fixation': whole period, 'response':estim}
@@ -34,7 +37,7 @@ par = {
 
 	# stimulus encoding/response decoding type
 	'stim_encoding'			: 'single',  # 'single', 'double'
-	'resp_decoding'			: 'disc', 	 # 'conti', 'disc'
+	'resp_decoding'			: 'disc',  # 'conti', 'disc', 'onehot'
 
 	# Network configuration
 	'exc_inh_prop'          : 0.8,    # excitatory/inhibitory ratio
@@ -137,7 +140,7 @@ def update_parameters(par):
 	if par['resp_decoding'] == 'conti':
 		par['n_output'] = par['n_rule_output'] + 1
 
-	elif par['resp_decoding'] == 'disc':
+	elif par['resp_decoding'] in ['disc', 'onehot']:
 		par['n_output'] = par['n_rule_output'] + par['n_tuned_output']
 
 	## stimulus distribution TODO(HG): this is erroroneous
