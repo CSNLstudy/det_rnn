@@ -7,7 +7,7 @@ import det_rnn.train as dt
 from det_rnn import *
 
 
-model_dir = "/Volumes/Data_CSNL/project/RNN_study/20-06-19/HG/boost_wm/boost_wm_example"
+model_dir = "/Volumes/Data_CSNL/project/RNN_study/20-06-26/HG/boost_wm/boost_wm_example"
 os.makedirs(model_dir, exist_ok=True)
 
 par = update_parameters(par)
