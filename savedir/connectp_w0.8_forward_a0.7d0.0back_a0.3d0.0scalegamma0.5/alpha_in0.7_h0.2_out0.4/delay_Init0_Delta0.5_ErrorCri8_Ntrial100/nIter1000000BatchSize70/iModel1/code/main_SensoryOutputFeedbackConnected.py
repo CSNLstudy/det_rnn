@@ -9,7 +9,7 @@ from shutil import copyfile
 import operator
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
-nModel = np.array([0, 2])
+nModel = np.array([1, 2])
 iteration = 10000
 stimulus = Stimulus()
 
@@ -25,15 +25,15 @@ connect_p_distant_forward   = 0.0
 connect_p_adjacent_back     = 0.3
 connect_p_distant_back      = 0.0
 
-alpha_input                 = 0.2 # Chaudhuri et al., Neuron, 2015
+alpha_input                 = 0.7 # Chaudhuri et al., Neuron, 2015
 alpha_hidden                = 0.2
-alpha_output                = 0.2 # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex's decay is in between input and hidden
+alpha_output                = 0.4 # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex's decay is in between input and hidden
 
 delay_initial               = 0
 delta_delay_update          = 0.5 # if estimation errors of consecutive "N_conseq_epoch_est_error" is lower than "criterion_est_error", delay increases by "delta_delay_update"
-criterion_est_error         = 10
+criterion_est_error         = 8
 N_conseq_epoch_est_error    = 100
-goal_delay                  = 2.0
+goal_delay                  = 3.0
 Darwin_Iter                 = 2000
 Darwin_EstError             = 30
 

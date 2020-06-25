@@ -5,10 +5,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 
-iModel = 1
+iModel = 0
 
 iteration_goal              = 1000000
-iteration_load              = 3969
+iteration_load              = 3810
 n_orituned_neurons          = 25
 BatchSize                   = 70
 n_hidden                    = 130
@@ -24,7 +24,7 @@ alpha_input                 = 0.7 # Chaudhuri et al., Neuron, 2015
 alpha_hidden                = 0.2
 alpha_output                = 0.4 # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex's decay is in between input and hidden
 
-delay_test                  = 0.0
+delay_test                  = 2.0
 delay_initial               = 0
 delta_delay_update          = 0.5 # if estimation errors of consecutive "N_conseq_epoch_est_error" is lower than "criterion_est_error", delay increases by "delta_delay_update"
 criterion_est_error         = 8
