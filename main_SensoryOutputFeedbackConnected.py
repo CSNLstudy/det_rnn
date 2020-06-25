@@ -165,12 +165,15 @@ def calc_loss(syn_x_init, syn_u_init, in_data, out_target, mask_train):
     weight_loss = tf.reduce_sum(tf.nn.relu(w_rnn) ** n)
     loss = par['orientation_cost'] * loss_orient + par['spike_cost'] * spike_loss + par['weight_cost'] * weight_loss
 
-    MAP_output = output[par['output_rg'][par['output_rg']>np.max(par['dead_rg'])].min():, :, :].numpy()
-    MAP_output = np.argmax(MAP_output, axis=2) - 1
-    perf = np.sum(MAP_output == np.repeat([trial_info['stimulus_ori']], MAP_output.shape[0], axis=0)) / np.sum(MAP_output==MAP_output)
-    print(perf)
+    MAP_dirs = output[par['output_rg'][par['output_rg'] > np.max(par['dead_rg'])].min():, :, :]
+    MAP_dirs = tf.nn.log_softmax(MAP_dirs, axis=2).numpy()
+    MAP_dirs = np.sum(MAP_dirs, axis=0)
+    MAP_dirs = np.argmax(MAP_dirs, axis=1) - 1
+    MAP_dirs = par['stim_dirs'][MAP_dirs]
+    Target_dirs = par['stim_dirs'][trial_info['stimulus_ori']]
+    est_error = np.arccos(np.cos(2 * (MAP_dirs - Target_dirs) / 180 * np.pi)) / np.pi * 180 / 2
 
-    return loss, loss_orient, spike_loss, weight_loss, loss_orient_print
+    return loss, loss_orient, spike_loss, weight_loss, loss_orient_print, est_error
 
 def append_model_performance(model_performance, loss, loss_orient, spike_loss, itime, var_dict):
     model_performance['time'].append(itime)
@@ -204,16 +207,17 @@ for iModel in range(nModel[0], nModel[1]):
     @ tf.function
     def train_onestep(syn_x_init, syn_u_init, in_data, out_target, mask_train):
         with tf.GradientTape() as t:
-            loss, loss_orient, spike_loss, weight_loss, loss_orient_print = calc_loss(syn_x_init, syn_u_init, in_data, out_target, mask_train)
+            loss, loss_orient, spike_loss, weight_loss, loss_orient_print, est_error = calc_loss(syn_x_init, syn_u_init, in_data, out_target, mask_train)
         grads = t.gradient(loss, var_list)
         grads_and_vars = list(zip(grads, var_list))
         capped_gvs = []
         for grad, var in grads_and_vars:
+            print(var.name)
             if 'w_rnn' in var.name:
                 grad *= par['w_rnn_mask'] * par['w_rnn_sparse_mask']
             capped_gvs.append((tf.clip_by_norm(grad, par['clip_max_grad_val']), var))
         opt.apply_gradients(grads_and_vars=capped_gvs)
-        return loss, loss_orient, spike_loss, loss_orient_print
+        return loss, loss_orient, spike_loss, loss_orient_print, est_error
 
     i = 0
     for i in range(0, iteration):
@@ -223,7 +227,7 @@ for iModel in range(nModel[0], nModel[1]):
         out_target = tf.constant(trial_info['desired_output'])
         mask_train = tf.constant(trial_info['mask'])
 
-        loss, loss_orient, spike_loss, loss_orient_print = train_onestep(syn_x_init, syn_u_init, in_data, out_target, mask_train)
+        loss, loss_orient, spike_loss, loss_orient_print, est_error = train_onestep(syn_x_init, syn_u_init, in_data, out_target, mask_train)
 
         itime = np.around((time.time() - t0) / 60, decimals=1)
         print('iModel=', iModel , ', iter=', i+1,

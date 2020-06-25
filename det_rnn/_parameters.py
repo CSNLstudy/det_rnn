@@ -164,6 +164,9 @@ def update_parameters(par):
 	par['alpha_mask'] = _alpha_mask(par['n_input'], par['n_hidden'], par['n_output'],
 									par['alpha_input'], par['alpha_hidden'], par['alpha_output'],
 									par['batch_size'])
+
+	par['stim_dirs'] = np.float32(np.arange(0, 180, 180 / par['n_ori']))
+
 	par.update({
 		'rg_exc': range(par['n_exc']),
 		'rg_inh': range(par['n_exc'], par['n_hidden']),
