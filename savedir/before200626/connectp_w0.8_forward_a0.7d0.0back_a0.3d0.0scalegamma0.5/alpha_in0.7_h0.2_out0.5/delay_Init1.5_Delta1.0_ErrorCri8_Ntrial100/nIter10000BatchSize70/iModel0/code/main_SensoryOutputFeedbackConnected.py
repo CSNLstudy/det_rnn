@@ -9,7 +9,7 @@ from shutil import copyfile
 import operator
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
-nModel = np.array([0, 10])
+nModel = np.array([1, 15])
 iteration = 10000
 stimulus = Stimulus()
 
@@ -150,7 +150,7 @@ def run_model(in_data, syn_x_init, syn_u_init):
     h = np.ones((par['batch_size'], 1)) @ var_dict['h']
     syn_x = syn_x_init
     syn_u = syn_u_init
-    w_rnn = (1-tf.eye(par['n_hidden'])) * (par['EI_mask'] @ (par['modular_sparse_mask_initial'] * tf.nn.relu(var_dict['w_rnn'])))
+    w_rnn = par['EI_mask'] @ (par['modular_sparse_mask_initial'] * tf.nn.relu(var_dict['w_rnn']))
 
     for c in range(par['n_timesteps']):
         rnn_input = in_data[c,:,:]
