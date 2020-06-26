@@ -7,29 +7,39 @@ import tensorflow as tf
 from sklearn.svm import SVC
 from scipy import stats
 
-iModel = 4
+iModel = 2
 BatchSize_svm = 100
+nCrossVal = 10
 silence_timestep_in2in = np.array([0, 0]) # stimon=[150, 300], est=[450, 600]
 time_train = np.array([225, 375, 525])
 
 iteration_goal              = 10000
-iteration_load              = 10000
-BatchSize                   = 100
+iteration_load              = 2884
+n_orituned_neurons          = 25
+BatchSize                   = 70
+n_hidden                    = 130
 scale_gamma                 = 0.5
-n_hidden                    = 150
+
 connect_p_within            = 0.8
 connect_p_adjacent_forward  = 0.7
 connect_p_distant_forward   = 0.0
 connect_p_adjacent_back     = 0.3
 connect_p_distant_back      = 0.0
-n_orituned_neurons          = 30
-dxtick                      = 1000 # in ms
+
 alpha_input                 = 0.7 # Chaudhuri et al., Neuron, 2015
 alpha_hidden                = 0.2
-alpha_output                = 0.5 # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex's decay is in between input and hidden
-delay_train                 = 1.5
+alpha_output                = 0.2 # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex's decay is in between input and hidden
 
-nCrossVal = 10
+delay_test                  = 0
+delay_initial               = 1.5
+delta_delay_update          = 1.0 # if estimation errors of consecutive "N_conseq_epoch_est_error" is lower than "criterion_est_error", delay increases by "delta_delay_update"
+criterion_est_error         = 8
+N_conseq_epoch_est_error    = 100
+goal_delay                  = 1.5
+Darwin_Iter                 = 2000
+Darwin_EstError             = 30
+
+dxtick                      = 1000 # in ms
 
 par['n_tuned_input'] = n_orituned_neurons
 par['n_tuned_output'] = n_orituned_neurons
@@ -46,17 +56,25 @@ par['silence_timestep_in2in'] = silence_timestep_in2in
 par['alpha_input'] = alpha_input 	# Chaudhuri et al., Neuron, 2015
 par['alpha_hidden'] = alpha_hidden
 par['alpha_output'] = alpha_output  # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex has similar decay profile with sensory cortex
-
+par['delta_delay_update'] = delta_delay_update
+par['criterion_est_error'] = criterion_est_error
+par['N_conseq_epoch_est_error'] = N_conseq_epoch_est_error
+par['goal_delay'] = goal_delay
+par['Darwin_Iter'] = Darwin_Iter
+par['Darwin_EstError'] = Darwin_EstError
+par['delay_initial'] = delay_initial
 par['design'].update({'iti'     : (0, 1.5),
                       'stim'    : (1.5, 3.0),
-                      'delay'   : (3.0, 3.0 + delay_train),
-                      'estim'   : (3.0 + delay_train, 4.5 + delay_train)})
+                      'delay'   : (3.0, 3.0 + delay_initial + delay_test),
+                      'estim'   : (3.0 + delay_initial + delay_test, 4.5 + delay_initial + delay_test)})
 
 savedir = os.path.dirname(os.path.realpath(__file__)) + \
-           '/savedir/connectp_w' + str(connect_p_within) + '_forward_a' + str(connect_p_adjacent_forward) + 'd' + str(connect_p_distant_forward) + \
-           'back_a' + str(connect_p_adjacent_back) + 'd' + str(connect_p_distant_back) + 'scalegamma' + str(scale_gamma) + \
-           '/alpha_in' + str(par['alpha_input']) + '_h' + str(par['alpha_hidden']) + '_out' + str(par['alpha_output']) + \
-           '/nIter' + str(iteration_goal) + 'BatchSize' + str(BatchSize) + '/Delay' + str(delay_train) + '/iModel' + str(iModel)
+               '/savedir/connectp_w' + str(connect_p_within) + '_forward_a' + str(connect_p_adjacent_forward) + 'd' + str(connect_p_distant_forward) + \
+                    'back_a' + str(connect_p_adjacent_back) + 'd' + str(connect_p_distant_back) + 'scalegamma' + str(scale_gamma) + \
+               '/alpha_in' + str(par['alpha_input']) + '_h' + str(par['alpha_hidden']) + '_out' + str(par['alpha_output']) + \
+               '/delay_Init' + str(par['delay_initial']) + '_Delta' + str(par['delta_delay_update']) + '_ErrorCri' + str(par['criterion_est_error']) + '_Ntrial' + str(par['N_conseq_epoch_est_error']) + \
+               '/nIter' + str(iteration_goal) + 'BatchSize' + str(BatchSize) + \
+               '/iModel' + str(iModel)
 
 svmdir = '/svm/Batchsize' + str(BatchSize_svm) + '/silencing_input' + str(silence_timestep_in2in[0]) + 'to' + str(silence_timestep_in2in[1])
 
@@ -66,7 +84,7 @@ if not os.path.isdir(savedir + svmdir):
 modelname = '/Iter' + str(iteration_load) + '.pkl'
 fn = savedir + modelname
 model = pickle.load(open(fn, 'rb'))
-w_rnn2in_sparse_mask = model['parameters']['modular_sparse_mask'] # this sparse mask should be identical with the training and testing
+w_rnn2in_sparse_mask = model['parameters']['modular_sparse_mask_initial'] # this sparse mask should be identical with the training and testing
 
 par['batch_size'] = BatchSize_svm
 par = update_parameters(par)
@@ -626,7 +644,7 @@ plt.savefig(savedir + svmdir + '/10_Accuracy_syn_input_matrix' + str(iteration_l
 
 Accuracy_acrosstime_matrix_syn_hidden = np.zeros((par['n_timesteps'], par['n_timesteps']))
 for itime_train in range(par['n_timesteps']):
-    print('10. decoding from hidden synapse - maxtix ' + str(itime_train))
+    print('11. decoding from hidden synapse - maxtix ' + str(itime_train))
     itrain_h = syn_hidden[itime_train, :, :]
     svm_model_linear = SVC(kernel='linear', C=1).fit(itrain_h, trial_info['stimulus_ori'])
     for itime_test in range(par['n_timesteps']):
@@ -656,7 +674,7 @@ plt.savefig(savedir + svmdir + '/11_Accuracy_syn_hidden_matrix' + str(iteration_
 
 Accuracy_acrosstime_matrix_syn_output = np.zeros((par['n_timesteps'], par['n_timesteps']))
 for itime_train in range(par['n_timesteps']):
-    print('10. decoding from output synapse - maxtix ' + str(itime_train))
+    print('12. decoding from output synapse - maxtix ' + str(itime_train))
     itrain_h = syn_output[itime_train, :, :]
     svm_model_linear = SVC(kernel='linear', C=1).fit(itrain_h, trial_info['stimulus_ori'])
     for itime_test in range(par['n_timesteps']):

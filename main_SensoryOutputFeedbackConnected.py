@@ -9,7 +9,7 @@ from shutil import copyfile
 import operator
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
-nModel = np.array([0, 2])
+nModel = np.array([1, 15])
 iteration = 10000
 stimulus = Stimulus()
 
@@ -25,17 +25,17 @@ connect_p_distant_forward   = 0.0
 connect_p_adjacent_back     = 0.3
 connect_p_distant_back      = 0.0
 
-alpha_input                 = 0.2 # Chaudhuri et al., Neuron, 2015
+alpha_input                 = 0.7 # Chaudhuri et al., Neuron, 2015
 alpha_hidden                = 0.2
-alpha_output                = 0.2 # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex's decay is in between input and hidden
+alpha_output                = 0.5 # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex's decay is in between input and hidden
 
-delay_initial               = 0
-delta_delay_update          = 0.5 # if estimation errors of consecutive "N_conseq_epoch_est_error" is lower than "criterion_est_error", delay increases by "delta_delay_update"
-criterion_est_error         = 10
+delay_initial               = 1.5
+delta_delay_update          = 1.0 # if estimation errors of consecutive "N_conseq_epoch_est_error" is lower than "criterion_est_error", delay increases by "delta_delay_update"
+criterion_est_error         = 8
 N_conseq_epoch_est_error    = 100
-goal_delay                  = 2.0
+goal_delay                  = 1.5
 Darwin_Iter                 = 2000
-Darwin_EstError             = 30
+Darwin_EstError             = 35
 
 par['n_hidden'] = n_hidden
 par['n_tuned_input'] = n_orituned_neurons
@@ -229,7 +229,7 @@ for iModel in range(nModel[0], nModel[1]):
                         'iteration': [], 'w_in': [], 'w_rnn': [], 'b_rnn': [], 'h': [], 'time': []}
     par['modular_sparse_mask_initial'] = par['modular_sparse_mask']
 
-    @ tf.function
+    @tf.function
     def train_onestep(syn_x_init, syn_u_init, in_data, out_target, mask_train, trial_info):
         with tf.GradientTape() as t:
             loss, loss_orient, spike_loss, weight_loss, loss_orient_print, est_error = calc_loss(syn_x_init, syn_u_init, in_data, out_target, mask_train, trial_info)
