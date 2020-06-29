@@ -12,7 +12,7 @@ os.environ['KMP_DUPLICATE_LIB_OK']='True'
 nModel = np.array([0, 10])
 iteration = 10000
 stimulus = Stimulus()
-
+ 
 n_orituned_neurons          = 25
 BatchSize                   = 70
 noise_sd                    = 0 # input noise
