@@ -4,19 +4,6 @@ from det_rnn import *
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-<<<<<<< HEAD
-import time
-iModel = 12
-iteration_goal = 3000
-iteration_load = 3000
-n_orituned_neurons = 30
-BatchSize = 50
-OneHotTarget = 0
-CrossEntropy = 1
-dxtick = 1000 # in ms
-
-alpha_input                 = 0.2 # Chaudhuri et al., Neuron, 2015
-=======
 
 iModel = 2
 
@@ -35,7 +22,6 @@ connect_p_distant_back      = 0.0
 
 alpha_input                 = 0.7 # Chaudhuri et al., Neuron, 2015
 alpha_hidden                = 0.2
->>>>>>> parent of 0ea1a3d... temp_but_unsuccessful
 alpha_output                = 0.2 # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex's decay is in between input and hidden
 
 delay_test                  = 0
@@ -52,15 +38,6 @@ dxtick                      = 1000 # in ms
 par['n_tuned_input'] = n_orituned_neurons
 par['n_tuned_output'] = n_orituned_neurons
 par['n_ori'] = n_orituned_neurons
-<<<<<<< HEAD
-
-savedir = os.path.dirname(os.path.realpath(__file__)) + \
-          '/savedir/OneHotTarget' + str(OneHotTarget) + 'CrossEntropy' + str(CrossEntropy) + 'BatchSize' + str(BatchSize) +\
-          '/nIter' + str(iteration_goal) + '/iModel' + str(
-    iModel)
-if not os.path.isdir(savedir + '/estimation/Iter' + str(iteration_load)):
-    os.makedirs(savedir + '/estimation/Iter' + str(iteration_load))
-=======
 par['n_hidden'] = n_hidden
 par['batch_size'] = BatchSize
 par['scale_gamma'] = scale_gamma
@@ -99,7 +76,6 @@ savedir = os.path.dirname(os.path.realpath(__file__)) + \
 
 if not os.path.isdir(savedir + '/estimation/delay_test' + str(delay_test) + '/Iter' + str(iteration_load)):
     os.makedirs(savedir + '/estimation/delay_test' + str(delay_test) + '/Iter' + str(iteration_load))
->>>>>>> parent of 0ea1a3d... temp_but_unsuccessful
 
 modelname = '/Iter' + str(iteration_load) + '.pkl'
 fn = savedir + modelname
@@ -115,30 +91,12 @@ h = model['h'][-1].numpy().astype('float32')
 w_rnn = model['w_rnn'][-1].numpy().astype('float32')
 b_rnn = model['b_rnn'][-1].numpy().astype('float32')
 
-<<<<<<< HEAD
-in_h = model['in_h'][-1].numpy().astype('float32')
-# w_in2in = model['w_in2in'][-1].numpy().astype('float32')
-# w_rnn2in = model['w_rnn2in'][-1].numpy().astype('float32')
-# b_in = model['b_in'][-1].numpy().astype('float32')
-
-w_in = par['EI_input_mask'] * np.maximum(w_in, 0)
-# iw_in2in = par['EI_in2in_mask'] @ np.maximum(w_in2in, 0)
-# iw_rnn2in = par['EImodular_mask'] @ np.maximum(w_rnn2in, 0)
-iw_rnn = par['EImodular_mask'] @ np.maximum(w_rnn, 0)
-=======
 iw_rnn = par['EI_mask'] @ (w_rnn2in_sparse_mask * tf.nn.relu(w_rnn))
->>>>>>> parent of 0ea1a3d... temp_but_unsuccessful
 
 var_dict = {}
 var_dict['h'] = h
 var_dict['w_rnn'] = w_rnn
 var_dict['b_rnn'] = b_rnn
-var_dict['w_out'] = w_out
-var_dict['b_out'] = b_out
-var_dict['in_h'] = in_h
-# var_dict['w_in2in'] = w_in2in
-# var_dict['w_rnn2in'] = w_rnn2in
-# var_dict['b_in'] = b_in
 
 dxtick = dxtick/10
 
@@ -260,48 +218,27 @@ def run_model(in_data, var_dict, syn_x_init, syn_u_init):
     self_syn_u = np.zeros((par['n_timesteps'], par['batch_size'], par['n_hidden']), dtype=np.float32)
     self_output = np.zeros((par['n_timesteps'], par['batch_size'], par['n_output']), dtype=np.float32)
 
-    self_in_h = np.zeros((par['n_timesteps'], par['batch_size'], 2*par['n_input']), dtype=np.float32)
-    # self_in_syn_x = np.zeros((par['n_timesteps'], par['batch_size'], 2*par['n_input']), dtype=np.float32)
-    # self_in_syn_u = np.zeros((par['n_timesteps'], par['batch_size'], 2*par['n_input']), dtype=np.float32)
-
     h = np.ones((par['batch_size'], 1)) @ var_dict['h']
     syn_x = syn_x_init
     syn_u = syn_u_init
-<<<<<<< HEAD
-    w_rnn = par['EImodular_mask'] @ np.maximum(var_dict['w_rnn'], 0)
-    w_in = par['EI_input_mask'] * np.maximum(var_dict['w_in'], 0)
-
-    in_h = np.ones((par['batch_size'], 1)) @ var_dict['in_h']
-    # in_syn_x = syn_x_init_in
-    # in_syn_u = syn_u_init_in
-    # w_in2in = par['EI_in2in_mask'] @ np.maximum(var_dict['w_in2in'], 0)
-    # w_rnn2in = par['EImodular_mask'] @ np.maximum(var_dict['w_rnn2in'], 0)
-=======
     w_rnn = par['EI_mask'] @ (w_rnn2in_sparse_mask * tf.nn.relu(var_dict['w_rnn']))
 
     h_pre = np.float32(np.random.gamma(0.1, 0.2, size=h.shape))
     # h_in = np.ones((par['batch_size'], 1)) @ var_dict['h_in']
->>>>>>> parent of 0ea1a3d... temp_but_unsuccessful
 
     c = 0
     for rnn_input in in_data:
-
-        in_h = rnn_cell_input(rnn_input, in_h)
-
-        h, syn_x, syn_u = rnn_cell(in_h, h, syn_x, syn_u, w_rnn, w_in)
+        h, syn_x, syn_u = rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn)
         #
-        self_in_h[c, :, :] = in_h
-        # self_in_syn_x[c, :, :] = in_syn_x
-        # self_in_syn_u[c, :, :] = in_syn_u
         self_h[c, :, :] = h
         self_syn_x[c, :, :] = syn_x
         self_syn_u[c, :, :] = syn_u
         self_output[c, :, :] = h[:, -par['n_output']:]
         c += 1
 
-    return self_h, self_output, self_syn_x, self_syn_u, w_rnn, self_in_h
+    return self_h, self_output, self_syn_x, self_syn_u, w_rnn
 
-h, output, syn_x, syn_u, w_rnn, in_h \
+h, output, syn_x, syn_u, w_rnn \
     = run_model(in_data, var_dict, syn_x_init, syn_u_init)
 
 ##
@@ -323,17 +260,6 @@ starget = np.expand_dims(starget, axis=2)
 ntarget = out_target / np.repeat(starget, par['n_output'], axis=2)
 ivmin = 0
 ivmax = 0.1
-
-if OneHotTarget is 0:
-    starget = np.sum(out_target, axis=2)
-    starget = np.expand_dims(starget, axis=2)
-    ntarget = out_target / np.repeat(starget, par['n_output'], axis=2)
-    ivmin = 0
-    ivmax = 0.1
-else:
-    ntarget = out_target == np.max(out_target, axis=2)[:, :, None]
-    ivmin = 0
-    ivmax = 1
 
 fig = plt.figure(figsize=(10, 8), dpi=80)
 
