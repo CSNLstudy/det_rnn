@@ -175,16 +175,10 @@ def update_parameters(par):
 	# parameters
 	par.update({
 
-		'h0': _initialize((1, par['n_total']), par['scale_gamma']),
-		'w_rnn0': _initialize((par['n_total'], par['n_total']), par['scale_gamma']),
-		'b_rnn0': np.zeros(par['n_total'], dtype=np.float32),
-
-		'syn_x_init': np.ones((par['batch_size'], par['n_total']), dtype=np.float32),
-		'syn_u_init': np.tile(_alternating((0.15, 0.45), par['n_total']), (par['batch_size'], 1)),
-		'alpha_std': _alternating((0.05, 0.00667), par['n_total']),
 		'alpha_stf': _alternating((0.00667, 0.05), par['n_total']),
 		'dynamic_synapse': np.ones(par['n_total'], dtype=np.float32),
 		'U': _alternating((0.15, 0.45), par['n_total']),	})
+	})
 
 	return par
 
