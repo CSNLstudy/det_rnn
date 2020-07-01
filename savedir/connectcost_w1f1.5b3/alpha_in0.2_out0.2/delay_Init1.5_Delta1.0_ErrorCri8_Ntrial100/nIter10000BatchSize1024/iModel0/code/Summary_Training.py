@@ -9,7 +9,7 @@ iModel = 0
 delay_test = 1.5
 
 iteration_goal              = 10000
-iteration_load              = 400
+iteration_load              = 3000
 
 BatchSize                   = 1024
 noise_sd                    = 0 # input noise
@@ -30,7 +30,7 @@ delta_delay_update          = 1.0 # if estimation errors of consecutive "N_conse
 criterion_est_error         = 8
 N_conseq_epoch_est_error    = 100
 goal_delay                  = 1.5
-Darwin_Iter                 = 1000
+Darwin_Iter                 = 3000
 Darwin_EstError             = 40
 
 dxtick                      = 1000

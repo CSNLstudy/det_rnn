@@ -13,9 +13,9 @@ nModel = np.array([0, 10])
 iteration = 10000
 stimulus = Stimulus()
 
-BatchSize                   = 70
+BatchSize                   = 1024
 noise_sd                    = 0 # input noise
-scale_gamma                 = 1
+scale_gamma                 = 0.1
 
 n_orituned_neurons          = 30
 n_untuned_input             = 40
@@ -32,7 +32,7 @@ delta_delay_update          = 1.0 # if estimation errors of consecutive "N_conse
 criterion_est_error         = 8
 N_conseq_epoch_est_error    = 100
 goal_delay                  = 1.5
-Darwin_Iter                 = 2000
+Darwin_Iter                 = 1000
 Darwin_EstError             = 40
 
 par['batch_size'] = BatchSize

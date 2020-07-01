@@ -14,7 +14,7 @@ par = {
 
 	# Mask specs
 	'dead': 'design', # ((0,0.1),(estim_start, estim_start+0.1))
-	'mask': {'iti'	: 1., 'stim' : 1., 'delay'	: 1., 'estim' : 50.,
+	'mask': {'iti'	: 1., 'stim' : 1., 'delay'	: 1., 'estim' : 5.,
 			 'rule_iti' : 2., 'rule_stim' : 2., 'rule_delay' : 2., 'rule_estim' : 10.},  # strength
 
 	# Rule specs
@@ -52,8 +52,8 @@ par = {
 	'noise_rnn_sd'          : 0.5,    # TODO(HL): rnn_sd changed from 0.05 to 0.5 (Masse)
 
 	# Tuning function data
-	'strength_input'        : 0.8,      # magnitutde scaling factor for von Mises
-	'strength_output'       : 0.8,      # magnitutde scaling factor for von Mises
+	'strength_input'        : 0.2,      # magnitutde scaling factor for von Mises
+	'strength_output'       : 0.2,      # magnitutde scaling factor for von Mises
 	'kappa'                 : 2,        # concentration scaling factor for von Mises
 
 	# Loss parameters

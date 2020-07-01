@@ -9,29 +9,29 @@ iModel = 0
 delay_test = 1.5
 
 iteration_goal              = 10000
-iteration_load              = 400
+iteration_load              = 1500
 
-BatchSize                   = 1024
+BatchSize                   = 50
 noise_sd                    = 0 # input noise
-scale_gamma                 = 0.1
+scale_gamma                 = 0.5
 
 n_orituned_neurons          = 30
 n_untuned_input             = 40
 
 connect_cost_within         = 1
-connect_cost_forward        = 1.5
-connect_cost_back           = 3
+connect_cost_forward        = 5
+connect_cost_back           = 5
 
-alpha_input                 = 0.2 # Chaudhuri et al., Neuron, 2015
-alpha_output                = 0.2 # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex's decay is in between input and hidden
+alpha_input                 = 0.7 # Chaudhuri et al., Neuron, 2015
+alpha_output                = 0.5 # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex's decay is in between input and hidden
 
 delay_initial               = 1.5
 delta_delay_update          = 1.0 # if estimation errors of consecutive "N_conseq_epoch_est_error" is lower than "criterion_est_error", delay increases by "delta_delay_update"
 criterion_est_error         = 8
 N_conseq_epoch_est_error    = 100
 goal_delay                  = 1.5
-Darwin_Iter                 = 1000
-Darwin_EstError             = 40
+Darwin_Iter                 = 2000
+Darwin_EstError             = 35
 
 dxtick                      = 1000
 

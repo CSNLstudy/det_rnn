@@ -14,7 +14,7 @@ par = {
 
 	# Mask specs
 	'dead': 'design', # ((0,0.1),(estim_start, estim_start+0.1))
-	'mask': {'iti'	: 1., 'stim' : 1., 'delay'	: 1., 'estim' : 50.,
+	'mask': {'iti'	: 1., 'stim' : 1., 'delay'	: 1., 'estim' : 20.,
 			 'rule_iti' : 2., 'rule_stim' : 2., 'rule_delay' : 2., 'rule_estim' : 10.},  # strength
 
 	# Rule specs
@@ -44,7 +44,7 @@ par = {
 
 	# Timings and rates
 	'dt'                    : 10,     # unit: ms
-	'learning_rate'         : 0.1,	  # adam optimizer learning rate
+	'learning_rate'         : 2e-2,	  # adam optimizer learning rate
 	'membrane_time_constant': 100,    # tau
 
 	# Input and noise
@@ -58,7 +58,7 @@ par = {
 
 	# Loss parameters
 	'spike_regularization'  : 'L2',      # 'L1' or 'L2'
-	'spike_cost'            : 0.01,
+	'spike_cost'            : 0.001,
 	'weight_cost'           : 1,
 	'clip_max_grad_val'     : 0.1,
 	'orientation_cost' 		: 1, # TODO(HL): cost for target-output

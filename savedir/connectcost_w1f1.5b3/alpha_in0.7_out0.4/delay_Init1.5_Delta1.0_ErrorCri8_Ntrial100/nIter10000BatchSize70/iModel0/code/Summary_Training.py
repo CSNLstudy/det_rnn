@@ -9,11 +9,11 @@ iModel = 0
 delay_test = 1.5
 
 iteration_goal              = 10000
-iteration_load              = 400
+iteration_load              = 2000
 
-BatchSize                   = 1024
+BatchSize                   = 70
 noise_sd                    = 0 # input noise
-scale_gamma                 = 0.1
+scale_gamma                 = 0.001
 
 n_orituned_neurons          = 30
 n_untuned_input             = 40
@@ -22,15 +22,15 @@ connect_cost_within         = 1
 connect_cost_forward        = 1.5
 connect_cost_back           = 3
 
-alpha_input                 = 0.2 # Chaudhuri et al., Neuron, 2015
-alpha_output                = 0.2 # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex's decay is in between input and hidden
+alpha_input                 = 0.7 # Chaudhuri et al., Neuron, 2015
+alpha_output                = 0.4 # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex's decay is in between input and hidden
 
 delay_initial               = 1.5
 delta_delay_update          = 1.0 # if estimation errors of consecutive "N_conseq_epoch_est_error" is lower than "criterion_est_error", delay increases by "delta_delay_update"
 criterion_est_error         = 8
 N_conseq_epoch_est_error    = 100
 goal_delay                  = 1.5
-Darwin_Iter                 = 1000
+Darwin_Iter                 = 3000
 Darwin_EstError             = 40
 
 dxtick                      = 1000
@@ -198,10 +198,10 @@ def rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn):
     syn_x += (par['alpha_std'] * (1 - syn_x) - par['dt']/1000 * syn_u * syn_x * h)  # what is alpha_std???
     syn_u += (par['alpha_stf'] * (par['U'] - syn_u) + par['dt']/1000 * par['U'] * (1 - syn_u) * h)
 
-    syn_x = tf.minimum(np.float32(1), tf.nn.relu(syn_x))
-    syn_u = tf.minimum(np.float32(1), tf.nn.relu(syn_u))
-    h_post = syn_u * syn_x * h
-    # h_post = h
+    # syn_x = tf.minimum(np.float32(1), tf.nn.relu(syn_x))
+    # syn_u = tf.minimum(np.float32(1), tf.nn.relu(syn_u))
+    # h_post = syn_u * syn_x * h
+    h_post = h
 
     noise_rnn = np.sqrt(2*par['alpha_mask'])*par['noise_rnn_sd']
     h = tf.nn.relu((1 - par['alpha_mask']) * h
