@@ -16,23 +16,24 @@ stimulus = Stimulus(par)
 
 ## Parameters ################################################################
 Nhidden  = 100
+Nrule    = 2
 NruleIn  = 2
 NruleOut = 1
 Nstim    = 24
 Nout     = 24
 pEI      = 0.7  # make sure Ninhibit > Nstim
-overlap  = 13
+overlap  = 3
 dt       = 10
 tau      = 50
-privg    = 30.
+privg    = 100.
+devi     = 1e-6
 noise_rnn_sd = 0.5 
 batch_size   = 128
 
 Nexcite  = int(Nhidden*pEI)
 Ninhibit = Nhidden - Nexcite
 tuning_matrix = stimulus.tuning_input.reshape((24,24))
-tuning_matrix_sigmoid = np.exp(tuning_matrix)/np.sum(np.exp(tuning_matrix), axis=1)
-for i in range(Nstim): tuning_matrix_sigmoid[i,i] = 1.
+# tuning_matrix = stimulus.tuning_input.reshape((24,24)).astype(np.float32) ## float32
 alpha    = dt/tau
 
 
@@ -40,37 +41,38 @@ alpha    = dt/tau
 H = np.zeros((Nhidden,Nstim))
 rollvec = np.zeros(Nstim)
 rollvec[:overlap] = 1.
-for i in range(Nstim): H[NruleIn:(NruleIn+Nstim),i] =  np.roll(rollvec,i-int(overlap/2))
+for i in range(Nstim): H[Nrule:(Nrule+Nstim),i] =  np.roll(rollvec,i-int(overlap/2))
 for i in range(Nstim): H[i+Nexcite,i] = 1.
 
 ## Make Wrnn #################################################################
 ### Initialize
-w_rnn0 = np.random.rand(Nhidden,Nhidden) 
+# w_rnn0 = np.random.rand(Nhidden,Nhidden) 
+w_rnn0 = np.zeros((Nhidden,Nhidden)) 
 w_rnn0[:,Nexcite:] *= (-1.)
 for i in range(Nhidden): w_rnn0[i,i] = -1.
 
 ### Make (24,24) block
 stim_block = np.ones((Nstim,Nstim))
 for i in range(Nstim): stim_block[i,i] = -1.
-w_rnn0[NruleIn:(NruleIn+Nstim),NruleIn:(NruleIn+Nstim)] = stim_block
+w_rnn0[Nrule:(Nrule+Nstim),Nrule:(Nrule+Nstim)] = stim_block
 
 ### Make (30,24) block
-w_rnn0[Nexcite:,NruleIn:(NruleIn+Nstim)] = 1./overlap
+w_rnn0[Nexcite:,Nrule:(Nrule+Nstim)] = 1./overlap
 
 ### Challenging part
 rollvec = -np.ones(Nstim)*overlap
 rollvec[:overlap] = -overlap + 2.
-for i in range(Nstim): w_rnn0[(i+NruleIn),Nexcite:(Nexcite+Nstim)] =  np.roll(rollvec,i-int(overlap/2))
+for i in range(Nstim): w_rnn0[(i+Nrule),Nexcite:(Nexcite+Nstim)] =  np.roll(rollvec,i-int(overlap/2))
 
 ### 
 w_rnn0[Nexcite:,Nexcite:(Nexcite+Nstim)] = - np.ones((Ninhibit,Nstim))
-w_rnn0[(NruleIn+Nstim):Nexcite,NruleIn:(NruleIn+Nstim)] = 1.
-w_rnn0[(NruleIn+Nstim):Nexcite,Nexcite:(Nexcite+Nstim)] = -float(overlap)
+w_rnn0[(Nrule+Nstim):Nexcite,Nrule:(Nrule+Nstim)] = 1.
+w_rnn0[(Nrule+Nstim):Nexcite,Nexcite:(Nexcite+Nstim)] = -float(overlap)
 
-### Make rule strings(TODO: may not work if NruleIn > 2)
-w_rnn0[:NruleIn,:] = 0
-w_rnn0[:,:NruleIn] = 0
-for i in range(NruleIn): w_rnn0[i,i] = -1.
+### Make rule strings(TODO: may not work if Nrule > 2)
+w_rnn0[:Nrule,:] = 0
+w_rnn0[:,:Nrule] = 0
+for i in range(Nrule): w_rnn0[i,i] = -1.
 w_rnn0[0,1] = 1.
 w_rnn0[1,0] = 1.
 
@@ -86,14 +88,9 @@ np.linalg.matrix_rank(w_roll)
 abs((w_rnn @ H) - H).sum()
 
 _H = copy.deepcopy(H)
-_H[:NruleIn,:] = 1
+_H[:Nrule,:] = 1
 abs((w_rnn @ _H) - _H).sum()
 
-
-ITI_h  = np.zeros((Nhidden,1)); ITI_h[:NruleIn,:] = 1.
-ITI_input = np.zeros(NruleIn + Nstim)
-ITI_input[:1] = 0.8
-Htotal = np.concatenate((ITI_h,_H,H),axis=1) # _H : retain, H : respond
 
 
 ## Make Win ##################################################################
@@ -101,36 +98,71 @@ Htotal = np.concatenate((ITI_h,_H,H),axis=1) # _H : retain, H : respond
 # w_in = H @ np.linalg.inv(tuning_matrix)
 # abs((w_in)@tuning_matrix - H).sum()
 
-tr_mat = np.concatenate((ITI_input.reshape((-1,1)),
-                        np.concatenate((np.ones((1,Nstim))*0.8,np.zeros((1,Nstim)),tuning_matrix)),
-                        np.concatenate((np.ones((2,Nstim))*0.8,tuning_matrix))),axis=1)
+# ITI_input = np.zeros(NruleIn + Nstim);  ITI_input[0] = 0.8
+# Resp_input = np.zeros(NruleIn + Nstim); Resp_input[:NruleIn] = 0.8
 
+# ITI_h  = np.zeros((Nhidden,1)); ITI_h[-5:,0] = .
+# Resp_h = np.zeros((Nhidden,1)); Resp_h[:NruleIn,:] = -1.
+# ITI_input.reshape((-1,1)).shape
+# Resp_input.reshape((-1,1)).shape
+
+# Htotal = np.concatenate((ITI_h,Resp_h,_H,H),axis=1) # _H : retain, H : respond
+# tr_mat = np.concatenate((ITI_input.reshape((-1,1)),
+#                          Resp_input.reshape((-1,1)),
+#                          np.concatenate((np.zeros((1,Nstim)),np.ones((1,Nstim))*0.8,tuning_matrix)),
+#                          np.concatenate((np.ones((2,Nstim))*0.8,tuning_matrix))),axis=1)
+
+# Htotal = np.concatenate((Resp_h,_H,H),axis=1) # _H : retain, H : respond
+# tr_mat = np.concatenate((Resp_input.reshape((-1,1)),
+#                          np.concatenate((np.zeros((1,Nstim)),np.ones((1,Nstim))*0.8,tuning_matrix)),
+#                          np.concatenate((np.ones((2,Nstim))*0.8,tuning_matrix))),axis=1)
+
+# Htotal = np.concatenate((_H,H),axis=1) # _H : retain, H : respond
+# tr_mat = np.concatenate((np.concatenate((np.zeros((1,Nstim)),tuning_matrix)),
+#                         np.concatenate((np.ones((1,Nstim))*0.8,tuning_matrix))),axis=1)
 # w_in = Htotal @ (tr_mat.T) @ np.linalg.inv(tr_mat @ (tr_mat.T)) # why not work?
-w_in = Htotal @ np.linalg.pinv(tr_mat)
-abs(w_in@tr_mat- Htotal).sum()
+
+
+###################################
+# "Rule 1" is trivial, thus ruled out 
+Resp_input_trunc = np.zeros(NruleIn - 1 + Nstim); Resp_input_trunc[0] = 0.8
+Resp_h = np.zeros((Nhidden,1)); Resp_h[:NruleIn,:] = -1.
+Htotal = np.concatenate((Resp_h,H*devi),axis=1) # _H : retain, H : respond
+
+tr_mat_tilde = np.concatenate((Resp_input_trunc.reshape((-1,1)),
+                               np.concatenate((np.zeros((1,Nstim)), tuning_matrix))),axis=1)
+tr_mat_full  = np.concatenate((0.8*np.ones((1,NruleIn - 1 + Nstim)),tr_mat_tilde),axis=0)
+
+INV0 = np.linalg.inv(tuning_matrix)
+OneZero = np.zeros((Nstim+1,1)); OneZero[0,0] = 1/0.8
+INV  = np.concatenate((OneZero, np.concatenate((np.zeros((1,Nstim)),INV0))),axis=1)
+
+w_in_tilde = Htotal @ INV
+w_in = np.concatenate((np.zeros((Nhidden,1)),w_in_tilde), axis=1)
+abs(w_in_tilde@tr_mat_tilde- Htotal).sum()
+
+
+
+
+plt.plot(w_in @ trial_info['neural_input'][150,TEST_TRIAL,:])
+plt.plot(H[:,5])
+
+
+
 
 ## Make Wout #################################################################
 w_out = np.zeros((Nhidden,Nout+NruleOut))
-w_out[NruleIn:(NruleIn+Nstim),NruleOut:(NruleOut+Nstim)] = H[NruleIn:(Nstim+NruleIn),:Nstim]
+w_out[Nrule:(Nrule+Nstim),NruleOut:(NruleOut+Nstim)] = H[Nrule:(Nstim+Nrule),:Nstim]
 w_out[0,0] = privg
-
-
-## Sanity check ##############################################################
-plt.imshow(tr_mat)
-plt.imshow(w_in@tr_mat)
-
-plt.imshow((H.T @ w_out).T/np.sum(H.T @ w_out, axis=1))
-plt.colorbar()
-plt.show()
-
 
 ## var_dict ##################################################################
 var_dict = {}
-var_dict['h'] = np.zeros(Nhidden)
+h0 = np.zeros(Nhidden)
+h0[:Nrule] = 1e-5
+var_dict['h'] = h0
 var_dict['w_in'] = w_in
 var_dict['w_rnn'] = w_rnn
 var_dict['w_out'] = w_out
-
 
 ## functions #################################################################
 def relu(x):
@@ -138,7 +170,7 @@ def relu(x):
 
 def rnn_cell(h, rnn_input, var_dict=var_dict):
     h = relu((1.-alpha)*h + \
-             alpha*(rnn_input @ var_dict['w_in'].T) + h @ var_dict['w_rnn'].T)
+             alpha*(rnn_input @ var_dict['w_in'].T + h @ var_dict['w_rnn'].T))
              # np.random.normal(size=Nhidden, loc=0,scale=2.*alpha*noise_rnn_sd))
     return h
 
@@ -156,49 +188,136 @@ def rnn_model(input_data, var_dict=var_dict):
 	y_stack = np.stack(y_stack)
 	
 	return h_stack, y_stack
+
+h = np.tile(var_dict['h'], (batch_size, 1))
+h_stack = []; y_stack = []
+*_input_data, = input_data
+
+len(_input_data)
+rnn_input = _input_data[0]
+h = rnn_cell(h, rnn_input)
+y_stack.append(h @ var_dict['w_out'])
+
+y_stack/np.sum(y_stack,axis=-1,keepdims=True)
+
+plt.imshow(h)
+
+input_data = trial_info['neural_input']
+
+var_dict['h']
         
 
 ## Sanity check ###############################################################
-### 1. Does ITI input induce invariance?
+plt.imshow(tr_mat_full)
+plt.imshow(w_in@tr_mat_full)
+
+plt.imshow((H.T @ w_out).T/np.sum(H.T @ w_out, axis=1))
+plt.imshow((_H.T @ w_out).T/np.sum(_H.T @ w_out, axis=1))
+plt.colorbar()
+plt.show()
+
+
+### 1. Does ITI input induce invariance? : Yes
+ITI_input = np.zeros(NruleIn + Nstim);  ITI_input[0] = 0.8
 plt.plot(ITI_input)
 plt.plot(ITI_input @ var_dict['w_in'].T)
 plt.plot(rnn_cell(var_dict['h'], ITI_input))
 
 h = rnn_cell(var_dict['h'], ITI_input)
-for i in range(8):
+for i in range(2000):
     plt.plot(h)
     h = rnn_cell(h, ITI_input) 
 plt.show()
 
-
-
 ### 2. Does
-stim_input = tr_mat[:,12]
+stim_input = tr_mat_full[:,1]
 
 plt.plot(stim_input)
 plt.plot(stim_input @ var_dict['w_in'].T)
 plt.plot(rnn_cell(var_dict['h'], stim_input))
 
 
+
+plt.plot(trial_info['neural_input'][150,TEST_TRIAL,:])
+
+rnn_cell(Hrnn[149,TEST_TRIAL,:], trial_info['neural_input'][150,TEST_TRIAL,:])
+run
+
+stim_input
+
+Hrnn_stim = Hrnn[150,TEST_TRIAL,:]
+h_stim_start = rnn_cell(Hrnn[149,TEST_TRIAL,:], trial_info['neural_input'][150,TEST_TRIAL,:])
+
+
+h_stim_start = rnn_cell(Hrnn[149,TEST_TRIAL,:], stim_input)
+for i in range(150):
+    h_stim_start = rnn_cell(h_stim_start, stim_input)
+    plt.plot(h_stim_start)
+
+h_stim_start 
+
+
+plt.plot(rnn_cell(Hrnn[149,TEST_TRIAL,:], trial_info['neural_input'][150,TEST_TRIAL,:]))
+
+plt.plot(w_in @ trial_info['neural_input'][150,TEST_TRIAL,:])
+plt.plot(H[:,5])
+
 ### 3. Does stimulus period induce gradual evidence accumulation?
 #### No, instability of population code causes exponential growth
-stim_input = tr_mat[:,12]
-h = rnn_cell(var_dict['h'], stim_input)
-for i in range(8):
+stim_input = tr_mat_full[:,1]
+h = rnn_cell(h0, stim_input)
+for i in range(10):
     plt.plot(h)
     h = rnn_cell(h, stim_input) 
 plt.show()
 
+w_rnn
 
-### 4. Does the delay period stably maintain information?
-h = rnn_cell(var_dict['h'], stim_input)
+h = rnn_cell(h0, stim_input)
+for i in range(150):
+    plt.plot(h @ var_dict['w_out'])
+    h = rnn_cell(h, stim_input) 
+plt.show()
+
+### 4. Does the delay period stably maintain information? 
+#### This depends on "robustness(sparseness)" of Wrnn
 h = rnn_cell(h, ITI_input)
-
-for i in range(3):
+for i in range(800):
     plt.plot(h)
     h = rnn_cell(h, ITI_input) 
 plt.show()
 
+trial_info['neural_input'][150,TEST_TRIAL,:].reshape((1,-1)).shape
+
+
+h = H[:,12] @ var_dict['w_rnn'].T
+
+h = ( w_in @ trial_info['neural_input'][150,1,:]).reshape((1,-1)) @ var_dict['w_rnn'].T
+for i in range(2000):
+    plt.plot(h.T)
+    h = h @ var_dict['w_rnn'].T
+plt.show()
+
+tr_mat_full.shape
+
+for i in range(24):
+    i_stim_input = tr_mat_full[:,i+1]
+    h = ( w_in @ i_stim_input).reshape((1,-1)) @ var_dict['w_rnn'].T
+    plt.plot(h.T)
+
+
+real_trial = trial_info['neural_input'][150,1,:]
+test_trial = tr_mat_full[:,7]
+
+
+plt.plot((( w_in @ real_trial).reshape((1,-1)) @ var_dict['w_rnn'].T).T)
+plt.plot((( w_in @ test_trial).reshape((1,-1)) @ var_dict['w_rnn'].T).T)
+
+
+plt.plot(trial_info['neural_input'][150,1,:])
+plt.plot(tr_mat_full[:,7])
+
+np.sum(abs(trial_info['neural_input'][150,1,:] - tr_mat_full[:,7]))
 
 ### 5. Does the response period evoke response?
 resp_input = copy.deepcopy(ITI_input) 
@@ -268,22 +387,26 @@ par['noise_sd'] = 0
 par = update_parameters(par)
 stimulus = Stimulus(par)
 trial_info = stimulus.generate_trial()
-Hrnn, Yrnn = rnn_model(trial_info['neural_input'][298:,:,:])
+Hrnn, Yrnn = rnn_model(trial_info['neural_input'][:300,:,:])
 Yrnn_normalize = Yrnn/np.sum(Yrnn,axis=-1,keepdims=True)
 
 plt.imshow(trial_info['neural_input'][299:,TEST_TRIAL,:].T, aspect='')
 
 plt.plot(Yrnn_normalize[301,TEST_TRIAL,:])
 
-plt.imshow(Hrnn[:20,TEST_TRIAL,:].T, vmax=1)
+plt.imshow(Hrnn[:,TEST_TRIAL,:].T, vmax=0.01)
+
 
 fig, axes = plt.subplots(3,1, figsize=(10,8))
 TEST_TRIAL = np.random.randint(par['batch_size'])
 axes[0].imshow(trial_info['neural_input'][:,TEST_TRIAL,:].T, aspect='auto'); axes[0].set_title("Neural Input")
 axes[1].imshow(trial_info['desired_output'][:,TEST_TRIAL,:].T, aspect='auto'); axes[1].set_title("Desired Output")
-axes[2].imshow(Yrnn_normalize[:10,TEST_TRIAL,:].T,  aspect='auto',vmax=0.1)
+axes[2].imshow(Yrnn_normalize[:,TEST_TRIAL,:].T,  aspect='auto', vmax=0.5)
 fig.tight_layout(pad=2.0)
 plt.show()
+
+plt.imshow(Hrnn[:,TEST_TRIAL,:].T, vmax=0.1)
+plt.colorbar()
 
 
 fig, axes = plt.subplots(3,1, figsize=(10,8))

@@ -21,16 +21,9 @@ class Stimulus(object):
         neural_input    = self._gen_stim(stimulus_ori)
         desired_output  = self._gen_output(stimulus_ori)
         mask            = self._gen_mask()
-        if self.n_subblock > 1: # multi-trial settings
-            neural_input = neural_input.transpose((1,0,2)).\
-                reshape((self.n_subblock,-1,self.n_input)).transpose((1,0,2))
-            desired_output = desired_output.transpose((1,0,2)).\
-                reshape((self.n_subblock,-1,self.n_output)).transpose((1,0,2))
-            mask = mask.transpose((1,0,2)).\
-                reshape((self.n_subblock,-1,self.n_output)).transpose((1,0,2))
-        return {'neural_input'  : neural_input.astype(np.float32),
+        return {'neural_input'  : neural_input,
                 'stimulus_ori'  : stimulus_ori,
-                'desired_output': desired_output.astype(np.float32),
+                'desired_output': desired_output,
                 'mask'          : mask}
 
     def _gen_stimseq(self):
