@@ -50,9 +50,4 @@ for k, v in hp.items():
 # hp_spec
 hp_spec = {}
 for k, v in hp.items():
-<<<<<<< HEAD
-    hp_spec[k] = tf.TensorSpec(v.numpy().shape, tf.dtypes.as_dtype(v.numpy().dtype), name=k)
-
-=======
 	hp_spec[k] = tf.TensorSpec(v.numpy().shape, tf.dtypes.as_dtype(v.numpy().dtype), name=k)
->>>>>>> 92c0796ef099b4c03b90efb1a27d83bc0aa1d6d8
