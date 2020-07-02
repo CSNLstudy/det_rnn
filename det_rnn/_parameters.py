@@ -3,12 +3,13 @@ from ._functions import *
 
 __all__ = ['par', 'update_parameters']
 
+# All the relevant parameters ========================================================================
 par = {
 	# Experiment design: unit: second(s)
 	'design':  {'iti'	: (0, 1.5),
 			   	'stim'	: (1.5, 3.0),
-			   	'delay'	: (3.0, 3.5),
-			   	'estim'	: (3.5, 5.0)},
+			   	'delay'	: (3.0, 4.5),
+			   	'estim'	: (4.5, 6.0)},
 	'output_range' : 'design', # estim period
 
 	# Mask specs
@@ -163,9 +164,6 @@ def update_parameters(par):
 	par['alpha_mask'] = _alpha_mask(par['n_input'], par['n_hidden'], par['n_output'],
 									par['alpha_input'], par['alpha_hidden'], par['alpha_output'],
 									par['batch_size'])
-
-	par['stim_dirs'] = np.float32(np.arange(0, 180, 180 / par['n_ori']))
-
 	par.update({
 		'rg_exc': range(par['n_exc']),
 		'rg_inh': range(par['n_exc'], par['n_hidden']),
@@ -179,42 +177,17 @@ def update_parameters(par):
 
 	# parameters
 	par.update({
-<<<<<<< HEAD
-		'in_h0': _random_normal_abs((1, 2*par['n_input'])),
-		# 'w_in2in0': _random_normal_abs((2*par['n_input'], 2*par['n_input'])),
-		# 'w_rnn2in0': _random_normal_abs((par['n_hidden'], 2*par['n_input'])),
-		# 'b_in0': np.zeros(2*par['n_input'], dtype=np.float32),
-
-		'h0': _random_normal_abs((1, par['n_hidden'])),
-		'w_in0': _random_normal_abs((2*par['n_input'], par['n_hidden'])),
-		'w_rnn0': _random_normal_abs((par['n_hidden'], par['n_hidden'])),
-		'b_rnn0': np.zeros(par['n_hidden'], dtype=np.float32),
-		'w_out0': _random_normal_abs((par['n_hidden'],par['n_output'])) * par['w_out_mask'],
-		'b_out0': np.zeros(par['n_output'], dtype=np.float32),
-=======
 
 		'h0': _initialize((1, par['n_hidden']), par['scale_gamma']),
 		'w_rnn0': _initialize((par['n_hidden'], par['n_hidden']), par['scale_gamma']),
 		'b_rnn0': np.zeros(par['n_hidden'], dtype=np.float32),
->>>>>>> parent of 0ea1a3d... temp_but_unsuccessful
 
 		'syn_x_init': np.ones((par['batch_size'], par['n_hidden']), dtype=np.float32),
 		'syn_u_init': np.tile(_alternating((0.15, 0.45), par['n_hidden']), (par['batch_size'], 1)),
 		'alpha_std': _alternating((0.05, 0.00667), par['n_hidden']),
 		'alpha_stf': _alternating((0.00667, 0.05), par['n_hidden']),
 		'dynamic_synapse': np.ones(par['n_hidden'], dtype=np.float32),
-<<<<<<< HEAD
-		'U': _alternating((0.15, 0.45), par['n_hidden']),
-
-		'syn_x_init_input': np.ones((par['batch_size'], 2*par['n_input']), dtype=np.float32),
-		'syn_u_init_input': np.concatenate((0.15*np.ones((par['batch_size'], par['n_input']), dtype=np.float32), 0.45*np.ones((par['batch_size'], par['n_input']), dtype=np.float32)), axis=1),
-		'alpha_std_input': np.concatenate((0.05*np.ones(par['n_input'], dtype=np.float32), 0.00667*np.ones(par['n_input'], dtype=np.float32))),
-		'alpha_stf_input': np.concatenate((0.00667*np.ones(par['n_input'], dtype=np.float32), 0.05*np.ones(par['n_input'], dtype=np.float32))),
-		'U_input': np.concatenate((0.15 * np.ones(par['n_input'], dtype=np.float32), 0.45 * np.ones(par['n_input'], dtype=np.float32))),
-	})
-=======
 		'U': _alternating((0.15, 0.45), par['n_hidden']),	})
->>>>>>> parent of 0ea1a3d... temp_but_unsuccessful
 
 	return par
 

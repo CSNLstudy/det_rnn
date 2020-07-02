@@ -4,63 +4,28 @@ from det_rnn import *
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-<<<<<<< HEAD
-import time
-iModel = 12
-iteration_goal = 3000
-iteration_load = 3000
-n_orituned_neurons = 30
-BatchSize = 50
-OneHotTarget = 0
-CrossEntropy = 1
-dxtick = 1000 # in ms
 
-alpha_input                 = 0.2 # Chaudhuri et al., Neuron, 2015
-=======
-
-iModel = 2
+iModel = 3
 
 iteration_goal              = 10000
-iteration_load              = 2884
-n_orituned_neurons          = 25
-BatchSize                   = 70
-n_hidden                    = 130
+iteration_load              = 5000
+BatchSize                   = 100
 scale_gamma                 = 0.5
-
+n_hidden                    = 150
 connect_p_within            = 0.8
 connect_p_adjacent_forward  = 0.7
 connect_p_distant_forward   = 0.0
 connect_p_adjacent_back     = 0.3
 connect_p_distant_back      = 0.0
-
+n_orituned_neurons          = 30
+dxtick                      = 1000 # in ms
 alpha_input                 = 0.7 # Chaudhuri et al., Neuron, 2015
 alpha_hidden                = 0.2
->>>>>>> parent of 0ea1a3d... temp_but_unsuccessful
 alpha_output                = 0.2 # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex's decay is in between input and hidden
-
-delay_test                  = 0
-delay_initial               = 1.5
-delta_delay_update          = 1.0 # if estimation errors of consecutive "N_conseq_epoch_est_error" is lower than "criterion_est_error", delay increases by "delta_delay_update"
-criterion_est_error         = 8
-N_conseq_epoch_est_error    = 100
-goal_delay                  = 1.5
-Darwin_Iter                 = 2000
-Darwin_EstError             = 30
-
-dxtick                      = 1000 # in ms
 
 par['n_tuned_input'] = n_orituned_neurons
 par['n_tuned_output'] = n_orituned_neurons
 par['n_ori'] = n_orituned_neurons
-<<<<<<< HEAD
-
-savedir = os.path.dirname(os.path.realpath(__file__)) + \
-          '/savedir/OneHotTarget' + str(OneHotTarget) + 'CrossEntropy' + str(CrossEntropy) + 'BatchSize' + str(BatchSize) +\
-          '/nIter' + str(iteration_goal) + '/iModel' + str(
-    iModel)
-if not os.path.isdir(savedir + '/estimation/Iter' + str(iteration_load)):
-    os.makedirs(savedir + '/estimation/Iter' + str(iteration_load))
-=======
 par['n_hidden'] = n_hidden
 par['batch_size'] = BatchSize
 par['scale_gamma'] = scale_gamma
@@ -72,40 +37,33 @@ par['connect_prob_distant_module_back'] = connect_p_distant_back
 par['alpha_input'] = alpha_input 	# Chaudhuri et al., Neuron, 2015
 par['alpha_hidden'] = alpha_hidden
 par['alpha_output'] = alpha_output  # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex has similar decay profile with sensory cortex
-par['delta_delay_update'] = delta_delay_update
-par['criterion_est_error'] = criterion_est_error
-par['N_conseq_epoch_est_error'] = N_conseq_epoch_est_error
-par['goal_delay'] = goal_delay
-par['Darwin_Iter'] = Darwin_Iter
-par['Darwin_EstError'] = Darwin_EstError
-par['delay_initial'] = delay_initial
-par['design'].update({'iti'     : (0, 1.5),
-                      'stim'    : (1.5, 3.0),
-                      'delay'   : (3.0, 3.0 + delay_initial + delay_test),
-                      'estim'   : (3.0 + delay_initial + delay_test, 4.5 + delay_initial + delay_test)})
 
+
+# par['design'].update({'iti'     : (0, 1.5),
+#                       'stim'    : (1.5, 3.0),
+#                       'delay'   : (3.0, 6.0),
+#                       'estim'   : (6.0, 7.5)})
+
+delay = par['design']['delay'][1] - par['design']['delay'][0]
 # savedir = os.path.dirname(os.path.realpath(__file__)) + \
 #            '/savedir/connectp_w' + str(connect_p_within) + '_forward_a' + str(connect_p_adjacent_forward) + 'd' + str(connect_p_distant_forward) + \
 #            'back_a' + str(connect_p_adjacent_back) + 'd' + str(connect_p_distant_back) + 'scalegamma' + str(scale_gamma) + \
 #            '/nIter' + str(iteration_goal) + 'BatchSize' + str(BatchSize) + '/Delay' + str(delay) + '/iModel' + str(iModel)
 
 savedir = os.path.dirname(os.path.realpath(__file__)) + \
-               '/savedir/connectp_w' + str(connect_p_within) + '_forward_a' + str(connect_p_adjacent_forward) + 'd' + str(connect_p_distant_forward) + \
-                    'back_a' + str(connect_p_adjacent_back) + 'd' + str(connect_p_distant_back) + 'scalegamma' + str(scale_gamma) + \
-               '/alpha_in' + str(par['alpha_input']) + '_h' + str(par['alpha_hidden']) + '_out' + str(par['alpha_output']) + \
-               '/delay_Init' + str(par['delay_initial']) + '_Delta' + str(par['delta_delay_update']) + '_ErrorCri' + str(par['criterion_est_error']) + '_Ntrial' + str(par['N_conseq_epoch_est_error']) + \
-               '/nIter' + str(iteration_goal) + 'BatchSize' + str(BatchSize) + \
-               '/iModel' + str(iModel)
+           '/savedir/connectp_w' + str(connect_p_within) + '_forward_a' + str(connect_p_adjacent_forward) + 'd' + str(connect_p_distant_forward) + \
+           'back_a' + str(connect_p_adjacent_back) + 'd' + str(connect_p_distant_back) + 'scalegamma' + str(scale_gamma) + \
+           '/alpha_in' + str(par['alpha_input']) + '_h' + str(par['alpha_hidden']) + '_out' + str(par['alpha_output']) + \
+           '/nIter' + str(iteration_goal) + 'BatchSize' + str(BatchSize) + '/Delay' + str(delay) + '/iModel' + str(iModel)
 
-if not os.path.isdir(savedir + '/estimation/delay_test' + str(delay_test) + '/Iter' + str(iteration_load)):
-    os.makedirs(savedir + '/estimation/delay_test' + str(delay_test) + '/Iter' + str(iteration_load))
->>>>>>> parent of 0ea1a3d... temp_but_unsuccessful
+if not os.path.isdir(savedir + '/estimation/Iter' + str(iteration_load)):
+    os.makedirs(savedir + '/estimation/Iter' + str(iteration_load))
 
 modelname = '/Iter' + str(iteration_load) + '.pkl'
 fn = savedir + modelname
 model = pickle.load(open(fn, 'rb'))
 
-w_rnn2in_sparse_mask = model['parameters']['modular_sparse_mask_initial'] # this sparse mask should be identical with the training and testing
+w_rnn2in_sparse_mask = model['parameters']['modular_sparse_mask'] # this sparse mask should be identical with the training and testing
 
 par['batch_size'] = BatchSize
 par = update_parameters(par)
@@ -115,30 +73,12 @@ h = model['h'][-1].numpy().astype('float32')
 w_rnn = model['w_rnn'][-1].numpy().astype('float32')
 b_rnn = model['b_rnn'][-1].numpy().astype('float32')
 
-<<<<<<< HEAD
-in_h = model['in_h'][-1].numpy().astype('float32')
-# w_in2in = model['w_in2in'][-1].numpy().astype('float32')
-# w_rnn2in = model['w_rnn2in'][-1].numpy().astype('float32')
-# b_in = model['b_in'][-1].numpy().astype('float32')
-
-w_in = par['EI_input_mask'] * np.maximum(w_in, 0)
-# iw_in2in = par['EI_in2in_mask'] @ np.maximum(w_in2in, 0)
-# iw_rnn2in = par['EImodular_mask'] @ np.maximum(w_rnn2in, 0)
-iw_rnn = par['EImodular_mask'] @ np.maximum(w_rnn, 0)
-=======
 iw_rnn = par['EI_mask'] @ (w_rnn2in_sparse_mask * tf.nn.relu(w_rnn))
->>>>>>> parent of 0ea1a3d... temp_but_unsuccessful
 
 var_dict = {}
 var_dict['h'] = h
 var_dict['w_rnn'] = w_rnn
 var_dict['b_rnn'] = b_rnn
-var_dict['w_out'] = w_out
-var_dict['b_out'] = b_out
-var_dict['in_h'] = in_h
-# var_dict['w_in2in'] = w_in2in
-# var_dict['w_rnn2in'] = w_rnn2in
-# var_dict['b_in'] = b_in
 
 dxtick = dxtick/10
 
@@ -260,61 +200,28 @@ def run_model(in_data, var_dict, syn_x_init, syn_u_init):
     self_syn_u = np.zeros((par['n_timesteps'], par['batch_size'], par['n_hidden']), dtype=np.float32)
     self_output = np.zeros((par['n_timesteps'], par['batch_size'], par['n_output']), dtype=np.float32)
 
-    self_in_h = np.zeros((par['n_timesteps'], par['batch_size'], 2*par['n_input']), dtype=np.float32)
-    # self_in_syn_x = np.zeros((par['n_timesteps'], par['batch_size'], 2*par['n_input']), dtype=np.float32)
-    # self_in_syn_u = np.zeros((par['n_timesteps'], par['batch_size'], 2*par['n_input']), dtype=np.float32)
-
     h = np.ones((par['batch_size'], 1)) @ var_dict['h']
     syn_x = syn_x_init
     syn_u = syn_u_init
-<<<<<<< HEAD
-    w_rnn = par['EImodular_mask'] @ np.maximum(var_dict['w_rnn'], 0)
-    w_in = par['EI_input_mask'] * np.maximum(var_dict['w_in'], 0)
-
-    in_h = np.ones((par['batch_size'], 1)) @ var_dict['in_h']
-    # in_syn_x = syn_x_init_in
-    # in_syn_u = syn_u_init_in
-    # w_in2in = par['EI_in2in_mask'] @ np.maximum(var_dict['w_in2in'], 0)
-    # w_rnn2in = par['EImodular_mask'] @ np.maximum(var_dict['w_rnn2in'], 0)
-=======
     w_rnn = par['EI_mask'] @ (w_rnn2in_sparse_mask * tf.nn.relu(var_dict['w_rnn']))
 
     h_pre = np.float32(np.random.gamma(0.1, 0.2, size=h.shape))
     # h_in = np.ones((par['batch_size'], 1)) @ var_dict['h_in']
->>>>>>> parent of 0ea1a3d... temp_but_unsuccessful
 
     c = 0
     for rnn_input in in_data:
-
-        in_h = rnn_cell_input(rnn_input, in_h)
-
-        h, syn_x, syn_u = rnn_cell(in_h, h, syn_x, syn_u, w_rnn, w_in)
+        h, syn_x, syn_u = rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn)
         #
-        self_in_h[c, :, :] = in_h
-        # self_in_syn_x[c, :, :] = in_syn_x
-        # self_in_syn_u[c, :, :] = in_syn_u
         self_h[c, :, :] = h
         self_syn_x[c, :, :] = syn_x
         self_syn_u[c, :, :] = syn_u
         self_output[c, :, :] = h[:, -par['n_output']:]
         c += 1
 
-    return self_h, self_output, self_syn_x, self_syn_u, w_rnn, self_in_h
+    return self_h, self_output, self_syn_x, self_syn_u, w_rnn
 
-h, output, syn_x, syn_u, w_rnn, in_h \
+h, output, syn_x, syn_u, w_rnn \
     = run_model(in_data, var_dict, syn_x_init, syn_u_init)
-
-##
-
-MAP_dirs = output[par['output_rg'][par['output_rg'] > np.max(par['dead_rg'])].min():, :, 1:]
-MAP_dirs = tf.nn.log_softmax(MAP_dirs, axis=2)
-MAP_dirs = tf.reduce_sum(MAP_dirs, axis=0)
-MAP_dirs = tf.argmax(MAP_dirs, axis=1)
-stim_dirs = tf.constant(par['stim_dirs'])
-MAP_dirs = tf.gather(stim_dirs, MAP_dirs)
-Target_dirs = tf.gather(stim_dirs, trial_info['stimulus_ori'])
-est_error = tf.reduce_mean(tf.math.acos(tf.math.cos(2 * (MAP_dirs - Target_dirs) / 180 * np.pi)) / np.pi * 180 / 2)
-print('est_error=' + str(est_error.numpy()))
 
 ##
 
@@ -323,17 +230,6 @@ starget = np.expand_dims(starget, axis=2)
 ntarget = out_target / np.repeat(starget, par['n_output'], axis=2)
 ivmin = 0
 ivmax = 0.1
-
-if OneHotTarget is 0:
-    starget = np.sum(out_target, axis=2)
-    starget = np.expand_dims(starget, axis=2)
-    ntarget = out_target / np.repeat(starget, par['n_output'], axis=2)
-    ivmin = 0
-    ivmax = 0.1
-else:
-    ntarget = out_target == np.max(out_target, axis=2)[:, :, None]
-    ivmin = 0
-    ivmax = 1
 
 fig = plt.figure(figsize=(10, 8), dpi=80)
 
@@ -370,4 +266,4 @@ for i in range(30):
     plt.imshow(a.T, aspect='auto', vmin=ivmin, vmax=ivmax)
     plt.colorbar()
 
-    plt.savefig(savedir + '/estimation/delay_test' + str(delay_test) + '/Iter' + str(iteration_load) + '/' + str(i) + '.png', bbox_inches='tight')
+    plt.savefig(savedir + '/estimation/Iter' + str(iteration_load) + '/' + str(i) + '.png', bbox_inches='tight')

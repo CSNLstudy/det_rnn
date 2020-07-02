@@ -1,5 +1,4 @@
 import numpy as np
-import tensorflow as tf
 
 __all__ = ['_initialize', '_random_normal_abs', '_alternating',
 		   '_EI_mask', '_modular_sparse_mask', '_convert_to_rg',
@@ -32,18 +31,6 @@ def _EI_mask(n_hidden, exc_inh_prop):
 	EI_matrix = np.diag(EI_list)
 
 	return np.float32(EI_matrix)
-
-def estim_error(output, par, trial_info):
-
-	MAP_output = output[par['output_rg'][par['output_rg'] > np.max(par['dead_rg'])].min():, :, :]
-	MAP_output = tf.nn.log_softmax(MAP_output, axis=2).numpy()
-	MAP_output = np.sum(MAP_output, axis=0)
-	MAP_output = np.argmax(MAP_output, axis=1) - 1
-	MAP_dirs = par['stim_dirs'][MAP_output]
-	Target_dirs = par['stim_dirs'][trial_info['stimulus_ori']]
-	error = np.arccos(np.cos(2 * (MAP_dirs - Target_dirs) / 180 * np.pi)) / np.pi * 180 / 2
-
-	return np.float32(error)
 
 def _modular_sparse_mask(n_input, n_hidden, n_output,
 						 connect_prob_within_module, connect_prob_adjacent_module_f, connect_prob_distant_module_f,
@@ -103,6 +90,7 @@ def _silencing_mask(n_input, n_hidden, n_output):
 	mask_silencing_out = np.concatenate((in2, h2, out2), axis=0)
 
 	return np.float32(mask_silencing_input), np.float32(mask_silencing_hidden), np.float32(mask_silencing_out)
+
 
 def _alpha_mask(n_input, n_hidden, n_output, alpha_input, alpha_hidden, alpha_output, batch_size):
 
