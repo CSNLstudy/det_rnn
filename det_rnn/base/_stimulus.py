@@ -21,7 +21,7 @@ class Stimulus(object):
         neural_input    = self._gen_stim(stimulus_ori)
         desired_output  = self._gen_output(stimulus_ori)
         mask            = self._gen_mask()
-        return {'neural_input'  : neural_input,
+        return {'neural_input'  : neural_input.astype(np.float32),
                 'stimulus_ori'  : stimulus_ori,
                 'desired_output': desired_output,
                 'mask'          : mask}
