@@ -38,6 +38,7 @@ def behavior_summary(trial_info, pred_output, par):
 
 def behavior_figure(ground_truth, estim_mean, raw_error, beh_perf):
     cos_supp  = np.linspace(0,np.pi,1000)
+    plt.clf()
     fig, ax = plt.subplots(3,2, figsize=[15,10])
     plt.subplots_adjust(hspace=0.4)
     

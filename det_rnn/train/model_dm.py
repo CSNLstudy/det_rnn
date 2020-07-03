@@ -13,7 +13,7 @@ class Model(tf.Module):
 	def __call__(self, trial_info, hp):
 		y, loss = self._train_oneiter(trial_info['neural_input'],
 									  trial_info['desired_output'],
-									  trial_info['mask'],   trial_info['dm_mask'], hp)
+									  trial_info['mask'], hp)
 		return y, loss
 
 	@tf.function
@@ -40,17 +40,13 @@ class Model(tf.Module):
 		syn_u_stack = syn_u_stack.stack()
 		return y_stack, h_stack, syn_x_stack, syn_u_stack
 
-	def _train_oneiter(self, input_data, target_data, mask, dm_mask,  hp):
+	def _train_oneiter(self, input_data, target_data, mask, hp):
 		with tf.GradientTape() as t:
 			_Y, _H, _, _ = self.rnn_model(input_data, hp)  # capitalized since they are stacked
 			perf_loss   = self._calc_loss(tf.cast(_Y,tf.float32), tf.cast(target_data,tf.float32), tf.cast(mask,tf.float32), hp)
-			dec_loss    =  self._calc_dmloss(tf.cast(_Y,tf.float32), tf.cast(target_data,tf.float32), tf.cast(dm_mask,tf.float32), hp)
 			spike_loss  = tf.reduce_mean(tf.nn.relu(tf.cast(_H,tf.float32))**2)
 			weight_loss = tf.reduce_mean(tf.nn.relu(self.var_dict['w_rnn'])**2)
-			# loss = perf_loss + tf.cast(hp['spike_cost'],tf.float32)*spike_loss + tf.cast(hp['weight_cost'],tf.float32)*weight_loss
-			# loss = perf_loss + dec_loss + tf.cast(hp['spike_cost'], tf.float32) * spike_loss + tf.cast(hp['weight_cost'], tf.float32) * weight_loss
-			# Weghting DM-Est costs
-			loss = (1-hp['dm_cost'])*perf_loss + hp['dm_cost']*dec_loss + tf.cast(hp['spike_cost'], tf.float32) * spike_loss + tf.cast(hp['weight_cost'], tf.float32) * weight_loss
+			loss = perf_loss + tf.cast(hp['spike_cost'],tf.float32)*spike_loss + tf.cast(hp['weight_cost'],tf.float32)*weight_loss
 
 		vars_and_grads = t.gradient(loss, self.var_dict)
 		capped_gvs = [] # gradient capping and clipping
@@ -63,7 +59,7 @@ class Model(tf.Module):
 				grad *= hp['w_in_mask']
 			capped_gvs.append((tf.clip_by_norm(grad, hp['clip_max_grad_val']), self.var_dict[var]))
 		self.optimizer.apply_gradients(grads_and_vars=capped_gvs)
-		return _Y, {'loss':loss, 'perf_loss': perf_loss,  'dec_loss': dec_loss, 'spike_loss': spike_loss}
+		return _Y, {'loss':loss, 'perf_loss': perf_loss, 'spike_loss': spike_loss}
 
 	def _initialize_variable(self,hp):
 		_var_dict = {}
@@ -84,12 +80,6 @@ class Model(tf.Module):
 		else:
 			loss = 0.
 		return loss
-
-	def _calc_dmloss(self, y, target, dm_mask, hp):
-		_target_normalized = target / tf.reduce_sum(target, axis=2, keepdims=True)
-		# dm_loss = tf.reduce_mean(dm_mask * tf.nn.softmax_cross_entropy_with_logits(logits=y, labels=target, axis=2))
-		dm_loss = tf.reduce_mean(dm_mask * tf.expand_dims( tf.nn.softmax_cross_entropy_with_logits(logits=y, labels=_target_normalized, axis=2) , axis=2))
-		return dm_loss
 
 	def _rnn_cell(self, _h, rnn_input, _syn_x, _syn_u, hp):
 		_w_rnn = tf.nn.relu(self.var_dict['w_rnn']) * tf.cast(hp['EI_mask'], tf.float32)

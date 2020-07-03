@@ -9,14 +9,17 @@ par = {
 	'design':  {'iti'	: (0, 1.5),
 			   	'stim'	: (1.5, 3.0),
 			   	'delay'	: (3.0, 4.5),
-			   	'estim'	: (4.5, 6.0)},
+				 'dm' : (4.5, 5.0), # Eva added
+                # 'delay2': (5.0, 5.0),  # Eva added
+			   	'estim'	: (5.0, 6.5)},
 	'output_range' : 'design', # estim period
 
 	# Mask specs
 	'dead': 'design', # ((0,0.1),(estim_start, estim_start+0.1))
 	'mask': {'iti'	: 1., 'stim' : 1., 'delay'	: 1., 'estim' : 10.,
 			 'rule_iti' : 2., 'rule_stim' : 2., 'rule_delay' : 2., 'rule_estim' : 20.},  # strength
-
+	'dm_mask': {'dm':5.,
+			 'rule_dm':5.},  # strength
 	## for onehot output, 'estim' : 20., 'rule_estim' : 20. worked
 
 	# Rule specs
@@ -24,6 +27,7 @@ par = {
 	'output_rule'  : 'design', # {'fixation' : (0,before estim)}
 	'input_rule_strength'	: 0.8, 
 	'output_rule_strength' 	: 0.8,
+	'DMoutput_rule_strength' 	: 0.8,
 
 	# stimulus type
 	'type'					: 'orientation',  # size, orientation
@@ -102,6 +106,7 @@ def update_parameters(par):
 	# default settings
 	if par['output_range'] is 'design':
 		par['output_rg'] = convert_to_rg(par['design']['estim'], par['dt'])
+		par['DMoutput_rg'] = convert_to_rg(par['design']['dm'], par['dt'])
 	else:
 		par['output_rg'] = convert_to_rg(par['output_range'], par['dt'])
 
@@ -121,8 +126,11 @@ def update_parameters(par):
 		par['n_rule_input']  = len(par['input_rule'])
 
 	if par['output_rule'] is 'design':
-		par['output_rule_rg'] = convert_to_rg({'fixation':(0,par['design']['delay'][1])}, par['dt'])
-		par['n_rule_output'] = 1
+		# par['output_rule_rg'] = convert_to_rg({'fixation':(0,par['design']['delay'][1]) }, par['dt'])
+		# par['n_rule_output'] = 1
+		par['output_rule_rg'] = convert_to_rg({'fixation': ((0, par['design']['delay'][1]),(par['design']['estim'][0], par['design']['estim'][1])), 'decision': (par['design']['dm'][0], par['design']['dm'][1])}, par['dt'])
+		# par['output_rule_rg'] = convert_to_rg({'fixation': ((0, par['design']['delay'][1]),(par['design']['delay2'][0], par['design']['delay2'][1]), (par['design']['estim'][0], par['design']['estim'][1])), 'decision': (par['design']['dm'][0], par['design']['dm'][1])}, par['dt'])
+		par['n_rule_output'] = 2
 	else:
 		par['output_rule_rg'] = convert_to_rg(par['output_rule'], par['dt'])
 		par['n_rule_output']  = len(par['output_rule'])

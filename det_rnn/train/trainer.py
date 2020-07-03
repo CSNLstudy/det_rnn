@@ -25,6 +25,7 @@ def append_model_performance(model_performance, trial_info, Y, Loss, par):
     model_performance['loss'].append(Loss['loss'].numpy())
     model_performance['perf_loss'].append(Loss['perf_loss'].numpy())
     model_performance['spike_loss'].append(Loss['spike_loss'].numpy())
+    model_performance['dec_loss'].append(Loss['dec_loss'].numpy())
     model_performance['perf'].append(estim_perf)
     return model_performance
 
@@ -33,6 +34,7 @@ def print_results(model_performance, iteration):
     print_res += ' | Performance {:0.4f}'.format(model_performance['perf'][iteration]) + \
                  ' | Loss {:0.4f}'.format(model_performance['loss'][iteration])
     print_res += ' | Spike loss {:0.4f}'.format(model_performance['spike_loss'][iteration])
+    print_res += ' | Dec loss {:0.4f}'.format(model_performance['dec_loss'][iteration])
     print(print_res)
 
 def tensorize_trial(trial_info):
@@ -49,6 +51,7 @@ def tensorize_model_performance(model_performance):
     tensor_mp = {'perf': tf.Variable(model_performance['perf'], trainable=False),
                  'loss': tf.Variable(model_performance['loss'], trainable=False),
                  'perf_loss': tf.Variable(model_performance['perf_loss'], trainable=False),
+                 'dec_loss': tf.Variable(model_performance['dec_loss'], trainable=False),
                  'spike_loss': tf.Variable(model_performance['spike_loss'], trainable=False)}
     return tensor_mp
 

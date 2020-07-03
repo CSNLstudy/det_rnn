@@ -20,11 +20,13 @@ class Stimulus(object):
         stimulus_ori    = self._gen_stimseq()
         neural_input    = self._gen_stim(stimulus_ori)
         desired_output  = self._gen_output(stimulus_ori)
-        mask            = self._gen_mask()
+        mask       = self._gen_mask()
+        dm_mask = self._gen_dmmask()
         return {'neural_input'  : neural_input.astype(np.float32),
                 'stimulus_ori'  : stimulus_ori,
                 'desired_output': desired_output.astype(np.float32),
-                'mask'          : mask}
+                'mask'          : mask,
+                'dm_mask'          : dm_mask}
 
     def _gen_stimseq(self):
         stimulus_ori = np.random.choice(np.arange(self.n_ori), p=self.stim_p, size=self.batch_size)
@@ -49,6 +51,12 @@ class Stimulus(object):
                 desired_output[self.output_rg, t, self.n_rule_output:] = stimulus_ori[t] * np.pi / np.float32(self.n_tuned_output)
             elif self.resp_decoding in ['disc', 'onehot']:
                 desired_output[self.output_rg, t, self.n_rule_output:] = self.tuning_output[:, 0, stimulus_ori[t]].reshape((1, -1))
+                lastcw_idx = np.int(self.n_tuned_output/2-1)
+                if ( stimulus_ori[t] <= lastcw_idx ):
+                    desired_output[self.DMoutput_rg, t, self.n_rule_output:lastcw_idx+self.n_rule_output] = 1.
+                else:
+                    desired_output[self.DMoutput_rg, t, lastcw_idx+self.n_rule_output+1:] = 1.
+
         if self.n_subblock > 1: # multi-trial settings
             desired_output = desired_output.transpose((1,0,2)).\
                 reshape((self.n_subblock,-1,self.n_output)).transpose((1,0,2))
@@ -62,10 +70,22 @@ class Stimulus(object):
             mask[self.design_rg[step], :, :self.n_rule_output] = self.mask['rule_'+step]
         # set "globally dead" period
         mask[self.dead_rg, :, :] = 0
+
         if self.n_subblock > 1: # multi-trial settings
             mask = mask.transpose((1,0,2)).\
                 reshape((self.n_subblock,-1,self.n_output)).transpose((1,0,2))
         return mask
+
+    def _gen_dmmask(self):
+        dm_mask = np.zeros((self.n_timesteps, self.batch_size, self.n_output), dtype=np.float32)
+        # set "specific" period
+        for step in ['dm']:
+            dm_mask[self.design_rg[step], :, self.n_rule_output:] = self.dm_mask[step]
+            dm_mask[self.design_rg[step], :, :self.n_rule_output] = self.dm_mask['rule_' + step]
+        dm_dead = self.design_rg['dm'][0:5]  # first 5 steps of decision period
+        dm_mask[dm_dead, :, :] = 0
+        return dm_mask
+
 
     def _gen_input_rule(self):
         if self.n_rule_input == 0:
@@ -85,6 +105,8 @@ class Stimulus(object):
             rule_mat = np.zeros([self.n_timesteps, self.batch_size, self.n_rule_output])
             for i,k in enumerate(self.output_rule_rg):
                 rule_mat[self.output_rule_rg[k], :, i] = self.output_rule_strength
+
+
             return rule_mat
 
 

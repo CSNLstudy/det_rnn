@@ -6,14 +6,16 @@ sys.path.append('../')
 import det_rnn.train as dt
 from det_rnn import *
 
-model_dir = "/Volumes/Data_CSNL/project/RNN_study/20-06-19/HG/boost_wm/boost_wm_example"
+model_dir = "/Users/eva/Dropbox/det_rnn_addingDM_200625/20-06-25/addDM/boost_example"
 os.makedirs(model_dir, exist_ok=True)
 
 par = update_parameters(par)
 stimulus = Stimulus()
 ti_spec = dt.gen_ti_spec(stimulus.generate_trial())
 
-model_performance = {'perf': [], 'loss': [], 'perf_loss': [], 'spike_loss': []}
+# model_performance = {'perf': [], 'loss': [], 'perf_loss': [], 'spike_loss': []}
+
+model_performance = {'perf': [], 'loss': [], 'perf_loss': [], 'dec_loss':[], 'spike_loss': []}
 
 # Boosting RNN
 N_boost_max = 100000
@@ -63,7 +65,8 @@ for iter in range(N_boost_max):
         par['design'].update({'iti': (0, 1.5),
                               'stim': (1.5, 3.0),
                               'delay': (3.0, 4.5 + extend_time[mileage]),
-                              'estim': (4.5 + extend_time[mileage], 6.0 + extend_time[mileage])})
+                              'dm': (4.5 + extend_time[mileage], 4.5 + extend_time[mileage]+0.5),
+                              'estim': (5.0 + extend_time[mileage], 6.5 + extend_time[mileage])})
         par = update_parameters(par)
         stimulus = Stimulus(par)
 

@@ -15,6 +15,7 @@ hp  = {
 	'alpha_neuron'  : 0.1,
 	'spike_cost'  : 2e-4, # mse: 2e-5, centropy: 2e-3
 	'weight_cost' : 0.,
+	'dm_cost' : 0.1,
 	'noise_rnn_sd': 0.5,
 
 	'h0': random_normal_abs((1, par['n_hidden'])),

@@ -42,23 +42,23 @@ da.behavior_figure(ground_truth, estim_mean, raw_error, beh_perf)
 ############################################################################################################
 # Temporal generalizability of the current best model
 ############################################################################################################
-# N_iter      = 30
-# extend_time = np.arange(0,17.0,step=0.5)
-# perf_res    = np.empty((N_iter*len(extend_time),)) * np.nan
-# for i_t, et in enumerate(extend_time):
-#     for i_iter in range(N_iter):
-#         par['design'].update({'iti'     : (0,  1.5),
-#                               'stim'    : (1.5,3.0),
-#                               'delay'   : (3.0,4.5+et),
-#                               'estim'   : (4.5+et,6.0+et)})
-#         par = update_parameters(par)
-#         stimulus    = Stimulus(par)
-#         trial_info  = dt.tensorize_trial(stimulus.generate_trial())
-#         pred_output, H, _, _ = model.rnn_model(trial_info['neural_input'], dt.hp)
-#
-#         _, _, _, beh_perf = da.behavior_summary(dt.numpy_trial(trial_info), pred_output, par=par)
-#         perf_res[int(i_t*N_iter+i_iter)] = np.mean(beh_perf)
-#     print(et, "complete")
+N_iter      = 30
+extend_time = np.arange(0,17.0,step=0.5)
+perf_res    = np.empty((N_iter*len(extend_time),)) * np.nan
+for i_t, et in enumerate(extend_time):
+    for i_iter in range(N_iter):
+        par['design'].update({'iti'     : (0,  1.5),
+                              'stim'    : (1.5,3.0),
+                              'delay'   : (3.0,4.5+et),
+                              'estim'   : (4.5+et,6.0+et)})
+        par = update_parameters(par)
+        stimulus    = Stimulus(par)
+        trial_info  = dt.tensorize_trial(stimulus.generate_trial())
+        pred_output, H, _, _ = model.rnn_model(trial_info['neural_input'], dt.hp)
+
+        _, _, _, beh_perf = da.behavior_summary(dt.numpy_trial(trial_info), pred_output, par=par)
+        perf_res[int(i_t*N_iter+i_iter)] = np.mean(beh_perf)
+    print(et, "complete")
 
 # res_DF = pd.DataFrame({'ExtendedTime': np.repeat(extend_time, N_iter),
 #                        'Performance' : perf_res})
