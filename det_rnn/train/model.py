@@ -18,18 +18,21 @@ class Model(tf.Module):
 
 	@tf.function
 	def rnn_model(self, input_data, hp):
-		_syn_x = hp['syn_x_init']
-		_syn_u = hp['syn_u_init']
-		_h = tf.cast(tf.tile(self.var_dict['h'], (_syn_x.shape[0], 1)), tf.float32)
-		h_stack = tf.TensorArray(tf.float32, size=0, dynamic_size=True, infer_shape=False)
-		y_stack = tf.TensorArray(tf.float32, size=0, dynamic_size=True, infer_shape=False)
+		_syn_x  = hp['syn_x_init']
+		_syn_u  = hp['syn_u_init']
+		_w_out  = tf.concat((tf.zeros((_syn_x.shape[1] - hp['w_out0'].shape[0],hp['w_out0'].shape[1])),
+			self.var_dict['w_out']), axis=0)
+
+		_h  = tf.cast(tf.tile(self.var_dict['h'], (_syn_x.shape[0], 1)), tf.float32)
+		h_stack  = tf.TensorArray(tf.float32, size=0, dynamic_size=True, infer_shape=False)
+		y_stack  = tf.TensorArray(tf.float32, size=0, dynamic_size=True, infer_shape=False)
 		syn_x_stack = tf.TensorArray(tf.float32, size=0, dynamic_size=True, infer_shape=False)
 		syn_u_stack = tf.TensorArray(tf.float32, size=0, dynamic_size=True, infer_shape=False)
 		i = 0
 		for rnn_input in input_data:
 			_h, _syn_x, _syn_u = self._rnn_cell(_h, rnn_input, _syn_x, _syn_u, hp)
 			h_stack = h_stack.write(i, tf.cast(_h, tf.float32))
-			y_stack = y_stack.write(i, tf.cast(_h, tf.float32) @ self.var_dict['w_out'] + self.var_dict['b_out'])
+			y_stack = y_stack.write(i, tf.cast(_h, tf.float32) @ tf.nn.relu(_w_out) + self.var_dict['b_out'])
 			if hp['masse']:
 				syn_x_stack = syn_x_stack.write(i, tf.cast(_syn_x, tf.float32))
 				syn_u_stack = syn_u_stack.write(i, tf.cast(_syn_u, tf.float32))
@@ -55,8 +58,12 @@ class Model(tf.Module):
 				grad *= hp['w_rnn_mask']
 			elif 'w_out' in var:
 				grad *= hp['w_out_mask']
-			elif 'w_in' in var:
-				grad *= hp['w_in_mask']
+			elif 'w_lat' in var:
+				grad *= hp['w_lat_mask']
+			elif 'w_FF' in var:
+				grad *= hp['w_FF_mask']
+			elif 'w_FB' in var:
+				grad *= hp['w_FB_mask']
 			capped_gvs.append((tf.clip_by_norm(grad, hp['clip_max_grad_val']), self.var_dict[var]))
 		self.optimizer.apply_gradients(grads_and_vars=capped_gvs)
 		return _Y, {'loss':loss, 'perf_loss': perf_loss, 'spike_loss': spike_loss}
@@ -82,7 +89,10 @@ class Model(tf.Module):
 		return loss
 
 	def _rnn_cell(self, _h, rnn_input, _syn_x, _syn_u, hp):
+		_w_lat = self.var_dict['w_lat'] * tf.cast(hp['w_lat_mask'], tf.float32)
 		_w_rnn = tf.nn.relu(self.var_dict['w_rnn']) * tf.cast(hp['EI_mask'], tf.float32)
+		_W = tf.concat((tf.concat((_w_lat,self.var_dict['w_FF']),axis=1),
+						tf.concat((self.var_dict['w_FB'],_w_rnn),axis=1)),axis=0)
 		if hp['masse']:
 			_syn_x += tf.cast(hp['alpha_std'] * (1. - _syn_x) - hp['dt']/1000 * _syn_u * _syn_x * _h, tf.float32)
 			_syn_u += tf.cast(hp['alpha_stf'] * (hp['U'] - _syn_u) + hp['dt']/1000 * hp['U'] * (1. - _syn_u) * _h, tf.float32)
@@ -90,9 +100,9 @@ class Model(tf.Module):
 			_syn_u = tf.cast(tf.minimum(tf.constant(1.), tf.nn.relu(_syn_u)), tf.float32)
 			_h_post = _syn_u * _syn_x * _h
 		else:
-			_h_post = _h
-		_h = tf.nn.relu(tf.cast(_h, tf.float32) * (1. - hp['alpha_neuron'])
-						+ hp['alpha_neuron'] * (tf.cast(rnn_input, tf.float32) @ tf.nn.relu(self.var_dict['w_in'])
-											 + tf.cast(_h_post, tf.float32) @ _w_rnn + self.var_dict['b_rnn'])
+			_h_post  = _h
+		_h  = tf.nn.relu(tf.cast(_h, tf.float32) * (1. - hp['alpha_neuron'])
+						+ hp['alpha_neuron'] * (tf.cast(rnn_input, tf.float32) +
+												tf.cast(_h_post, tf.float32) @ _W + self.var_dict['b_rnn'])
 						+ tf.random.normal(_h.shape, 0, tf.sqrt(2*hp['alpha_neuron'])*hp['noise_rnn_sd'], dtype=tf.float32))
 		return _h, _syn_x, _syn_u

@@ -6,15 +6,25 @@ sys.path.append('../')
 import det_rnn.train as dt
 from det_rnn import *
 
-
 model_dir = "/Volumes/Data_CSNL/project/RNN_study/20-06-26/HG/boost_wm/boost_wm_example"
+# model_dir = "/Volumes/Data_CSNL/project/RNN_study/20-07-10/HG/boost/boost_PPC_strong"
+model_dir = "/Users/hyunwoogu/Desktop/boost_wm_example2"
 os.makedirs(model_dir, exist_ok=True)
 
 par = update_parameters(par)
 stimulus = Stimulus()
-ti_spec = dt.gen_ti_spec(stimulus.generate_trial())
 
 model_performance = {'perf': [], 'loss': [], 'perf_loss': [], 'spike_loss': []}
+
+def pad_rule(trial_info, par=par):
+    ni = trial_info['neural_input']
+    rule_pad = np.zeros((ni.shape[0],ni.shape[1],par['n_hidden']))
+    rule_neuron = ni.shape[2]
+    rule_pad[par['design_rg']['estim'],:,rule_neuron:(rule_neuron+7)] = par['input_rule_strength']
+    trial_info['neural_input'] = np.concatenate((ni,rule_pad),axis=2)
+    return trial_info
+ti_spec  = dt.gen_ti_spec(pad_rule(stimulus.generate_trial(),par))
+
 
 # Boosting RNN
 N_boost_max = 100000
@@ -34,7 +44,7 @@ mileage = -1
 start_time = time.time()
 print("RNN Booster started!")
 for iter in range(N_boost_max):
-    trial_info = dt.tensorize_trial(stimulus.generate_trial())
+    trial_info = dt.tensorize_trial(pad_rule(stimulus.generate_trial(),par))
     Y, Loss = model(trial_info, dt.hp)
     model_performance = dt.append_model_performance(model_performance, trial_info, Y, Loss, par)
 

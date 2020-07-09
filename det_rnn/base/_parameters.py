@@ -14,14 +14,13 @@ par = {
 
 	# Mask specs
 	'dead': 'design', # ((0,0.1),(estim_start, estim_start+0.1))
-	'mask': {'iti'	: 1., 'stim' : 1., 'delay'	: 1., 'estim' : 10.,
-			 'rule_iti' : 2., 'rule_stim' : 2., 'rule_delay' : 2., 'rule_estim' : 20.},  # strength
+	'mask': {'iti'	: 1., 'stim' : 1., 'delay'	: 1., 'estim' : 200.,
+			 'rule_iti' : 2., 'rule_stim' : 2., 'rule_delay' : 2., 'rule_estim' : 400.},  # strength (10,20), (50,100)
 
 	## for onehot output, 'estim' : 20., 'rule_estim' : 20. worked
 
-
 	# Rule specs
-	'input_rule' :  'design', # {'fixation': whole period, 'response':estim}
+	'input_rule' :  {}, # {'fixation': whole period, 'response':estim}
 	'output_rule'  : 'design', # {'fixation' : (0,before estim)}
 	'input_rule_strength'	: 0.8, 
 	'output_rule_strength' 	: 0.8,
@@ -40,8 +39,8 @@ par = {
 	'resp_decoding'			: 'disc',  # 'conti', 'disc', 'onehot'
 
 	# Network configuration
-	'exc_inh_prop'          : 0.8,    # excitatory/inhibitory ratio
-	'modular'				: False,
+	'exc_inh_prop'          : 0.7,    # excitatory/inhibitory ratio
+	'modular'				: True,
 	'connect_prob'			: 0.1,    # modular connectivity
 
 	# Timings and rates
@@ -73,7 +72,10 @@ par = {
 	'noise_mean' : 0,
 	'noise_sd'   : 0.005,     # 0.05
 	'n_recall_tuned' : 24,   # precision at the moment of recall
+	'n_visual' 		 : 24,     # number of visual units
 	'n_hidden' 	 : 100,		 # number of rnn units TODO(HL): h_hidden to 100
+	'n_module1'  : 50,
+	'n_module2'  : 50,
 
 	# Experimental settings
 	'batch_size' 	: 128,    
@@ -92,7 +94,7 @@ def update_parameters(par):
 	#
 	par.update({
 		'n_timesteps' 		: sum([len(v) for _,v in par['design_rg'].items()]),
-		'n_exc'        		: int(par['n_hidden']*par['exc_inh_prop']),
+		'n_exc'        		: int(par['n_module2']*par['exc_inh_prop']),
 	})
 
 	# 
@@ -155,10 +157,12 @@ def update_parameters(par):
 	par.update({
 		'rg_exc': range(par['n_exc']),
 		'rg_inh': range(par['n_exc'], par['n_hidden']),
-		'w_in_mask': np.ones((par['n_input'], par['n_hidden']), dtype=np.float32),
+		'w_lat_mask': np.ones((par['n_input'], par['n_input']), dtype=np.float32),
+		'w_FF_mask': np.ones((par['n_input'], par['n_hidden']), dtype=np.float32),
+		'w_FB_mask': np.ones((par['n_hidden'], par['n_input']), dtype=np.float32),
 		'w_rnn_mask': np.ones((par['n_hidden'], par['n_hidden']), dtype=np.float32) - np.eye(par['n_hidden'],dtype=np.float32),
 		'w_out_mask': np.concatenate((np.ones((par['n_exc'], par['n_output']),dtype=np.float32),
-									  np.zeros((par['n_hidden']-par['n_exc'], par['n_output']), dtype=np.float32)),
+									  np.zeros((par['n_module2']-par['n_exc'], par['n_output']), dtype=np.float32)),
 									 axis=0) # Todo(HL): no input from inhibitory neurons
 	})
 
