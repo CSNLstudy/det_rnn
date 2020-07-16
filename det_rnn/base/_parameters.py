@@ -14,8 +14,8 @@ par = {
 
 	# Mask specs
 	'dead': 'design', # ((0,0.1),(estim_start, estim_start+0.1))
-	'mask': {'iti'	: 1., 'stim' : 1., 'delay'	: 1., 'estim' : 200.,
-			 'rule_iti' : 2., 'rule_stim' : 2., 'rule_delay' : 2., 'rule_estim' : 400.},  # strength (10,20), (50,100)
+	'mask': {'iti'	: 1., 'stim' : 1., 'delay'	: 1., 'estim' : 400.,
+			 'rule_iti' : 2., 'rule_stim' : 2., 'rule_delay' : 2., 'rule_estim' : 800.},  # strength (10,20), (50,100)
 
 	## for onehot output, 'estim' : 20., 'rule_estim' : 20. worked
 

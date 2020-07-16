@@ -6,9 +6,8 @@ sys.path.append('../')
 import det_rnn.train as dt
 from det_rnn import *
 
-model_dir = "/Volumes/Data_CSNL/project/RNN_study/20-06-26/HG/boost_wm/boost_wm_example"
-# model_dir = "/Volumes/Data_CSNL/project/RNN_study/20-07-10/HG/boost/boost_PPC_strong"
-model_dir = "/Users/hyunwoogu/Desktop/boost_wm_example2"
+model_dir = "/Volumes/Data_CSNL/project/RNN_study/20-07-17/HG/boost/boost_PPC_inh3"
+# model_dir = "/Users/hyunwoogu/Desktop/boost_wm_example2"
 os.makedirs(model_dir, exist_ok=True)
 
 par = update_parameters(par)
@@ -19,8 +18,9 @@ model_performance = {'perf': [], 'loss': [], 'perf_loss': [], 'spike_loss': []}
 def pad_rule(trial_info, par=par):
     ni = trial_info['neural_input']
     rule_pad = np.zeros((ni.shape[0],ni.shape[1],par['n_hidden']))
-    rule_neuron = ni.shape[2]
-    rule_pad[par['design_rg']['estim'],:,rule_neuron:(rule_neuron+7)] = par['input_rule_strength']
+    # rule_neuron = ni.shape[2]
+    rule_neuron = par['n_hidden'] - 1
+    rule_pad[par['design_rg']['estim'],:,rule_neuron] = par['input_rule_strength']
     trial_info['neural_input'] = np.concatenate((ni,rule_pad),axis=2)
     return trial_info
 ti_spec  = dt.gen_ti_spec(pad_rule(stimulus.generate_trial(),par))
