@@ -11,9 +11,14 @@ class Model(tf.Module):
 
 	@tf.function
 	def __call__(self, trial_info, hp):
-		y, loss = self._train_oneiter(trial_info['neural_input'],
-									  trial_info['desired_output'],
-									  trial_info['mask'], hp)
+		if hp['task_type'] == 0:
+			y, loss = self._train_oneiter(trial_info['neural_input'],
+										  trial_info['desired_output_it'],
+										  trial_info['mask_it'], hp)
+		else:
+			y, loss = self._train_oneiter(trial_info['neural_input'],
+										  trial_info['desired_output'],
+										  trial_info['mask'], hp)
 		return y, loss
 
 	@tf.function
@@ -29,11 +34,15 @@ class Model(tf.Module):
 		for rnn_input in input_data:
 			_h, _syn_x, _syn_u = self._rnn_cell(_h, rnn_input, _syn_x, _syn_u, hp)
 			h_stack = h_stack.write(i, tf.cast(_h, tf.float32))
-			# y_matmul = tf.cast(_h, tf.float32) @ self.var_dict['w_out']
-			y_matmul = tf.cast(tf.stack((tf.cast(_h, tf.float32) @ self.var_dict['w_out'][:,:,0],
-								 tf.cast(_h, tf.float32) @ self.var_dict['w_out'][:,:,1],
-								 tf.cast(_h, tf.float32) @ self.var_dict['w_out'][:,:,2]), axis=-1), tf.float32)
-			y_stack = y_stack.write(i, y_matmul + self.var_dict['b_out'])
+			if hp['task_type'] == 0:
+				y_matmul = tf.cast(tf.stack((tf.cast(_h, tf.float32) @ self.var_dict['w_out_int'][:,:,0],
+									 tf.cast(_h, tf.float32) @ self.var_dict['w_out_int'][:,:,1],
+									 tf.cast(_h, tf.float32) @ self.var_dict['w_out_int'][:,:,2]), axis=-1), tf.float32)
+				y_stack = y_stack.write(i, y_matmul + self.var_dict['b_out_int'])
+			else:
+				y_matmul = tf.cast(_h, tf.float32) @ self.var_dict['w_out_est']
+				y_stack = y_stack.write(i, y_matmul + self.var_dict['b_out_est'])
+
 			if hp['masse']:
 				syn_x_stack = syn_x_stack.write(i, tf.cast(_syn_x, tf.float32))
 				syn_u_stack = syn_u_stack.write(i, tf.cast(_syn_u, tf.float32))
@@ -53,15 +62,28 @@ class Model(tf.Module):
 			loss = perf_loss + tf.cast(hp['spike_cost'],tf.float32)*spike_loss + tf.cast(hp['weight_cost'],tf.float32)*weight_loss
 
 		vars_and_grads = t.gradient(loss, self.var_dict)
+		if (hp['task_type'] == 0):
+			tf.stop_gradient(self.var_dict['w_out_est'])
+		if (hp['task_type'] == 2):
+			tf.stop_gradient(self.var_dict['w_out_int'])
+
 		capped_gvs = [] # gradient capping and clipping
 		for var, grad in vars_and_grads.items():
 			if 'w_rnn' in var:
 				grad *= hp['w_rnn_mask']
-			elif 'w_out' in var:
-				grad *= hp['w_out_mask']
+			elif 'w_out_int' in var:
+				if hp['task_type'] == 0:
+					grad *= hp['w_out_int_mask']
+			elif 'w_out_est' in var:
+				if hp['task_type'] == 2:
+					grad *= hp['w_out_est_mask']
 			elif 'w_in' in var:
 				grad *= hp['w_in_mask']
-			capped_gvs.append((tf.clip_by_norm(grad, hp['clip_max_grad_val']), self.var_dict[var]))
+
+			if grad is None:
+				capped_gvs.append((grad, self.var_dict[var]))
+			else:
+				capped_gvs.append((tf.clip_by_norm(grad, hp['clip_max_grad_val']), self.var_dict[var]))
 		self.optimizer.apply_gradients(grads_and_vars=capped_gvs)
 		return _Y, {'loss':loss, 'perf_loss': perf_loss, 'spike_loss': spike_loss}
 
@@ -74,6 +96,8 @@ class Model(tf.Module):
 		self.var_dict = _var_dict
 
 	def _calc_loss(self, y, target, mask, hp):
+		if hp['task_type'] == 2:
+			target = target / tf.reduce_sum(target, axis=2, keepdims=True)
 		# _target_normalized = target / tf.reduce_sum(target, axis=2, keepdims=True)
 		if hp['loss_fun'] == 0:
 			_y_normalized = tf.nn.softmax(y)

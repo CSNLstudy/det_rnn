@@ -21,7 +21,7 @@ par = {
 
 	# Rule specs
 	'input_rule': 'design',  # {'fixation': whole period, 'response':estim}
-	'output_rule': {},  # {'fixation' : (0,before estim)}
+	'output_rule': 'design',  # {'fixation' : (0,before estim)}
 	'input_rule_strength': 0.8,
 	'output_rule_strength' : 0.8,
 
@@ -159,9 +159,10 @@ def update_parameters(par):
 		'w_in_mask': np.ones((par['n_input'], par['n_hidden']), dtype=np.float32),
 		'w_rnn_mask': np.ones((par['n_hidden'], par['n_hidden']), dtype=np.float32) - np.eye(par['n_hidden']
 																							 ,dtype=np.float32),
-		'w_out_mask': np.concatenate((np.ones((par['n_exc'], int(par['n_output']/2), par['n_discrim']) ,dtype=np.float32),
-									  np.zeros((par['n_hidden'] -par['n_exc'], int(par['n_output']/2), par['n_discrim']), dtype=np.float32)),
-									 axis=0) # Todo(HL): no input from inhibitory neurons
+		'w_out_int_mask': np.concatenate((np.ones((par['n_exc'], int(par['n_output']/2), par['n_discrim']),dtype=np.float32),
+										  np.zeros((par['n_hidden']-par['n_exc'],int(par['n_output']/2), par['n_discrim']), dtype=np.float32)),axis=0),
+		'w_out_est_mask': np.concatenate((np.ones((par['n_exc'], int(par['n_output'])), dtype=np.float32),
+										  np.zeros((par['n_hidden'] - par['n_exc'], par['n_output']),dtype=np.float32)), axis=0),
 	})
 
 	return par

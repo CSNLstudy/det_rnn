@@ -9,6 +9,7 @@ __all__ = ['hp', 'hp_spec']
 hp  = {
 	'masse' : True,
 	'loss_fun'	: 1, # 0:'mse', 1:'centropy'
+	'task_type' : 0, # 0:'intrinsic', 1:'decision', 2:'estimation'
 	'learning_rate' : 2e-2,	  # adam optimizer learning rate
 	'dt'            : 10.,
 	'clip_max_grad_val'  : 0.1,
@@ -21,8 +22,10 @@ hp  = {
 	'w_in0': random_normal_abs((par['n_input'], par['n_hidden'])),
 	'w_rnn0': random_normal_abs((par['n_hidden'], par['n_hidden'])),
 	'b_rnn0': np.zeros(par['n_hidden'], dtype=np.float32),
-	'w_out0': random_normal_abs((par['n_hidden'],int(par['n_output']/2), par['n_discrim'])) * par['w_out_mask'],
-	'b_out0': np.zeros((int(par['n_output']/2), par['n_discrim']), dtype=np.float32),
+	'w_out_int0': random_normal_abs((par['n_hidden'],int(par['n_output']/2), par['n_discrim'])) * par['w_out_int_mask'],
+	'b_out_int0': np.zeros((int(par['n_output']/2), par['n_discrim']), dtype=np.float32),
+	'w_out_est0': random_normal_abs((par['n_hidden'], par['n_output'])) * par['w_out_est_mask'],
+	'b_out_est0': np.zeros((par['n_output'],), dtype=np.float32),
 
 	'syn_x_init': np.ones((par['batch_size'], par['n_hidden']), dtype=np.float32),
 	'syn_u_init': np.tile(alternating((0.15, 0.45), par['n_hidden']), (par['batch_size'], 1)),
@@ -33,8 +36,10 @@ hp  = {
 
 	'w_in_mask': np.ones((par['n_input'], par['n_hidden']), dtype=np.float32),
 	'w_rnn_mask': np.ones((par['n_hidden'], par['n_hidden']), dtype=np.float32) - np.eye(par['n_hidden'],dtype=np.float32),
-	'w_out_mask': np.concatenate((np.ones((par['n_exc'], int(par['n_output']/2), par['n_discrim']),dtype=np.float32),
-									  np.zeros((par['n_hidden']-par['n_exc'],int(par['n_output']/2), par['n_discrim']), dtype=np.float32)),axis=0), # Todo(HL): no input from inhibitory neurons
+	'w_out_int_mask': np.concatenate((np.ones((par['n_exc'], int(par['n_output']/2), par['n_discrim']),dtype=np.float32),
+									  np.zeros((par['n_hidden']-par['n_exc'],int(par['n_output']/2), par['n_discrim']), dtype=np.float32)),axis=0),
+	'w_out_est_mask': np.concatenate((np.ones((par['n_exc'], int(par['n_output'])), dtype=np.float32),
+									  np.zeros((par['n_hidden'] - par['n_exc'], par['n_output']),dtype=np.float32)), axis=0),
 
 }
 
