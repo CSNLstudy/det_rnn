@@ -76,16 +76,21 @@ def gen_ti_spec(trial_info) :
 
 #
 def _get_eval(trial_info, output, par):
-    cenoutput = tf.nn.softmax(output, axis=2).numpy()
-    post_prob = cenoutput[:, :, par['n_rule_output']:]
-    post_prob = post_prob / (
-            np.sum(post_prob, axis=2, keepdims=True) + np.finfo(np.float32).eps)  # Dirichlet normaliation
-    post_support = np.linspace(0, np.pi, par['n_ori'], endpoint=False) + np.pi / par['n_ori'] / 2
-    pseudo_mean = np.arctan2(post_prob @ np.sin(2 * post_support),
-                             post_prob @ np.cos(2 * post_support)) / 2
-    estim_sinr = (np.sin(2 * pseudo_mean[par['design_rg']['estim'], :])).mean(axis=0)
-    estim_cosr = (np.cos(2 * pseudo_mean[par['design_rg']['estim'], :])).mean(axis=0)
-    estim_mean = np.arctan2(estim_sinr, estim_cosr) / 2
-    perf = np.mean(np.cos(2. * (trial_info['stimulus_ori'].numpy() * np.pi / par['n_ori'] - estim_mean)))
+    # cenoutput = tf.nn.softmax(output, axis=2).numpy()
+    # post_prob = cenoutput[:, :, par['n_rule_output']:]
+    # post_prob = post_prob / (
+    #         np.sum(post_prob, axis=2, keepdims=True) + np.finfo(np.float32).eps)  # Dirichlet normaliation
+    # post_support = np.linspace(0, np.pi, par['n_ori'], endpoint=False) + np.pi / par['n_ori'] / 2
+    # pseudo_mean = np.arctan2(post_prob @ np.sin(2 * post_support),
+    #                          post_prob @ np.cos(2 * post_support)) / 2
+    # estim_sinr = (np.sin(2 * pseudo_mean[par['design_rg']['estim'], :])).mean(axis=0)
+    # estim_cosr = (np.cos(2 * pseudo_mean[par['design_rg']['estim'], :])).mean(axis=0)
+    # estim_mean = np.arctan2(estim_sinr, estim_cosr) / 2
+    # perf = np.mean(np.cos(2. * (trial_info['stimulus_ori'].numpy() * np.pi / par['n_ori'] - estim_mean)))
+
+    GT = np.argmax(trial_info['desired_output'].numpy(), axis=3)
+    Yargmax = np.argmax(output.numpy(), axis=3)
+    perf = np.mean(GT[par['design_rg']['estim'], :, :] == Yargmax[par['design_rg']['estim'], :, :])
+
     return perf
 

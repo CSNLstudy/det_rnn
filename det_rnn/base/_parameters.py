@@ -6,24 +6,27 @@ __all__ = ['par', 'update_parameters']
 # All the relevant parameters ========================================================================
 par = {
 	# Experiment design: unit: second(s)
-	'design':  {'iti'	: (0, 1.5),
-			   	'stim'	: (1.5, 3.0),
-			   	'delay'	: (3.0, 4.5),
-			   	'estim'	: (4.5, 6.0)},
-	'output_range' : 'design', # estim period
+	'design': {'iti': (0, 1.5),
+			   'stim': (1.5, 3.0),
+			   'delay': (3.0, 4.5),
+			   'estim': (4.5, 6.0)},
+	'output_range': 'design',  # estim period
 
 	# Mask specs
-	'dead': 'design', # ((0,0.1),(estim_start, estim_start+0.1))
-	'mask': {'iti'	: 1., 'stim' : 1., 'delay'	: 1., 'estim' : 400.,
-			 'rule_iti' : 2., 'rule_stim' : 2., 'rule_delay' : 2., 'rule_estim' : 800.},  # strength (10,20), (50,100)
+	'dead': 'design',  # ((0,0.1),(estim_start, estim_start+0.1))
+	'mask': {'iti': 1., 'stim': 1., 'delay': 1., 'estim': 10.,
+			 'rule_iti': 2., 'rule_stim': 2., 'rule_delay': 2., 'rule_estim': 20.},  # strength
 
 	## for onehot output, 'estim' : 20., 'rule_estim' : 20. worked
 
 	# Rule specs
-	'input_rule' :  {}, # {'fixation': whole period, 'response':estim}
-	'output_rule'  : 'design', # {'fixation' : (0,before estim)}
-	'input_rule_strength'	: 0.8, 
-	'output_rule_strength' 	: 0.8,
+	'input_rule': 'design',  # {'fixation': whole period, 'response':estim}
+	'output_rule': {},  # {'fixation' : (0,before estim)}
+	'input_rule_strength': 0.8,
+	'output_rule_strength' : 0.8,
+
+	# Discrimination spec
+	'n_discrim': 3,
 
 	# stimulus type
 	'type'					: 'orientation',  # size, orientation
@@ -39,8 +42,8 @@ par = {
 	'resp_decoding'			: 'disc',  # 'conti', 'disc', 'onehot'
 
 	# Network configuration
-	'exc_inh_prop'          : 0.7,    # excitatory/inhibitory ratio
-	'modular'				: True,
+	'exc_inh_prop'          : 0.8,    # excitatory/inhibitory ratio
+	'modular'				: False,
 	'connect_prob'			: 0.1,    # modular connectivity
 
 	# Timings and rates
@@ -72,18 +75,14 @@ par = {
 	'noise_mean' : 0,
 	'noise_sd'   : 0.005,     # 0.05
 	'n_recall_tuned' : 24,   # precision at the moment of recall
-	'n_visual' 		 : 24,     # number of visual units
 	'n_hidden' 	 : 100,		 # number of rnn units TODO(HL): h_hidden to 100
-	'n_module1'  : 50,
-	'n_module2'  : 50,
 
 	# Experimental settings
-	'batch_size' 	: 128,    
+	'batch_size' 	: 128,
 	'alpha_neuron'  : 0.1,    # changed from tf.constant TODO(HL): alpha changed from 0.2 to 0.1 (Masse)
 
 	# Optimizer
 	'optimizer' : 'Adam', # TODO(HG):  other optim. options?
-	'loss_fun'	: 'mse_sigmoid', # 'cosine', 'mse', 'mse_normalize', 'centropy'
 }
 
 
@@ -93,15 +92,15 @@ def update_parameters(par):
 
 	#
 	par.update({
-		'n_timesteps' 		: sum([len(v) for _,v in par['design_rg'].items()]),
-		'n_exc'        		: int(par['n_module2']*par['exc_inh_prop']),
+		'n_timesteps' 		: sum([len(v) for _ ,v in par['design_rg'].items()]),
+		'n_exc'        		: int(par['n_hidden' ] *par['exc_inh_prop']),
 	})
 
-	# 
+	#
 	par.update({
-		'n_subblock' : int(par['batch_size']/par['trial_per_subblock'])
+		'n_subblock' : int(par['batch_size' ] /par['trial_per_subblock'])
 	})
-	
+
 
 	# default settings
 	if par['output_range'] is 'design':
@@ -111,21 +110,21 @@ def update_parameters(par):
 
 	# TODO(HG): this may not work if design['estim'] is 2-dimensional
 	if par['dead'] is 'design':
-		par['dead_rg'] = convert_to_rg(((0,0.1),
-										 (par['design']['estim'][0],par['design']['estim'][0]+0.1)),par['dt'])
+		par['dead_rg'] = convert_to_rg(((0 ,0.1),
+										(par['design']['estim'][0] ,par['design']['estim'][0 ] +0.1)) ,par['dt'])
 	else:
 		par['dead_rg'] = convert_to_rg(par['dead'], par['dt'])
 
 	if par['input_rule'] is 'design':
-		par['input_rule_rg'] = convert_to_rg({'fixation': (0,par['design']['estim'][1]),
-											   'response': par['design']['estim']},par['dt'])
+		par['input_rule_rg'] = convert_to_rg({'fixation': (0 ,par['design']['estim'][1]),
+											  'response': par['design']['estim']} ,par['dt'])
 		par['n_rule_input']  = 2
 	else:
 		par['input_rule_rg'] = convert_to_rg(par['input_rule'], par['dt'])
 		par['n_rule_input']  = len(par['input_rule'])
 
 	if par['output_rule'] is 'design':
-		par['output_rule_rg'] = convert_to_rg({'fixation':(0,par['design']['delay'][1])}, par['dt'])
+		par['output_rule_rg'] = convert_to_rg({'fixation' :(0 ,par['design']['delay'][1])}, par['dt'])
 		par['n_rule_output'] = 1
 	else:
 		par['output_rule_rg'] = convert_to_rg(par['output_rule'], par['dt'])
@@ -152,17 +151,16 @@ def update_parameters(par):
 		par['stim_p'] = par['stim_dist']
 
 	## stimulus normalization
-	par['stim_p'] = par['stim_p']/np.sum(par['stim_p'])
+	par['stim_p'] = par['stim_p' ] /np.sum(par['stim_p'])
 
 	par.update({
 		'rg_exc': range(par['n_exc']),
 		'rg_inh': range(par['n_exc'], par['n_hidden']),
-		'w_lat_mask': np.ones((par['n_input'], par['n_input']), dtype=np.float32),
-		'w_FF_mask': np.ones((par['n_input'], par['n_hidden']), dtype=np.float32),
-		'w_FB_mask': np.ones((par['n_hidden'], par['n_input']), dtype=np.float32),
-		'w_rnn_mask': np.ones((par['n_hidden'], par['n_hidden']), dtype=np.float32) - np.eye(par['n_hidden'],dtype=np.float32),
-		'w_out_mask': np.concatenate((np.ones((par['n_exc'], par['n_output']),dtype=np.float32),
-									  np.zeros((par['n_module2']-par['n_exc'], par['n_output']), dtype=np.float32)),
+		'w_in_mask': np.ones((par['n_input'], par['n_hidden']), dtype=np.float32),
+		'w_rnn_mask': np.ones((par['n_hidden'], par['n_hidden']), dtype=np.float32) - np.eye(par['n_hidden']
+																							 ,dtype=np.float32),
+		'w_out_mask': np.concatenate((np.ones((par['n_exc'], int(par['n_output']/2), par['n_discrim']) ,dtype=np.float32),
+									  np.zeros((par['n_hidden'] -par['n_exc'], int(par['n_output']/2), par['n_discrim']), dtype=np.float32)),
 									 axis=0) # Todo(HL): no input from inhibitory neurons
 	})
 
