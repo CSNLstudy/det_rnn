@@ -76,7 +76,7 @@ for iter_n in range(N_iter+1):
 
         tf.saved_model.save(model, os.path.join(model_dir, "cont_iter" + str(iter_n)))
 
-    if iter_n > 20 and np.sum(performance_test['perf'][-20] > 0.95) > 19:
+    if iter_n > 20 and np.sum(np.array(performance_test['perf'][-20:]) > 0.95) > 18:
         print('Good performance achieved... saving final model')
         break
 
