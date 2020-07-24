@@ -19,6 +19,7 @@ def GirshickPrior(theta, radian=True):
     return p_theta
 
 def desired_discrim(theta, power=10):
+    # arr = np.zeros((12,1)); arr[0] = 1. # "infinity" case
     arr = (GirshickPrior(np.arange(0., 24., step=2.) / 48. * np.pi)[:, np.newaxis] + .5) ** power
     res = arr * np.roll(discrim_template, int(13 + theta), axis=0)[:12]
     return res
