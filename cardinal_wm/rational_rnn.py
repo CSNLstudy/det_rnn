@@ -38,7 +38,7 @@ def decisionize_ti(trial_info, par=par):
     return trial_info
 
 
-## Training : please ignore WARNINGs 
+## Training : please ignore WARNINGs (due to None gradient problems)
 par = update_parameters(par)
 stimulus = Stimulus()
 trial_info = decisionize_ti(stimulus.generate_trial())
@@ -58,5 +58,12 @@ for iter in range(1500):
             dt.hp['task_type'] = 0; task_type = 'Discrim'
         else:
             dt.hp['task_type'] = 2; task_type = 'Estim'
+
+
+## save model
+model.model_performance = dt.tensorize_model_performance(model_performance)
+tf.saved_model.save(model, "/Volumes/Data_CSNL/project/RNN_study/20-07-24/HG/output/example_alternation")
+
+
 
 
