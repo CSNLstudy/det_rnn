@@ -28,8 +28,9 @@ def append_model_performance(model_performance, trial_info, Y, Loss, par, task_t
     model_performance['perf'].append(estim_perf)
     return model_performance
 
-def print_results(model_performance, iteration):
-    print_res = 'Iter. {:4d}'.format(iteration)
+def print_results(model_performance, iteration, task_type):
+    print_res = task_type + ' task. '
+    print_res += 'Iter. {:4d}'.format(iteration)
     print_res += ' | Performance {:0.4f}'.format(model_performance['perf'][iteration]) + \
                  ' | Loss {:0.4f}'.format(model_performance['loss'][iteration])
     print_res += ' | Spike loss {:0.4f}'.format(model_performance['spike_loss'][iteration])

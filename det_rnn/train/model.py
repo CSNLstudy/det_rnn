@@ -62,11 +62,6 @@ class Model(tf.Module):
 			loss = perf_loss + tf.cast(hp['spike_cost'],tf.float32)*spike_loss + tf.cast(hp['weight_cost'],tf.float32)*weight_loss
 
 		vars_and_grads = t.gradient(loss, self.var_dict)
-		if (hp['task_type'] == 0):
-			tf.stop_gradient(self.var_dict['w_out_est'])
-		if (hp['task_type'] == 2):
-			tf.stop_gradient(self.var_dict['w_out_int'])
-
 		capped_gvs = [] # gradient capping and clipping
 		for var, grad in vars_and_grads.items():
 			if 'w_rnn' in var:
@@ -98,7 +93,6 @@ class Model(tf.Module):
 	def _calc_loss(self, y, target, mask, hp):
 		if hp['task_type'] == 2:
 			target = target / tf.reduce_sum(target, axis=2, keepdims=True)
-		# _target_normalized = target / tf.reduce_sum(target, axis=2, keepdims=True)
 		if hp['loss_fun'] == 0:
 			_y_normalized = tf.nn.softmax(y)
 			loss = tf.reduce_mean(mask * (target - _y_normalized) ** 2)
