@@ -7,6 +7,11 @@ __all__ = ['hp', 'hp_spec']
 
 # Model hyperparameters(modifiable)
 hp  = {
+	'sensory_gain': True,
+	'sensory_noise_type': 'Poisson', # 'Normal'
+
+	
+	
 	'masse' : True,
 	'loss_fun'	: 1, # 0:'mse', 1:'centropy'
 	'mse_weight' : 0.01,
@@ -23,6 +28,9 @@ hp  = {
 	'n_hidden': par['n_hidden'],
 	'n_input': par['n_input'],
 	'n_tuned_input': par['n_tuned_input'],
+	'n_tuned_output': par['n_tuned_output'],
+	'n_sensory': 30, #number of neurons in the sensory layer
+
 	'n_rule_input': par['n_rule_input'],
 	'n_rule_output': par['n_rule_output'],
 
