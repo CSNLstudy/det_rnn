@@ -40,8 +40,10 @@ def decisionize_ti(trial_info, par=par):
 
 # Analysis
 
-## 0. Load model
-load_model = tf.saved_model.load("/Volumes/Data_CSNL/project/RNN_study/20-07-24/HG/output/example_alternation")
+## 0. Load model (Compare the following)
+load_model = tf.saved_model.load("/Volumes/Data_CSNL/project/RNN_study/20-07-24/HG/alternate_rnns/rnn1")
+# load_model = tf.saved_model.load("/Volumes/Data_CSNL/project/RNN_study/20-07-24/HG/alternate_rnns/rnn2")
+# load_model = tf.saved_model.load("/Volumes/Data_CSNL/project/RNN_study/20-07-24/HG/alternate_rnns/rnn3")
 
 ## 1. Sanity check
 par = update_parameters(par)
