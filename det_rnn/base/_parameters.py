@@ -54,10 +54,15 @@ par = {
 	'noise_in_sd'           : 0.1,
 	'noise_rnn_sd'          : 0.5,    # TODO(HL): rnn_sd changed from 0.05 to 0.5 (Masse)
 
-	# Tuning function data
+	# Tuning function data (von Mises)
 	'strength_input'        : 0.8,      # magnitutde scaling factor for von Mises
 	'strength_output'       : 0.8,      # magnitutde scaling factor for von Mises
 	'kappa'                 : 2,        # concentration scaling factor for von Mises
+										# if it is a number, fix the scaling for the von Mises
+										# if 'dist', use distribution parameters below
+	'kappa_dist_shape' 		: 2,		# shape of gamma distribution for kappa of the von Mises; 
+	'kappa_dist_scale' 		: 1,		# mean of gamma distribution for kappa of the von Mises; 
+
 
 	# Loss parameters
 	'orientation_cost' 		: 1, # TODO(HL): cost for target-output
@@ -68,7 +73,7 @@ par = {
 
 	# Neuronal settings
 	'n_receptive_fields': 1,
-	'n_tuned_input'	 : 24,  # number of possible orientation-tuned neurons (input) => for stimulus generation?
+	'n_tuned_input'	 : 50,  # number of possible orientation-tuned neurons (input) => for stimulus generation?
 	'n_tuned_output' : 24,  # number of possible orientation-tuned neurons (output)
 	'n_ori'	 	 : 24 , # number of possible orientations (output) josh: input orientations?
 	'noise_mean' : 0,

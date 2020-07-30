@@ -84,6 +84,7 @@ class Model(tf.Module):
 				grad *= hp['w_in_mask']
 			capped_gvs.append((tf.clip_by_norm(grad, hp['clip_max_grad_val']), self.var_dict[var]))
 		self.optimizer.apply_gradients(grads_and_vars=capped_gvs)
+		
 		return _Y, {'loss':loss, 'perf_loss': perf_loss, 'spike_loss': spike_loss}
 
 	def _initialize_variable(self,hp):

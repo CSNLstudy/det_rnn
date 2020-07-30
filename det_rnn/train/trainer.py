@@ -35,9 +35,9 @@ def print_results(model_performance, iteration):
     print_res += ' | Spike loss {:0.4f}'.format(model_performance['spike_loss'][iteration])
     print(print_res)
 
-def tensorize_trial(trial_info):
+def tensorize_trial(trial_info, dtype=tf.float32):
     for k, v in trial_info.items():
-        trial_info[k] = tf.constant(v, name=k)
+        trial_info[k] = tf.constant(v, name=k, dtype = dtype)
     return trial_info
 
 def numpy_trial(trial_info):

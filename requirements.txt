@@ -1,9 +1,12 @@
 #python 3.7
 
 numpy
-tensorflow
+scipy
+tensorflow    # version 2.3
 matplotlib
 tf-nightly
 seaborn
 
 randomgen
+
+pyyaml
