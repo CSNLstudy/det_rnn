@@ -11,14 +11,15 @@ hp  = {
 	'output_path'	: '/experiments/efficient_coding/model1/',
 	'model_output'	: '/experiments/efficient_coding/model1/model',
 	'log_path' 		: '/experiments/efficient_coding/model1/logs',
-	'saving_freq' 	: 50, # save every saving_freq iterations
+	'saving_freq' 	: 100, # save every saving_freq iterations
 
 	# losses and training
 	'loss_spike' 	: 2e-3, #'spike_cost'  : 2e-3, # todo: not used yet
-	'loss_L1' 		: 0., # weight regularization
-	'loss_L2' 		: 0., # weight regularization
+	'loss_L1' 		: 1e-2, # weight regularization
+	'loss_L2' 		: 1e-2, # weight regularization
 	'loss_MI' 		: 1, # maximize mutual information
-	'loss_p_smooth' : 1e-1, # laplace filter on the posterior
+	'loss_p_smooth' : 1e-2, # laplace filter on the posterior
+	'loss_pe' 		: 1e-1, # laplace filter on the posterior
 
 	'nsteps_train'  	: 500,
 	'learning_rate' 	: 2e-2,	  # adam optimizer learning rate
@@ -44,14 +45,17 @@ hp  = {
 
 	# neuron, stsp
 	'neuron_stsp' 	: False, # parameter
-	'syn_x_init'	: np.ones((par['batch_size'], par['n_hidden']), dtype=np.float32), # do we need to initialize this here?
-	'syn_u_init'	: np.tile(alternating((0.15, 0.45), par['n_hidden']), (par['batch_size'], 1)), # josh: why alternating?
 
-	'alpha_std'		: alternating((0.05, 0.00667), par['n_hidden']), # efficacy time constant #josh: what is alternating??
-	'alpha_stf'		: alternating((0.00667, 0.05), par['n_hidden']), # utilization time constant
+	'''
+	#'syn_x_init'	: np.ones((par['batch_size'], par['n_hidden']), dtype=np.float32), # do we need to initialize this here?
+	#'syn_u_init'	: np.tile(alternating((0.15, 0.45), par['n_hidden']), (par['batch_size'], 1)), # josh: why alternating?
 
-	'dynamic_synapse'	: np.ones(par['n_hidden'], dtype=np.float32),
-	'U'					: alternating((0.15, 0.45), par['n_hidden']),
+	#'alpha_std'		: alternating((0.05, 0.00667), par['n_hidden']), # efficacy time constant #josh: what is alternating??
+	#'alpha_stf'		: alternating((0.00667, 0.05), par['n_hidden']), # utilization time constant
+
+	#'dynamic_synapse'	: np.ones(par['n_hidden'], dtype=np.float32),
+	#'U'					: alternating((0.15, 0.45), par['n_hidden']),
+	'''
 
 	# network; inherited from par (stimulus structures)
 	'n_input'			: par['n_input'],
@@ -61,8 +65,9 @@ hp  = {
 	'n_tuned_output'	: par['n_tuned_output'],
 
 	'n_rule_input'		: par['n_rule_input'],
-	'n_rule_output'		: par['n_rule_output'],
+	'n_rule_output'		: par['n_rule_output']}
 
+""""
 	'w_in_mask'			: np.ones((par['n_input'], par['n_hidden']), dtype=np.float32),
 	'w_rnn_mask'		: np.ones((par['n_hidden'], par['n_hidden']), dtype=np.float32) - np.eye(par['n_hidden'],
 																						 dtype=np.float32),
@@ -78,3 +83,5 @@ if par['modular']:
 	hp['EI_mask'] = modular_mask(hp['connect_prob'], hp['n_hidden'], hp['exc_inh_prop'])
 else:
 	hp['EI_mask'] = w_rnn_mask(hp['n_hidden'], hp['exc_inh_prop'])
+	
+"""
