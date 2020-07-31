@@ -218,7 +218,7 @@ class VNET(tf.Module):
 
         sens_logk = self.sens_logk(neural_input)
 
-        # Von Mises population distribution; todo: check gradient?
+        # Von Mises population distribution; todo: check gradient? and check code. this isn't distributed correctly in sensory space
         # shape = B x n_sensory
         sens_p = tf.math.exp(tf.exp(sens_logk) * tf.math.cos(2*(self.sensory_tunings- sens_mu),
                                                             name='sensory_vm_cos'),
@@ -227,7 +227,7 @@ class VNET(tf.Module):
 
         if 'sensory_gain' is True:
             sens_g = self.sens_g(neural_input)
-            sens_act = sens_g * sens_p  # todo (?): multiply a constant gain to all input units
+            sens_act = sens_g * sens_p
         else:
             sens_g = None
             sens_act = sens_p
