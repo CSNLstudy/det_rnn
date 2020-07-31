@@ -17,6 +17,8 @@ logging.getLogger('matplotlib.font_manager').disabled = True
 import matplotlib.pyplot as plt
 import matplotlib
 
+EPSILON = 1e-7
+
 __all__ = ['softmax_pred_output','behavior_summary', 'behavior_figure', 'biasvar_figure']
 
 def softmax_pred_output(pred_output):
@@ -168,7 +170,7 @@ def biasvar_figure(ground_truth, estim_mean, raw_error, stim_test, filename=None
             cossum = np.sum(np.cos(2 * bin_errors))
             meanres = (np.sqrt(np.square(sinesum) + np.square(cossum))) / n
             circ_mean = np.arctan2(sinesum,cossum)
-            circ_std = np.sqrt(-2 * np.log(meanres))
+            circ_std = np.sqrt(-2 * np.log(meanres-EPSILON))
         errorMean.append(circ_mean)
         errorSTD.append(circ_std)
         binN.append(n)
@@ -209,7 +211,7 @@ def biasvar_figure(ground_truth, estim_mean, raw_error, stim_test, filename=None
                     ax=ax[1,0])
     ax[1,0].set_xlabel(r"$\theta$(deg)"); ax[1,0].set_ylabel(r"$\hat{\theta} - \theta$ (deg)");
     ax[1,0].axhline(y=0, color='g', linestyle='--', label="Unbiased")
-    ax[1, 0].axvine(x=90, color='g', linestyle='--', label="Cardinal")
+    ax[1,0].axvline(x=90, color='g', linestyle='--', label="Cardinal")
     ax[1,0].set_xlim([0,180]);ax[1,0].set_ylim([-12,12]);
     ax[1,0].legend();
     #plt.legend()
@@ -219,7 +221,7 @@ def biasvar_figure(ground_truth, estim_mean, raw_error, stim_test, filename=None
                     data=pd.DataFrame({'GT':bin_center * 180/np.pi, 'Std':(errorSTD * 180/np.pi)}),
                     ax=ax[1,1])
     ax[1,1].set_xlabel(r"$\theta$(deg)"); ax[1,1].set_ylabel('Variabiliy (deg)');
-    ax[1, 0].axvine(x=90, color='g', linestyle='--', label="Cardinal")
+    ax[1,1].axvline(x=90, color='g', linestyle='--', label="Cardinal")
     ax[1,1].set_yscale('log'); ax[1,1].set_ylim([1, 50]); ax[1,1].set_yticks([10, 30, 50]);
     ax[1,1].get_yaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
     ax[1,1].set_xlim([0, 180]);

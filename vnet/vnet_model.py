@@ -64,13 +64,14 @@ class VNET(tf.Module):
 
     # all the networks to train goes here.
     def build(self):
+        """
         self.stim_tuning = tf.keras.layers.Dense(1, input_shape = (self.hp['n_tuned_input'],),
-                                kernel_regularizer=tf.keras.regularizers.l1_l2(l1=self.hp['loss_L1'], l2=self.hp['loss_L2']),
-                                name='sensory_mu') # real number => gets converted into radians with acos(cos()); no bias
+                        kernel_regularizer=tf.keras.regularizers.l1_l2(l1=self.hp['loss_L1'], l2=self.hp['loss_L2']),
+                        name='sensory_mu')
 
         self.sens_logk   = tf.keras.layers.Dense(1, input_shape = (self.hp['n_tuned_input'],),
-                               kernel_regularizer = tf.keras.regularizers.l1_l2(l1=self.hp['loss_L1'], l2=self.hp['loss_L2']),
-                               name='sensory_k') # log(kappa) is a real number => positive kapp; no bias
+                       kernel_regularizer = tf.keras.regularizers.l1_l2(l1=self.hp['loss_L1'], l2=self.hp['loss_L2']),
+                       name='sensory_k') # log(kappa) is a real number => positive kapp; no bias
 
         if 'sensory_gain' is True:
             self.sens_g = tf.keras.layers.Dense(1, input_shape = (self.hp['n_tuned_input'],),
@@ -85,8 +86,50 @@ class VNET(tf.Module):
                              name='sensory_noiseStd')
 
         self.output_layer = tf.keras.layers.Dense(self.hp['n_tuned_output'], input_dim = (self.hp['n_sensory'],),
-                                kernel_regularizer = tf.keras.regularizers.l1_l2(l1=self.hp['loss_L1'], l2=self.hp['loss_L2']),
-                                name='output_logits')  # logits; can be negative
+                        kernel_regularizer = tf.keras.regularizers.l1_l2(l1=self.hp['loss_L1'], l2=self.hp['loss_L2']),
+                        name='output_logits')  # logits; can be negative
+        """
+        self.stim_tuning = tf.keras.Sequential(name='sensory_mu')
+        self.stim_tuning.add(tf.keras.layers.Dense(self.hp['n_tuned_input'], input_shape = (self.hp['n_tuned_input'],),
+                                                   kernel_regularizer=tf.keras.regularizers.l1_l2(l1=self.hp['loss_L1'], l2=self.hp['loss_L2'])))
+        self.stim_tuning.add(tf.keras.layers.Dense(self.hp['n_tuned_input'],
+                                                   kernel_regularizer=tf.keras.regularizers.l1_l2(l1=self.hp['loss_L1'],
+                                                                                                  l2=self.hp['loss_L2'])))
+        self.stim_tuning.add(tf.keras.layers.Dense(1,
+                                                   kernel_regularizer=tf.keras.regularizers.l1_l2(l1=self.hp['loss_L1'],
+                                                                                                  l2=self.hp[
+                                                                                                      'loss_L2'])))
+
+
+        self.sens_logk   = tf.keras.Sequential(name='sensory_k')
+        self.sens_logk.add(tf.keras.layers.Dense(self.hp['n_tuned_input'], input_shape = (self.hp['n_tuned_input'],),
+                                                 kernel_regularizer = tf.keras.regularizers.l1_l2(l1=self.hp['loss_L1'], l2=self.hp['loss_L2'])))
+        self.sens_logk.add(tf.keras.layers.Dense(self.hp['n_tuned_input'],
+                                                 kernel_regularizer=tf.keras.regularizers.l1_l2(l1=self.hp['loss_L1'],
+                                                                                                l2=self.hp['loss_L2'])))
+        self.sens_logk.add(tf.keras.layers.Dense(1,
+                                                 kernel_regularizer=tf.keras.regularizers.l1_l2(l1=self.hp['loss_L1'],
+                                                                                                l2=self.hp['loss_L2'])))
+
+        if 'sensory_gain' is True:
+            self.sens_g = tf.keras.layers.Dense(1, input_shape = (self.hp['n_tuned_input'],),
+                             activation=tf.nn.relu,
+                             kernel_regularizer=tf.keras.regularizers.l1_l2(l1=self.hp['loss_L1'], l2=self.hp['loss_L2']),
+                             name='sensory_gain')  # positive gain
+
+        if self.hp['sensory_noise_type'] == 'Normal_learn':
+            self.sensory_noiseStd = tf.keras.layers.Dense(self.hp['n_sensory'], input_shape = (self.hp['n_tuned_input'],),
+                             activation=tf.nn.relu,
+                             kernel_regularizer=tf.keras.regularizers.l1_l2(l1=self.hp['loss_L1'], l2=self.hp['loss_L2']),
+                             name='sensory_noiseStd')
+
+        self.output_layer  = tf.keras.Sequential(name='output_logits') #errors out here for somereason if i change the input_dim...
+        self.output_layer.add(tf.keras.layers.Dense(self.hp['n_tuned_output'], input_dim = self.hp['n_sensory'],
+                                kernel_regularizer = tf.keras.regularizers.l1_l2(l1=self.hp['loss_L1'], l2=self.hp['loss_L2'])))
+        self.output_layer.add(tf.keras.layers.Dense(self.hp['n_tuned_output'],
+                                kernel_regularizer=tf.keras.regularizers.l1_l2(l1=self.hp['loss_L1'], l2=self.hp['loss_L2'])))
+        self.output_layer.add(tf.keras.layers.Dense(self.hp['n_tuned_output'],
+                                kernel_regularizer=tf.keras.regularizers.l1_l2(l1=self.hp['loss_L1'], l2=self.hp['loss_L2'])))
 
     ''' Train operations'''
     # todo: implement train; add schedulers?
@@ -164,10 +207,9 @@ class VNET(tf.Module):
         # run model
         [sens_m, sens_p, sens_act, sens_g]          = self.sensory_layer(neural_input)
         logits                                      = self.output_layer(sens_m)
-        [loss, loss_ce, loss_MI, loss_smoothPost]   = self.calc_loss(labels, logits)
+        [loss, loss_ce, loss_MI, loss_smoothPost, loss_pe]   = self.calc_loss(labels, logits)
 
-        return {'loss': loss, 'loss_ce': loss_ce,
-                'loss_MI': loss_MI, 'loss_smoothPost': loss_smoothPost}, \
+        return {'loss': loss, 'loss_ce': loss_ce, 'loss_MI': loss_MI, 'loss_smoothPost': loss_smoothPost, 'loss_pe': loss_pe}, \
                logits
 
     def update_step(self, trial_info, t):
@@ -180,7 +222,13 @@ class VNET(tf.Module):
         # calculate gradients
         with tf.GradientTape() as tape:
             loss_struct, logits = self.evaluate(trial_info)
-        grads = tape.gradient(loss_struct['loss'], self.trainable_variables)  # vardict is in trainable_variables if they are variables
+
+            # add regularization loss; todo: check that this wasn't added in the evalute (or elsewhere)
+            reg_loss = []
+            for smod in self.submodules:
+                reg_loss += smod.losses # losses store the regularizer losses; todo: dataformat when we add activation or bias losses?
+            alllosses = loss_struct['loss'] + tf.reduce_sum(tf.squeeze(reg_loss))
+        grads = tape.gradient(alllosses, self.trainable_variables)  # vardict is in trainable_variables if they are variables
 
         # clip gradient
         grads_clipped = []  # gradient capping and clipping
@@ -272,7 +320,15 @@ class VNET(tf.Module):
         # problem: logits is not diverse..
 
         # todo: implement "prediction error" signal
-        # loss_pe =
+        post_prob       = tf.nn.softmax(logits, axis=1)
+        post_support    = tf.expand_dims(tf.constant(np.arange(0, np.pi, np.pi / self.hp['n_tuned_output']),dtype=self.dtype),axis=1)  # 0 to pi
+        post_mean       = tf.math.atan2(tf.matmul(post_prob, tf.sin(2 * post_support)),
+                                        tf.matmul(post_prob, tf.cos(2 *  post_support))) / 2  # -pi/2 to pi/2
+        ground_truth    = tf.matmul(tf.one_hot(labels, depth = self.hp['n_tuned_output']),post_support)
+        raw_error       = post_mean - ground_truth
+        errors          = tf.math.atan2(tf.math.sin(2 * raw_error), tf.math.cos(2 * raw_error)) / 2
+        loss_pe         = tf.reduce_mean(tf.square(errors))
+
 
         # info loss
         loss_MI = 0. # todo: is there a tractable way to implement this?
@@ -281,9 +337,13 @@ class VNET(tf.Module):
         loss_smoothPost = tf.square(tf.norm(tf.linalg.matmul(logits, self.laplacian),ord='euclidean'))
 
         # total loss
-        loss = loss_ce + self.hp['loss_MI'] * loss_MI + self.hp['loss_p_smooth'] * loss_smoothPost
+        loss = loss_ce \
+               + self.hp['loss_MI'] * loss_MI \
+               + self.hp['loss_p_smooth'] * loss_smoothPost\
+               + self.hp['loss_pe'] * loss_pe
 
-        return loss, loss_ce, loss_MI, loss_smoothPost
+
+        return loss, loss_ce, loss_MI, loss_smoothPost, loss_pe
 
     ''' UTILS '''
     def _initialize_variable(self, hp, par_train):

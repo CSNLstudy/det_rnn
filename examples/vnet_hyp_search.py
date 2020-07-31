@@ -9,22 +9,24 @@ from vnet.vnet_model import VNET
 from det_rnn.base import par, update_parameters, Stimulus
 from utils.general import get_logger
 
-root_dir    = os.getcwd() + os.path.sep + '..'  # this should be /det_rnn folder
-basedir     = root_dir + os.path.sep + 'experiments' + os.path.sep + 'efficient_coding1'
+experimentname  = 'efficient_coding4'
+root_dir        = os.getcwd() + os.path.sep + '..'  # this should be /det_rnn folder
+basedir         = root_dir + os.path.sep + 'experiments' + os.path.sep + experimentname
 
 if __name__ == '__main__':
     # list of parameters to change
     par_names = ['kappa', 'kappa_dist_shape', 'kappa_dist_scale']
-    par_list  = [(2,0,0), ('dist', 2, 1), ('dist', 2, 0.5), ('dist', 2, 4)]
+    par_list  = [(2,0,0), ('dist', 2, 1)]
 
     # dictionary of hp to test
-    hp_dict = {'loss_L1' : [1e-2],
-               'loss_L2' : [1e-2],
-               'loss_spike' : [0],
-               'loss_p_smooth' : [1e-2],
-               'n_sensory' : [25, 50],
+    hp_dict = {'loss_L1'            : [1e-2],
+               'loss_L2'            : [1e-2],
+               'loss_spike'         : [0],
+               'loss_p_smooth'      : [1e-2],
+               'n_sensory'          : [25, 50],
+               'loss_pe'            : [1e-1, 0],
                 'sensory_noise_type': ['Normal_learn', 'Normal_fixed', 'Normal_poisson'],
-                'sensory_repr': ['Learn', 'Efficient', 'Uniform']}
+                'sensory_repr'      : ['Learn', 'Efficient', 'Uniform']}
 
     hp_names = []
     hp_lists = []
