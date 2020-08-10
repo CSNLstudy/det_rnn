@@ -4,8 +4,8 @@ import tensorflow as tf
 import itertools
 
 sys.path.append('../')
-from vnet.vnet_hyper import vnet_hp
-from vnet.vnet_model import VNET
+from vnet.rvnet_hyper import rvnet_hp
+from vnet.rvnet_model import RVNET
 from det_rnn.base import par, update_parameters, Stimulus
 from utils.general import get_logger
 
@@ -19,12 +19,7 @@ if __name__ == '__main__':
     par_list  = [(2,0,0), ('dist', 2, 1)]
 
     # dictionary of hp to test
-    hp_dict = {'loss_L1'            : [1e-2],
-               'loss_L2'            : [1e-2],
-               'loss_spike'         : [0],
-               'loss_p_smooth'      : [1e-2],
-               'n_sensory'          : [25, 50],
-               'loss_pe'            : [1e-1, 0],
+    hp_dict = {'n_sensory'          : [25, 50],
                 'sensory_noise_type': ['Normal_learn', 'Normal_fixed', 'Normal_poisson'],
                 'sensory_repr'      : ['Learn', 'Efficient', 'Uniform']}
 
@@ -43,7 +38,7 @@ if __name__ == '__main__':
     hypsearch = itertools.product(*hp_lists)
     for params in hypsearch:
         # set hyperparameters
-        hp = vnet_hp()
+        hp = rvnet_hp(par)
         hypsearch_dict = {}
         hpstr = ''
         for idx in range(len(params)):

@@ -8,7 +8,6 @@ from tensorboard.plugins.hparams import api as tf_hpapi
 
 sys.path.append('../')
 from base_model import BaseModel
-from .vnet_hyper import hp
 import det_rnn.train as utils_train
 import det_rnn.analysis as utils_analysis
 from utils.general import get_logger, Progbar, export_plot

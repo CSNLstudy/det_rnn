@@ -30,8 +30,8 @@ class BaseModel(tf.Module):
         self.hp = hp
 
         self.dtype = dtype
-        self._initialize_variable(hp, par_train)
-        self.build()
+        #self._initialize_variable(hp, par_train) # todo: check that this errors out bc not implemented
+        #self.build()
 
         # tensorboard
         if not os.path.exists(self.hp['output_path']):
@@ -63,11 +63,6 @@ class BaseModel(tf.Module):
     # todo: implement train; add schedulers?
 
     def evaluate(self, trial_info):
-        # inputs and outputs from the trial
-        neural_input    = trial_info['input_tuning']
-        output_tuning   = trial_info['output_tuning']
-        labels          = tf.math.argmax(output_tuning,1)
-
         raise NotImplementedError
 
         # should return
@@ -83,6 +78,8 @@ class BaseModel(tf.Module):
     def _initialize_variable(self, hp, par_train):
         raise NotImplementedError
 
+    ''' Train operations'''
+    # todo: add schedulers
     def train(self, stim_train, stim_test):
         """
         """
@@ -101,6 +98,9 @@ class BaseModel(tf.Module):
             train_data = utils_train.tensorize_trial(stim_train.generate_trial(), dtype = self.dtype)
             loss_struct, grad = self.update_step(train_data, t)
             loss_train += [loss_struct['loss']]
+            if self.trainable_variables is None:
+                print('No trainable variables. Done training! ')
+                break
 
             # evaluate loss on test set
             test_data                       = utils_train.tensorize_trial(stim_test.generate_trial(), dtype = self.dtype)
@@ -163,8 +163,19 @@ class BaseModel(tf.Module):
             reg_loss = []
             for smod in self.submodules:
                 reg_loss += smod.losses # losses store the regularizer losses; todo: dataformat when we add activation or bias losses?
+
             alllosses = loss_struct['loss'] + tf.reduce_sum(tf.squeeze(reg_loss))
         grads = tape.gradient(alllosses, self.trainable_variables)  # vardict is in trainable_variables if they are variables
+
+        # todo: check regularization in new networks
+        '''
+        l2 = lambda_l2_reg * sum(
+            tf.nn.l2_loss(tf_var)
+            for tf_var in tf.trainable_variables()
+            if not ("noreg" in tf_var.name or "Bias" in tf_var.name)
+        )
+        '''
+
 
         # clip gradient
         grads_clipped = []  # gradient capping and clipping

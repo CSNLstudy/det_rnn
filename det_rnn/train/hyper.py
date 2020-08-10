@@ -36,7 +36,7 @@ hp  = {
 	'syn_x_init': np.ones((par['batch_size'], par['n_hidden']), dtype=np.float32), # do we need to initialize this here?
 	'syn_u_init': np.tile(alternating((0.15, 0.45), par['n_hidden']), (par['batch_size'], 1)), # josh: why alternating?
 
-	'alpha_std': alternating((0.05, 0.00667), par['n_hidden']), # efficacy time constant #josh: what is alternating??
+	'alpha_std': alternating((0.05, 0.00667), par['n_hidden']), # efficacy time constant #todo (josh): fac and depress... check implementation??
 	'alpha_stf': alternating((0.00667, 0.05), par['n_hidden']), # utilization time constant
 	'dynamic_synapse': np.ones(par['n_hidden'], dtype=np.float32),
 	'U': alternating((0.15, 0.45), par['n_hidden']),
