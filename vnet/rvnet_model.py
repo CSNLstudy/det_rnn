@@ -35,28 +35,28 @@ class RVNET(BaseModel):
         #self.build()
 
     def evaluate(self, trial_info):
-        sensory_input   = self.sensory_layer(trial_info['input_tuning'])
-        output, states  = self.rnn(sensory_input)
-        lossStruct      = self.calc_loss(trial_info,output)
+        sensory_input   = self.sensory_layer(trial_info['neural_input'][:,:,2:]) # todo: take out rule more robustly
+        outputs, states  = self.rnn(sensory_input)
+        lossStruct      = self.calc_loss(trial_info, outputs)
 
         # should return
         # (1) a loss struct; should contain the final aggregated loss (unregularized); loss_struct['loss']
             # regularization loss for submodules are calculated via
         # (2) output struct (logits)
         return lossStruct, \
-               {'output': output, 'states': states}
+               {'output': outputs, 'states': states}
 
     def calc_loss(self, trial_info, rnn_output):
         # inputs and outputs from the trial
         neural_input        = trial_info['input_tuning']
-        neural_output       = trial_info['desired_output']
+        neural_output       = trial_info['desired_output'][:,:,1:]
         output_tuning       = trial_info['output_tuning']
         labels              = tf.math.argmax(output_tuning,1)
 
-        [B,T,N]             = rnn_output.shape()
+        [B,T,N]             = rnn_output.shape
 
         # todo: how should I interpret the neural outputs? logits? unnormalized probability?
-        post_prob           = rnn_output/tf.math.sum(rnn_output,-1)
+        post_prob           = rnn_output/tf.math.reduce_sum(rnn_output,axis=-1, keepdims=True)
 
         # MSE loss
         loss_mse = tf.reduce_mean(tf.math.abs(neural_output - rnn_output))
@@ -69,6 +69,10 @@ class RVNET(BaseModel):
         post_mean       = tf.math.atan2(tf.matmul(post_prob, tf.sin(2 * post_support)),
                                         tf.matmul(post_prob, tf.cos(2 *  post_support))) / 2  # -pi/2 to pi/2
         ground_truth    = tf.matmul(tf.one_hot(labels, depth = self.hp['n_tuned_output']),post_support)
+
+        if len(post_mean.shape) == 3: # time series
+            ground_truth = tf.tile(tf.reshape(ground_truth,[-1,1,1]),[1,T, 1])
+
         raw_error       = post_mean - ground_truth
         errors          = tf.math.atan2(tf.math.sin(2 * raw_error), tf.math.cos(2 * raw_error)) / 2
         loss_pe         = tf.reduce_mean(tf.square(errors))
@@ -109,7 +113,7 @@ class RVNET(BaseModel):
         # build layers
         self.sensory_layer  = SensoryLayer(hp,par_train)
         self.rnncell        = RNNCell(hp, par_train)
-        self.rnn            = tf.keras.layers.RNN(self.rnncell)
+        self.rnn            = tf.keras.layers.RNN(self.rnncell, return_state=True, return_sequences = True, name = 'RNN')
 
         ## generate laplacian kernel for smoothness loss
         laplacmat = np.zeros((hp['n_tuned_output'], hp['n_tuned_output']))
@@ -119,6 +123,23 @@ class RVNET(BaseModel):
         for shift in range(hp['n_tuned_output']):
             laplacmat[:, shift] = np.roll(laplacmat[:, 0], shift=shift, axis=0)
         self.laplacian = tf.constant(laplacmat, dtype=self.dtype, name='laplacian')
+
+    def plot_summary(self, stim_test, filename):
+        test_data = utils_train.tensorize_trial(stim_test.generate_trial(), dtype=self.dtype)
+        lossStruct, test_Y = self.evaluate(test_data)
+
+        # output rnn matrix tuning
+        # plot distribution over time
+
+        ground_truth, estim_mean, raw_error, beh_perf = utils_analysis.behavior_summary(test_data, test_Y['states'],
+                                                                                        stim_test)
+        utils_analysis.behavior_figure(ground_truth, estim_mean, raw_error, beh_perf,
+                                       filename=filename + os.path.sep + 'behavior')
+        utils_analysis.biasvar_figure(ground_truth, estim_mean, raw_error, stim_test,
+                                      filename=filename + os.path.sep + 'BiasVariance')
+
+        # todo: return summary variables?
+        return None
 
 ############################ Submodules ############################
 
@@ -150,7 +171,6 @@ class SensoryLayer(tf.Module):
         self.input_tuning          = tf.convert_to_tensor(np.arange(0, 180, 180 / self.stim_size),
                                                           dtype=self.dtype)
 
-
     def build(self, input_shape):
         # no need to build other units. (we konw the input size, and nothing is dependent on the input size)
         self.built = True
@@ -165,21 +185,24 @@ class SensoryLayer(tf.Module):
                                   [B, T, 1, self.layer_size]) # B x n_tuned_input x sensory_n
 
         pref_dirs_out   = tf.tile(tf.reshape(self.sensory_tunings,[1,1,1,-1]),
-                                  [B, T, self.input_size, 1])
+                                  [B, T, N, 1])
 
-        out_tuning      = self.gain * (tf.ones([B,T,N],dtype=self.dtype) -
+        out_tuning      = self.gain * (tf.ones([B,T,N,1],dtype=self.dtype) -
                                        self.ani + self.ani* tf.math.cos(2*(pref_dirs_in-pref_dirs_out)))
 
         # weigh the tunings by the inputs and then take the sum.
-        out = tf.reduce_sum(tf.tile(inputs,[1,1,1,self.layer_size] * out_tuning),axis=3)
+        out = tf.reduce_sum(tf.tile(tf.reshape(inputs,[B,T,N,1]),
+                                    [1,1,1,self.layer_size]) * out_tuning,axis=3)
+        #tf.reshape(inputs, [B, T, N, 1])
 
         return out # shape = B x T x n_layer_size
 
 class RNNCell(tf.keras.layers.Layer):
-    def __init__(self, hp, **kwargs):
-        self.dtype          = hp['dtype']
+    def __init__(self, hp, par_train, **kwargs):
+        super(RNNCell, self).__init__(dtype = hp['dtype'], name='RNNCell')
+
         self.output_size    = hp['n_sensory'] # recurrent: same as inputsize
-        self.state_size     = None # indicate after STSP
+        self.state_size     = None # todo: indicate after STSP
 
         self.tau            = hp['neuron_tau']
         self.dt             = hp['dt']
@@ -203,8 +226,6 @@ class RNNCell(tf.keras.layers.Layer):
             self.state_size = [hp['n_sensory'],hp['n_sensory'],hp['n_sensory']]
         else:
             self.state_size = hp['n_sensory']  # todo: add STSP states to the cell
-
-        super(RNNCell, self).__init__(**kwargs)
 
         self.build_rnnmat(hp)
         self.build()
@@ -232,7 +253,7 @@ class RNNCell(tf.keras.layers.Layer):
             #                              initializer="uniform",
             #                              name='rnnmat') #todo: try add_weight?
 
-    def build(self, input_shape):
+    def build(self, input_shape = None):
         # no need to build other units. (we konw the input size, and nothing is dependent on the input size)
         self.built = True
 
@@ -245,17 +266,21 @@ class RNNCell(tf.keras.layers.Layer):
 
         prev_h = states[0]
         # decay and the new change.
-        h = (1-self.alpha)*prev_h + self.alpha * self.activation(tf.dot(prev_h, self.rnnmat) + inputs)
+        dh_pre = tf.matmul(prev_h, self.rnnmat) + inputs
 
         if self.noisetype is not None:
-            h = self.add_noise(h,inputs)
+            dh_pre = self.add_noise(dh_pre,inputs)
+        # tf.math.reduce_any(tf.math.is_nan(h))
 
+        h = (1-self.alpha)*prev_h + self.alpha * self.activation(dh_pre)
         return h, [h]
 
 class Noise(tf.Module):
     def __init__(self, hp,
                  noisetype = 'Normal_poisson',
                  n_neurons = 1):
+        self.dtype      = hp['dtype']
+
         self.noisetype      = noisetype
         self.n_neurons      = n_neurons # need if the noise is to be learned
         self.tau            = hp['neuron_tau']
@@ -282,7 +307,7 @@ class Noise(tf.Module):
 
     def __call__(self,sens_act, neural_input = None):
         gauss_noise = tf.random.normal(sens_act.shape, 0,
-                                       tf.sqrt(2 * self.hp['alpha_neuron']),
+                                       tf.sqrt(2 * self.alpha),
                                        dtype=self.dtype)
 
         if self.noisetype == 'Normal_fixed':
@@ -290,7 +315,7 @@ class Noise(tf.Module):
         elif self.noisetype == 'Normal_learn':  # assume average of poisson neurons; scale by time constants
             self.noise_sd = self.noisenet(neural_input)
         elif self.noisetype == 'Normal_poisson':  # assume average of poisson neurons; scale by time constants
-            self.noise_sd = tf.math.sqrt(sens_act)
+            self.noise_sd = tf.math.sqrt(tf.math.abs(sens_act)) # todo: make sure the activations are above 0.
         else:
             self.noise_sd = 1
 

@@ -86,7 +86,7 @@ par = {
 	'alpha_neuron'  : 0.1,    # changed from tf.constant TODO(HL): alpha changed from 0.2 to 0.1 (Masse)
 
 	# Optimizer
-	'optimizer' : 'Adam', # TODO(HG):  other optim. options?
+	'optimizer' : 'Adam' # TODO(HG):  other optim. options?
 }
 
 
@@ -150,15 +150,20 @@ def update_parameters(par):
 	if par['stim_dist'] == 'uniform':
 		par['stim_p'] = np.ones(par['n_ori'])
 	elif par['stim_dist'] == 'natural':
-		# use a rough quadratic approximation of Girshick et al. 2011... todo: make it more accurate.
-		dori = 180 / par['n_ori']
-		a = par['natural_a']
-		stim_dirs = np.float32(np.arange(0, 180, dori))
-		midindx = np.argmin(np.abs(stim_dirs - 90))
-		par['stim_p'] = np.zeros(par['n_ori'])
-		par['stim_p'][:midindx] += a * (np.arange(0, stim_dirs[midindx], stim_dirs[midindx] / midindx) - 45) ** 2 + 1
-		par['stim_p'][midindx:] += a * (np.arange(stim_dirs[midindx + 1],
-									  180, (180 - stim_dirs[midindx + 1]) / (par['n_ori'] - midindx)) - 135) ** 2 + 1
+		# use 2- |sin(2*theta)|
+		dori = np.pi / par['n_ori']
+		#c = par['natural_a'] # change slope of the approximation
+		c = 1 # Wei and Stocker (2015)
+		stim_dirs = np.float32(np.arange(0, np.pi, dori))
+		par['stim_p'] = (2 -c * np.abs(np.sin(2 * stim_dirs)))
+
+		# use a rough quadratic approximation of Girshick et al. 2011...
+		#a = par['natural_a']
+		#midindx = np.argmin(np.abs(stim_dirs - 90))
+		#par['stim_p'] = np.zeros(par['n_ori'])
+		#par['stim_p'][:midindx] += a * (np.arange(0, stim_dirs[midindx], stim_dirs[midindx] / midindx) - 45) ** 2 + 1
+		#par['stim_p'][midindx:] += a * (np.arange(stim_dirs[midindx + 1],
+		#							  180, (180 - stim_dirs[midindx + 1]) / (par['n_ori'] - midindx)) - 135) ** 2 + 1
 	else:
 		par['stim_p'] = par['stim_dist']
 

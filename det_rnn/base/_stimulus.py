@@ -145,6 +145,7 @@ class Trial(object):
 
         # initialize neural input with noise, and stimulus tuning without noise
         neural_input = random.standard_normal(size=(stim.n_timesteps, self.batch_size, stim.n_input))*stim.noise_sd + stim.noise_mean
+        # rules_input = self._gen_input_rule(stim)
         neural_input[:,:,:stim.n_rule_input] += self._gen_input_rule(stim) # add rules
         stimulus_tunings = np.zeros(shape=(self.batch_size, stim.n_input))
 
@@ -174,7 +175,10 @@ class Trial(object):
 
         if self.n_subblock > 1: # multi-trial settings #josh: i.e. concatenate runs in the sublock ??? todo: check this...
             neural_input = neural_input.transpose((1,0,2)).reshape((self.n_subblock,-1,stim.n_input)).transpose((1,0,2))
-            desired_output = desired_output.transpose((1,0,2)).reshape((self.n_subblock,-1,stim.n_tuned_output)).transpose((1,0,2))
+            desired_output = desired_output.transpose((1,0,2)).reshape((self.n_subblock,-1,stim.n_output)).transpose((1,0,2))
+
+        neural_input = np.transpose(neural_input, (1,0,2)) # B x T x n_tuned_input
+        desired_output = np.transpose(desired_output, (1, 0, 2))
 
         return neural_input, desired_output, input_tuning, output_tuning
 

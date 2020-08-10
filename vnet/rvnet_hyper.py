@@ -46,21 +46,20 @@ def rvnet_hp(par = None):
         # neuron, stsp
         'neuron_stsp' 	    : False, # parameter todo: implement Dale's law
 
-
         ##########################################################################################
         # network; inherited from par (stimulus structures)
         'n_input'			: par['n_input'],
         'n_tuned_inp'		: par['n_tuned_input'],
         'n_sensory'			: 100,  # number of neurons in the sensory layer
         'n_hidden'			: par['n_hidden'],
-        'n_tuned_outpt'	    : par['n_tuned_output'],
+        'n_tuned_output'	: par['n_tuned_output'],
 
         'n_rule_inp'		: par['n_rule_input'],
         'n_rule_outp'		: par['n_rule_output'],
 
         # sensory layer
         'sensory_input_ani'     : 0.01, # input anisotropy epsilon (Ben-Yishai, 1995)
-        'sensory_input_gain'    : 2, # or learn c (Ben-Yishai, 1995)
+        'sensory_input_gain'    : 2, # fix gain or learn c (Ben-Yishai, 1995)
 
         'sensory_noise_type'    : 'Normal_poisson',
         # 'Normal_fixed':       fix to neural noise_sd below

@@ -121,7 +121,6 @@ class BaseModel(tf.Module):
                 for (name, val) in test_lossStruct.items():
                     tf.summary.scalar('test ' + name, val, step=t)
 
-
             # logging stuff
             prog.update(t, exact=[("Train Loss", loss_struct['loss']),
                                   ("Test Loss", test_lossStruct['loss']),
@@ -201,14 +200,22 @@ class BaseModel(tf.Module):
     def save_model(self, t, stim_test):
         filename = self.hp['model_output'] + os.path.sep +'iter' + str(t)
         tf.saved_model.save(self, filename)
+        self.plot_summary(stim_test, filename=filename)
 
-        # todo: output behavior plot
-        test_data               = utils_train.tensorize_trial(stim_test.generate_trial(), dtype = self.dtype)
-        test_input              = test_data['input_tuning']
-        lossStruct, test_Y      = self.evaluate(test_input)
+        def plot_summary(self, stim_test, filename):
+            # todo: output behavior plot
+            test_data = utils_train.tensorize_trial(stim_test.generate_trial(), dtype=self.dtype)
+            lossStruct, test_Y = self.evaluate(test_data['input_tuning'])
 
-        ground_truth, estim_mean, raw_error, beh_perf   = utils_analysis.behavior_summary(test_data, test_Y, stim_test)
-        utils_analysis.behavior_figure(ground_truth, estim_mean, raw_error, beh_perf,
-                                       filename = filename + os.path.sep + 'behavior')
-        utils_analysis.biasvar_figure(ground_truth, estim_mean, raw_error, stim_test,
-                                      filename = filename + os.path.sep + 'Bias Variance')
+            # test_Y['output']
+            # test_Y['states']
+
+            ground_truth, estim_mean, raw_error, beh_perf = utils_analysis.behavior_summary(test_data, test_Y['states'],
+                                                                                            stim_test)
+            utils_analysis.behavior_figure(ground_truth, estim_mean, raw_error, beh_perf,
+                                           filename=filename + os.path.sep + 'behavior')
+            utils_analysis.biasvar_figure(ground_truth, estim_mean, raw_error, stim_test,
+                                          filename=filename + os.path.sep + 'BiasVariance')
+
+            # todo: return summary variables?
+            return None
