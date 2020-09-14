@@ -1,4 +1,4 @@
-import sys
+import sys, os, time
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
@@ -39,6 +39,7 @@ def decisionize_ti(trial_info, par=par):
 
 
 ## Training : please ignore WARNINGs (due to None gradient problems)
+par['noise_sd'] = 0.005
 par = update_parameters(par)
 stimulus = Stimulus()
 trial_info = decisionize_ti(stimulus.generate_trial())
@@ -46,9 +47,20 @@ trial_info = decisionize_ti(stimulus.generate_trial())
 ti_spec  = dt.gen_ti_spec(decisionize_ti(stimulus.generate_trial()))
 model_performance = {'perf': [], 'loss': [], 'perf_loss': [], 'spike_loss': []}
 
+
 model = dt.initialize_rnn(ti_spec)
 task_type = 'Discrim'
-for iter in range(1500):
+for iter in range(2000):
+    if iter % 2 == 0: # perception
+        et = 0
+    elif iter % 2 == 1: # WM
+        et = 3.0
+    par['design'].update({'delay': (3.0, 3.0+et),'estim': (3.0+et, 7.5+et)})
+    if iter == 700:
+        par['noise_sd'] = 0.01
+    if iter == 1400:
+        par['noise_sd'] = 0.05
+    par = update_parameters(par); stimulus = Stimulus()        
     trial_info = dt.tensorize_trial(decisionize_ti(stimulus.generate_trial()))
     Y, Loss = model(trial_info, dt.hp)
     model_performance = dt.append_model_performance(model_performance, trial_info, Y, Loss, par, dt.hp['task_type'])
@@ -62,8 +74,4 @@ for iter in range(1500):
 
 ## save model
 model.model_performance = dt.tensorize_model_performance(model_performance)
-tf.saved_model.save(model, "/Volumes/Data_CSNL/project/RNN_study/20-07-24/HG/output/example_alternation")
-
-
-
-
+tf.saved_model.save(model, "/Volumes/Data_CSNL/project/RNN_study/20-07-24/HG/output/boost")

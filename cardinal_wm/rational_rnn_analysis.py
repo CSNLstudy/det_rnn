@@ -42,8 +42,15 @@ def decisionize_ti(trial_info, par=par):
 
 ## 0. Load model
 load_model = tf.saved_model.load("/Volumes/Data_CSNL/project/RNN_study/20-07-24/HG/output/example_alternation")
+load_model = tf.saved_model.load("/Volumes/Data_CSNL/project/RNN_study/20-07-24/HG/output/perception_wm/1")
+load_model = tf.saved_model.load("/Volumes/Data_CSNL/project/RNN_study/20-07-24/HG/output/boost/boost1/model_level1")
 
 ## 1. Sanity check
+par['design'].update({'stim': (1.5,3.0), 'delay': (3.0, 3.0),'estim': (3.0, 4.5)})
+par['design'].update({'stim': (1.5,3.0), 'delay': (3.0, 7.5),'estim': (7.5, 9.0)})
+# par['design'].update({'stim': (1.5,2.0), 'delay': (3.0, 3.0),'estim': (3.0, 3.5)})
+# par['design'].update({'delay': (3.0, 4.5),'estim': (4.5, 5.0)})
+par = update_parameters(par); stimulus = Stimulus()
 par = update_parameters(par)
 stimulus = Stimulus(par)
 trial_info = dt.tensorize_trial(decisionize_ti(stimulus.generate_trial()))
@@ -92,6 +99,7 @@ plt.show()
 
 
 ## 2. Behavior analysis
+par['noise_sd'] = 0.00001
 dt.hp['task_type'] = 2
 
 ### Accumulate 128 pred_outputs for each stimulus (128 x 24 in total)
@@ -116,19 +124,13 @@ ground_truth, estim_mean, raw_error, beh_perf = \
     da.behavior_summary({'stimulus_ori': stimulus_ori_total}, pred_output_total, par=par)
 da.behavior_figure(ground_truth, estim_mean, raw_error, beh_perf)
 
-
 ## 3. Neural analysis
-fig, ax = plt.subplots(1,4, figsize=(15,5))
-
+fig, ax = plt.subplots(1,3, figsize=(12,5))
 ax[0].imshow(np.corrcoef(H_total[100,:,:])); ax[0].set_title("ITI")
-ax[1].imshow(np.corrcoef(H_total[200,:,:])); ax[1].set_title("Stimulus")
-ax[2].imshow(np.corrcoef(H_total[400,:,:])); ax[2].set_title("Delay")
-ax[3].imshow(np.corrcoef(H_total[500,:,:])); ax[3].set_title("Estimation")
-
+ax[1].imshow(np.corrcoef(H_total[225,:,:])); ax[1].set_title("Stimulus")
+ax[2].imshow(np.corrcoef(H_total[375,:,:])); ax[2].set_title("Estimation")
 plt.tight_layout(pad=2.0)
 plt.show()
-
-
 
 
 
