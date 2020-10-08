@@ -17,78 +17,91 @@ class Stimulus(object):
             setattr(self, k, v)
 
     def generate_trial(self):
-        stimulus_ori    = self._gen_stimseq()
-        neural_input    = self._gen_stim(stimulus_ori)
-        desired_output  = self._gen_output(stimulus_ori)
+        stimulus        = self._gen_stimseq()
+        neural_input    = self._gen_stim(stimulus)
+        desired_output  = self._gen_output(stimulus)
         mask            = self._gen_mask()
-        return {'neural_input'  : neural_input.astype(np.float32),
-                'stimulus_ori'  : stimulus_ori,
-                'desired_output': desired_output.astype(np.float32),
-                'mask'          : mask}
+        return {'neural_input'    : neural_input.astype(np.float32),
+                'stimulus_ori'    : stimulus['stimulus_ori'],
+                'reference_ori'   : stimulus['reference_ori'],
+                'desired_decision': desired_output['decision'].astype(np.float32),
+                'desired_estim'   : desired_output['estim'].astype(np.float32),
+                'mask_decision'   : mask['decision'].astype(np.float32),
+                'mask_estim'      : mask['estim'].astype(np.float32)}
 
     def _gen_stimseq(self):
-        stimulus_ori = np.random.choice(np.arange(self.n_ori), p=self.stim_p, size=self.batch_size)
-        return stimulus_ori
+        stimulus_ori  = np.random.choice(np.arange(self.n_ori), p=self.stim_p, size=self.batch_size)
+        reference_ori = np.random.choice(self.reference, p=self.ref_p, size=self.batch_size)
+        return {'stimulus_ori': stimulus_ori, 'reference_ori': reference_ori}
 
-    def _gen_stim(self, stimulus_ori):
-        # TODO(HG): need to be changed if n_ori =/= n_tuned
+    def _gen_stim(self, stimulus):
         neural_input = random.standard_normal(size=(self.n_timesteps, self.batch_size, self.n_input))*self.noise_sd + self.noise_mean
         neural_input[:,:,:self.n_rule_input] += self._gen_input_rule()
         for t in range(self.batch_size):
-            neural_input[self.design_rg['stim'],t,self.n_rule_input:] += self.tuning_input[:,0,stimulus_ori[t]].reshape((1,-1))
+            neural_input[self.design_rg['stim'],t,self.n_rule_input:] += self.tuning_input[:,0,stimulus['stimulus_ori'][t]].reshape((1,-1))
+            neural_input[self.design_rg['decision'],t,self.n_rule_input+(stimulus['stimulus_ori'][t]+stimulus['reference_ori'][t])%self.n_ori] += self.strength_ref
         if self.n_subblock > 1: # multi-trial settings
-            neural_input = neural_input.transpose((1,0,2)).\
-                reshape((self.n_subblock,-1,self.n_input)).transpose((1,0,2))
+            neural_input = neural_input.transpose((1,0,2)).reshape((self.n_subblock,-1,self.n_input)).transpose((1,0,2))
         return neural_input
 
-    def _gen_output(self, stimulus_ori):
-        desired_output = np.zeros((self.n_timesteps,self.batch_size,self.n_output), dtype=np.float32)
-        desired_output[:, :, :self.n_rule_output] = self._gen_output_rule()
+    def _gen_output(self, stimulus):
+        desired_decision = np.zeros((self.n_timesteps,self.batch_size,self.n_output_dm), dtype=np.float32)
+        desired_estim    = np.zeros((self.n_timesteps,self.batch_size,self.n_output_em), dtype=np.float32)
+        desired_decision[:, :, :self.n_rule_output_dm] = self._gen_output_rule('decision')
+        desired_estim[:, :, :self.n_rule_output_em]    = self._gen_output_rule('estim')
         for t in range(self.batch_size):
+            desired_decision[self.dm_output_rg, t, self.n_rule_output_dm + (0 < stimulus['reference_ori'][t])] += self.strength_decision
             if self.resp_decoding == 'conti':
-                desired_output[self.output_rg, t, self.n_rule_output:] = stimulus_ori[t] * np.pi / np.float32(self.n_tuned_output)
+                desired_estim[self.em_output_rg, t, self.n_rule_output_em:] = stimulus['stimulus_ori'][t] * np.pi / np.float32(self.n_tuned_output)
             elif self.resp_decoding in ['disc', 'onehot']:
-                desired_output[self.output_rg, t, self.n_rule_output:] = self.tuning_output[:, 0, stimulus_ori[t]].reshape((1, -1))
+                desired_estim[self.em_output_rg, t, self.n_rule_output_em:] = self.tuning_output[:, 0, stimulus['stimulus_ori'][t]].reshape((1, -1))
         if self.n_subblock > 1: # multi-trial settings
-            desired_output = desired_output.transpose((1,0,2)).\
-                reshape((self.n_subblock,-1,self.n_output)).transpose((1,0,2))
-        return desired_output
+            desired_decision = desired_decision.transpose((1,0,2)).reshape((self.n_subblock,-1,self.n_output_dm)).transpose((1,0,2))
+            desired_estim    = desired_estim.transpose((1,0,2)).reshape((self.n_subblock,-1,self.n_output_em)).transpose((1,0,2))
+        return {'decision' : desired_decision, 'estim' : desired_estim}
 
     def _gen_mask(self):
-        mask = np.zeros((self.n_timesteps, self.batch_size, self.n_output), dtype=np.float32)
+        mask_decision = np.zeros((self.n_timesteps, self.batch_size, self.n_output_dm), dtype=np.float32)
+        mask_estim    = np.zeros((self.n_timesteps, self.batch_size, self.n_output_em), dtype=np.float32)
         # set "specific" period
-        for step in ['iti','stim','delay','estim']:
-            mask[self.design_rg[step], :, self.n_rule_output:] = self.mask[step]
-            mask[self.design_rg[step], :, :self.n_rule_output] = self.mask['rule_'+step]
+        for step in ['iti','stim','delay','decision','estim']:
+            mask_decision[self.design_rg[step], :, self.n_rule_output_dm:] = self.mask_dm[step]
+            mask_decision[self.design_rg[step], :, :self.n_rule_output_dm] = self.mask_dm['rule_'+step]
+            mask_estim[self.design_rg[step], :, self.n_rule_output_em:] = self.mask_em[step]
+            mask_estim[self.design_rg[step], :, :self.n_rule_output_em] = self.mask_em['rule_' + step]
         # set "globally dead" period
-        mask[self.dead_rg, :, :] = 0
+        mask_decision[self.dead_rg, :, :] = 0
+        mask_estim[self.dead_rg, :, :] = 0
         if self.n_subblock > 1: # multi-trial settings
-            mask = mask.transpose((1,0,2)).\
-                reshape((self.n_subblock,-1,self.n_output)).transpose((1,0,2))
-        return mask
+            mask_decision = mask_decision.transpose((1,0,2)).reshape((self.n_subblock,-1,self.n_output_dm)).transpose((1,0,2))
+            mask_estim = mask_estim.transpose((1,0,2)).reshape((self.n_subblock,-1,self.n_output_em)).transpose((1,0,2))
+        return {'decision' : mask_decision, 'estim' : mask_estim}
+
 
     def _gen_input_rule(self):
         if self.n_rule_input == 0:
             return np.array([]).reshape((self.n_timesteps,self.batch_size,0))
-
         else:
             rule_mat = np.zeros([self.n_timesteps, self.batch_size, self.n_rule_input])
             for i,k in enumerate(self.input_rule_rg):
                 rule_mat[self.input_rule_rg[k], :, i] = self.input_rule_strength
             return rule_mat
 
-    def _gen_output_rule(self):
-        if self.n_rule_output == 0:
-            return np.array([]).reshape((self.n_timesteps,self.batch_size,0))
+    def _gen_output_rule(self, type):
+        if type == 'estim':
+            if self.n_rule_output_em == 0: return np.array([]).reshape((self.n_timesteps,self.batch_size,0))
+            else:
+                rule_mat = np.zeros([self.n_timesteps, self.batch_size, self.n_rule_output_em])
+                for i,k in enumerate(self.output_em_rule_rg):
+                    rule_mat[self.output_em_rule_rg[k], :, i] = self.output_em_rule_strength
+        elif type == 'decision':
+            if self.n_rule_output_dm == 0: return np.array([]).reshape((self.n_timesteps, self.batch_size, 0))
+            else:
+                rule_mat = np.zeros([self.n_timesteps, self.batch_size, self.n_rule_output_dm])
+                for i, k in enumerate(self.output_dm_rule_rg):
+                    rule_mat[self.output_dm_rule_rg[k], :, i] = self.output_dm_rule_strength
+        return rule_mat
 
-        else:
-            rule_mat = np.zeros([self.n_timesteps, self.batch_size, self.n_rule_output])
-            for i,k in enumerate(self.output_rule_rg):
-                rule_mat[self.output_rule_rg[k], :, i] = self.output_rule_strength
-            return rule_mat
-
-
-    # TODO(HG): simplify here (Make n_ori flexible!!!)
     def _generate_tuning(self):
         _tuning_input  = np.zeros((self.n_tuned_input,  self.n_receptive_fields, self.n_ori))
         _tuning_output = np.zeros((self.n_tuned_output, self.n_receptive_fields, self.n_ori))

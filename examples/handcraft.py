@@ -195,7 +195,7 @@ Yrnn_normalize = Yrnn/(np.sum(Yrnn,axis=-1,keepdims=True)+np.finfo(float).eps) #
 fig, axes = plt.subplots(3,1, figsize=(10,8))
 TEST_TRIAL = np.random.randint(par['batch_size'])
 axes[0].imshow(trial_info['neural_input'][:,TEST_TRIAL,:].T, aspect='auto'); axes[0].set_title("Neural Input")
-axes[1].imshow(trial_info['desired_output'][:,TEST_TRIAL,:].T, aspect='auto'); axes[1].set_title("Desired Output")
+axes[1].imshow(trial_info['desired_estim'][:,TEST_TRIAL,:].T, aspect='auto'); axes[1].set_title("Desired Output")
 axes[2].imshow(Yrnn_normalize[:,TEST_TRIAL,:].T,  aspect='auto', vmax=0.13)
 fig.tight_layout(pad=2.0)
 plt.show()

@@ -25,7 +25,7 @@ def desired_discrim(theta, power=10):
     return res
 
 def decisionize(trial_info, par=par):
-    decision_output = np.zeros(trial_info['desired_output'].shape[:2] + (12, 3))
+    decision_output = np.zeros(trial_info['desired_estim'].shape[:2] + (12, 3))
     decision_output[:,:,:,0] = 1. # pad rule component
     decision_output[par['design_rg']['estim'],:,:,0] = 0
     for i,s in enumerate(trial_info['stimulus_ori']):
@@ -67,14 +67,14 @@ plt.imshow(load_model.var_dict['w_out_est'].numpy().T)
 plt.colorbar(); plt.show()
 
 ### Estimation Figure 
-dt.hp['task_type'] = 2
+dt.hp['task_type'] = 1
 pred_output, H, _, _ = load_model.rnn_model(trial_info['neural_input'], dt.hp)
 pred_output = da.softmax_pred_output(pred_output)
 
 fig, axes = plt.subplots(3,1, figsize=(10,8))
 TEST_TRIAL = np.random.randint(par['batch_size'])
 axes[0].imshow(trial_info['neural_input'][:,TEST_TRIAL,:].numpy().T, aspect='auto'); axes[0].set_title("Neural Input")
-axes[1].imshow(trial_info['desired_output'][:,TEST_TRIAL,:].numpy().T, aspect='auto'); axes[1].set_title("Desired Output")
+axes[1].imshow(trial_info['desired_estim'][:,TEST_TRIAL,:].numpy().T, aspect='auto'); axes[1].set_title("Desired Output")
 axes[2].imshow(pred_output[:,TEST_TRIAL,:].T,  aspect='auto', vmin=0, vmax=0.15)
 fig.tight_layout(pad=2.0)
 plt.show()
@@ -94,7 +94,7 @@ plt.show()
 
 
 ## 2. Behavior analysis
-dt.hp['task_type'] = 2
+dt.hp['task_type'] = 1
 
 ### Accumulate 128 pred_outputs for each stimulus (128 x 24 in total)
 ### Accumulate 10 Hs for each stimulus (10 x 24 in total)

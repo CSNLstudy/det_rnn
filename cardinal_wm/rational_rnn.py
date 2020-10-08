@@ -25,7 +25,7 @@ def desired_discrim(theta, power=10):
     return res
 
 def decisionize(trial_info, par=par):
-    decision_output = np.zeros(trial_info['desired_output'].shape[:2] + (12, 3))
+    decision_output = np.zeros(trial_info['desired_estim'].shape[:2] + (12, 3))
     decision_output[:,:,:,0] = 1. # pad rule component
     decision_output[par['design_rg']['estim'],:,:,0] = 0
     for i,s in enumerate(trial_info['stimulus_ori']):
@@ -57,7 +57,7 @@ for iter in range(1500):
         if iter % 60 == 0:
             dt.hp['task_type'] = 0; task_type = 'Discrim'
         else:
-            dt.hp['task_type'] = 2; task_type = 'Estim'
+            dt.hp['task_type'] = 1; task_type = 'Estim'
 
 
 ## save model
