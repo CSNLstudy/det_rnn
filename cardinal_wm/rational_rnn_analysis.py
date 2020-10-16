@@ -25,7 +25,7 @@ def desired_discrim(theta, power=10):
     return res
 
 def decisionize(trial_info, par=par):
-    decision_output = np.zeros(trial_info['desired_output'].shape[:2] + (12, 3))
+    decision_output = np.zeros(trial_info['desired_estim'].shape[:2] + (12, 3))
     decision_output[:,:,:,0] = 1. # pad rule component
     decision_output[par['design_rg']['estim'],:,:,0] = 0
     for i,s in enumerate(trial_info['stimulus_ori']):
@@ -40,17 +40,12 @@ def decisionize_ti(trial_info, par=par):
 
 # Analysis
 
-## 0. Load model
-load_model = tf.saved_model.load("/Volumes/Data_CSNL/project/RNN_study/20-07-24/HG/output/example_alternation")
-load_model = tf.saved_model.load("/Volumes/Data_CSNL/project/RNN_study/20-07-24/HG/output/perception_wm/1")
-load_model = tf.saved_model.load("/Volumes/Data_CSNL/project/RNN_study/20-07-24/HG/output/boost/boost1/model_level1")
+## 0. Load model (Compare the following)
+load_model = tf.saved_model.load("/Volumes/Data_CSNL/project/RNN_study/20-07-24/HG/alternate_rnns/rnn1")
+# load_model = tf.saved_model.load("/Volumes/Data_CSNL/project/RNN_study/20-07-24/HG/alternate_rnns/rnn2")
+# load_model = tf.saved_model.load("/Volumes/Data_CSNL/project/RNN_study/20-07-24/HG/alternate_rnns/rnn3")
 
 ## 1. Sanity check
-par['design'].update({'stim': (1.5,3.0), 'delay': (3.0, 3.0),'estim': (3.0, 4.5)})
-par['design'].update({'stim': (1.5,3.0), 'delay': (3.0, 7.5),'estim': (7.5, 9.0)})
-# par['design'].update({'stim': (1.5,2.0), 'delay': (3.0, 3.0),'estim': (3.0, 3.5)})
-# par['design'].update({'delay': (3.0, 4.5),'estim': (4.5, 5.0)})
-par = update_parameters(par); stimulus = Stimulus()
 par = update_parameters(par)
 stimulus = Stimulus(par)
 trial_info = dt.tensorize_trial(decisionize_ti(stimulus.generate_trial()))
@@ -72,14 +67,14 @@ plt.imshow(load_model.var_dict['w_out_est'].numpy().T)
 plt.colorbar(); plt.show()
 
 ### Estimation Figure 
-dt.hp['task_type'] = 2
+dt.hp['task_type'] = 1
 pred_output, H, _, _ = load_model.rnn_model(trial_info['neural_input'], dt.hp)
 pred_output = da.softmax_pred_output(pred_output)
 
 fig, axes = plt.subplots(3,1, figsize=(10,8))
 TEST_TRIAL = np.random.randint(par['batch_size'])
 axes[0].imshow(trial_info['neural_input'][:,TEST_TRIAL,:].numpy().T, aspect='auto'); axes[0].set_title("Neural Input")
-axes[1].imshow(trial_info['desired_output'][:,TEST_TRIAL,:].numpy().T, aspect='auto'); axes[1].set_title("Desired Output")
+axes[1].imshow(trial_info['desired_estim'][:,TEST_TRIAL,:].numpy().T, aspect='auto'); axes[1].set_title("Desired Output")
 axes[2].imshow(pred_output[:,TEST_TRIAL,:].T,  aspect='auto', vmin=0, vmax=0.15)
 fig.tight_layout(pad=2.0)
 plt.show()
@@ -99,8 +94,7 @@ plt.show()
 
 
 ## 2. Behavior analysis
-par['noise_sd'] = 0.00001
-dt.hp['task_type'] = 2
+dt.hp['task_type'] = 1
 
 ### Accumulate 128 pred_outputs for each stimulus (128 x 24 in total)
 ### Accumulate 10 Hs for each stimulus (10 x 24 in total)
@@ -124,13 +118,19 @@ ground_truth, estim_mean, raw_error, beh_perf = \
     da.behavior_summary({'stimulus_ori': stimulus_ori_total}, pred_output_total, par=par)
 da.behavior_figure(ground_truth, estim_mean, raw_error, beh_perf)
 
+
 ## 3. Neural analysis
-fig, ax = plt.subplots(1,3, figsize=(12,5))
+fig, ax = plt.subplots(1,4, figsize=(15,5))
+
 ax[0].imshow(np.corrcoef(H_total[100,:,:])); ax[0].set_title("ITI")
-ax[1].imshow(np.corrcoef(H_total[225,:,:])); ax[1].set_title("Stimulus")
-ax[2].imshow(np.corrcoef(H_total[375,:,:])); ax[2].set_title("Estimation")
+ax[1].imshow(np.corrcoef(H_total[200,:,:])); ax[1].set_title("Stimulus")
+ax[2].imshow(np.corrcoef(H_total[400,:,:])); ax[2].set_title("Delay")
+ax[3].imshow(np.corrcoef(H_total[500,:,:])); ax[3].set_title("Estimation")
+
 plt.tight_layout(pad=2.0)
 plt.show()
+
+
 
 
 
