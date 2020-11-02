@@ -16,7 +16,7 @@ def behavior_summary(trial_info, pred_output, par):
     cenoutput = softmax_pred_output(pred_output)
     
     # posterior mean as a function of time
-    post_prob = cenoutput[:,:,par['n_rule_output']:]
+    post_prob = cenoutput[:,:,par['n_rule_output_em']:]
     post_prob = post_prob/(np.sum(post_prob, axis=2, keepdims=True)+np.finfo(np.float32).eps) # Dirichlet normaliation
     post_support = np.linspace(0,np.pi,par['n_ori'],endpoint=False) + np.pi/par['n_ori']/2
     post_sinr = np.sin(2*post_support)
