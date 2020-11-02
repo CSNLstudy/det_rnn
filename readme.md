@@ -1,4 +1,4 @@
-# `det_rnn`: A **recurrent neural network** model for the **delayed estimation task**.
+# `det_rnn`: A **recurrent neural network** model for the **delayed estimation task**
 
 Here, a task-optimized biologically plausible recurrent neural network(RNN) model simulates human behaviors. 
 
@@ -29,6 +29,3 @@ analysis/
 + The other parts are for training a model(which is inherited from `tf.module`)
 
 Please check `examples/` for some examples for training and improving RNNs.
-
-
-### E-mail
