@@ -113,8 +113,6 @@ plt.tight_layout(pad=2.0); plt.show()
 # plt.show()
 # PatternMat.shape
 
-
-
 #############################
 # Decision-congruent biases
 #############################
@@ -123,7 +121,7 @@ behav_DF     = pd.DataFrame({})
 behav_stdmat = np.ones((30,24,9)) * np.nan
 behav_iqrmat = np.ones((30,24,9)) * np.nan
 for i in range(30):
-    with open('/Volumes/Data_CSNL/project/RNN_study/20-10-15/HG/output/behavior/sequential'+str(i)+'.pkl', 'rb') as f:
+    with open('/Volumes/Data_CSNL/project/RNN_study/20-10-15/HG/output/decision_standard/analyses/behavior/sequential'+str(i)+'.pkl', 'rb') as f:
         behav_dict[str(i)] = pickle.load(f)
     behav_DF = behav_DF.append(behav_dict[str(i)])
     for i_s, s_t in enumerate(stim_list):
