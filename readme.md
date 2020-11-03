@@ -1,15 +1,19 @@
 # `det_rnn`: A **recurrent neural network** model for the **delayed estimation task**
 
-Here, a task-optimized biologically plausible recurrent neural network(RNN) model simulates human behaviors. 
+**`det_rnn`** is a task-optimized biologically plausible recurrent neural network(RNN) model that simulates human behaviors. It is develped by a project group at [Cognitive and Systems Neuroscience Lab(CSNL)](https://www.snu-csnl.com/), Seoul National University. Written in `Python 3.8.0`, it is mainly based on [`Masse *et al.*, 2019, Nature Neuroscience`](https://github.com/nmasse/Short-term-plasticity-RNN). 
 
-+ Led by a project group at [Cognitive and Systems Neuroscience Lab(CSNL)](https://www.snu-csnl.com/), Seoul National University
-+ Written in `Python 3.8.0`, mainly based on [`Masse *et al.*, 2019, Nature Neuroscience`](https://github.com/nmasse/Short-term-plasticity-RNN). 
-+ Requires `Tensorflow 2.x.x`
+---
+### Features
+
+- **RNN model that simulates human working memory task** that involves both decision-making and working memory 
+- **Key human behavioral features** are emergent from the model
+  - **Decision-congruent bias**: reproduction error patterns consistent to the self-made decisions
+  - **Decision-induced variability**: an apparent suboptimality where subjects' reproduction errors are more variable after the decision-making with "near" reference.
 
 ---
 ### How to run
 
-First, make sure you specify the saving directory `save_dir` at 27th line of `main.py`. Then, at the console run 
+`Tensorflow 2.x.x` required. First, make sure you specify the saving directory `save_dir` at 27th line of `main.py`. Then, at the console run 
 
 ```
 python main.py
