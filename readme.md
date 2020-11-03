@@ -5,7 +5,7 @@
 ---
 ### Features
 
-- **RNN model that simulates human working memory task** that involves both decision-making and working memory 
+- **RNN-based emulation of human working memory task** that involves both decision-making and working memory 
 - **Key human behavioral features** are emergent from the model
   - **Decision-congruent bias**: reproduction error patterns consistent to the self-made decisions
   - **Decision-induced variability**: an apparent suboptimality where subjects' reproduction errors are more variable after the decision-making with "near" reference.
