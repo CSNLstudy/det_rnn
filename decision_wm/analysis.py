@@ -118,10 +118,10 @@ plt.tight_layout(pad=2.0); plt.show()
 #############################
 behav_dict   = {}
 behav_DF     = pd.DataFrame({})
-behav_stdmat = np.ones((30,24,9)) * np.nan
-behav_iqrmat = np.ones((30,24,9)) * np.nan
-for i in range(30):
-    with open('/Volumes/Data_CSNL/project/RNN_study/20-10-15/HG/output/decision_standard/analyses/behavior/sequential'+str(i)+'.pkl', 'rb') as f:
+behav_stdmat = np.ones((20,24,9)) * np.nan
+behav_iqrmat = np.ones((20,24,9)) * np.nan
+for i in range(20):
+    with open('/Volumes/Data_CSNL/project/RNN_study/20-10-15/HG/output/decision_short/analyses/behavior/sequential'+str(i)+'.pkl', 'rb') as f:
         behav_dict[str(i)] = pickle.load(f)
     behav_DF = behav_DF.append(behav_dict[str(i)])
     for i_s, s_t in enumerate(stim_list):
@@ -181,6 +181,8 @@ with plt.style.context('fivethirtyeight'):
 
 behav_stddat = pd.DataFrame({'STDNear':np.mean(behav_stdmat[:,:,np.array([3,5])],axis=(1,2)),
                              'STDFar' :np.mean(behav_stdmat[:,:,np.array([0,8])],axis=(1,2)),})
+behav_iqrdat = pd.DataFrame({'IQRNear':np.mean(behav_iqrmat[:,:,np.array([3,5])],axis=(1,2)),
+                             'IQRFar' :np.mean(behav_iqrmat[:,:,np.array([0,8])],axis=(1,2)),})
 husl = mc.ListedColormap(sns.color_palette("husl",30))
 with plt.style.context('fivethirtyeight'):
     fig = plt.figure(figsize=(8, 8))
@@ -202,6 +204,8 @@ with plt.style.context('fivethirtyeight'):
     
 # let us rely on R...
 # behav_prep[~behav_prep['lapse']].iloc[np.random.randint(behav_prep[~behav_prep['lapse']].shape[0], size=10000),:].to_csv("/Users/hyunwoogu/Dropbox/rnn_study201015/RNNbehav.csv")
+pd.DataFrame(np.mean(behav_iqrmat[:,:,:],axis=1)).to_csv("/Users/hyunwoogu/Dropbox/rnn_study201030/DIV_Short2.csv")
+
 
 
 #############################
