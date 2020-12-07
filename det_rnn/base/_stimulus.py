@@ -39,7 +39,7 @@ class Stimulus(object):
         neural_input[:,:,:self.n_rule_input] += self._gen_input_rule()
         for t in range(self.batch_size):
             neural_input[self.design_rg['stim'],t,self.n_rule_input:] += self.tuning_input[:,0,stimulus['stimulus_ori'][t]].reshape((1,-1))
-            neural_input[self.design_rg['decision'],t,self.n_rule_input+(stimulus['stimulus_ori'][t]+stimulus['reference_ori'][t])%self.n_ori] += self.strength_ref
+            neural_input[self.design_rg['decision'],t,self.n_rule_input+(stimulus['stimulus_ori'][t]+stimulus['reference_ori'][t])%self.n_tuned_input] += self.strength_ref
         if self.n_subblock > 1: # multi-trial settings
             neural_input = neural_input.transpose((1,0,2)).reshape((self.n_subblock,-1,self.n_input)).transpose((1,0,2))
         return neural_input
@@ -106,7 +106,7 @@ class Stimulus(object):
         _tuning_input  = np.zeros((self.n_tuned_input,  self.n_receptive_fields, self.n_ori))
         _tuning_output = np.zeros((self.n_tuned_output, self.n_receptive_fields, self.n_ori))
         stim_dirs = np.float32(np.arange(0,180,180/self.n_ori))
-        pref_dirs = np.float32(np.arange(0,180,180/(self.n_ori)))
+        pref_dirs = np.float32(np.arange(0,180,180/(self.n_tuned_input)))
         for n in range(self.n_tuned_input):
             for i in range(self.n_ori):
                 d = np.cos((stim_dirs[i] - pref_dirs[n])/90*np.pi)
