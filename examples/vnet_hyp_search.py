@@ -1,11 +1,9 @@
-import os, time, sys, copy
-import numpy as np
-import tensorflow as tf
+import os, sys, copy
 import itertools
 
 sys.path.append('../')
-from vnet.vnet_hyper import vnet_hp
-from vnet.vnet_model import VNET
+from models.vnet.vnet_hyper import vnet_hp
+from models.vnet import VNET
 from det_rnn.base import par, update_parameters, Stimulus
 from utils.general import get_logger
 

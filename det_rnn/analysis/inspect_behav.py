@@ -30,6 +30,22 @@ def softmax_pred_output(pred_output):
 def behavior_summary(trial_info, pred_output, parOrStim):
     '''
     parOrStim: par or stim struct for testing.
+
+    output:
+    estimation:
+    - ground_truth,
+    - estim_mean,
+    - raw_error,
+    - beh_perf
+
+    decision:
+    - dec_target
+    - dec_mean
+    - dec_end
+    - dec_meanError
+    dec_endError
+    dec_mean_perf
+    dec_end_perf
     '''
     if type(parOrStim) is not dict: # inherit from stimulus class
         par = {}

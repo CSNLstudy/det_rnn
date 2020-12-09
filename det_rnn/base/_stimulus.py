@@ -11,7 +11,7 @@ class Stimulus(object):
     """
     def __init__(self, par=par):
         self.set_params(par) # Equip the stimulus class with parameters
-        # self._generate_tuning() # Generate tuning/input config
+        self._generate_tuning() # Generate tuning/input config
 
     def set_params(self, par):
         for k, v in par.items():
@@ -21,24 +21,55 @@ class Stimulus(object):
         # generate all the orientations to output in a trial
         if balanced is True:
             # if testing is true, generate stimulus evenly
-            repeatN = np.ceil(self.batch_size/self.n_ori) # repeat to somewhat match batch size.
+            raise NotImplementedError # todo weave stimulus and reference
+            repeatN = np.ceil(self.batch_size/(self.n_ori*len(self.reference))) # repeat to somewhat match batch size.
             stimulus_ori = np.repeat(np.arange(self.n_ori), repeatN) # todo: make the testing trial generation more elegant...
+            reference_ori = np.repeat(self.reference, repeatN)
         else:
             stimulus_ori = np.random.choice(np.arange(self.n_ori), p=self.stim_p, size=self.batch_size)
+            reference_ori = np.random.choice(self.reference, p=self.ref_p, size=self.batch_size)
 
         if (type(self.kappa) is str) and(self.kappa is 'dist'):
             stimulus_kap = np.random.gamma(shape = self.kappa_dist_shape, scale = self.kappa_dist_scale, size = stimulus_ori.shape)
         else:
             stimulus_kap = self.kappa * np.ones(stimulus_ori.shape)
 
-        return Trial(stim=self,stimulus_ori=stimulus_ori,stimulus_kap=stimulus_kap
-                     )() # josh: return by calling the generated class
-                         # => makes trial_info struct compatible with previous versions of the code.
+        # josh: return by calling the generated class
+        # => makes trial_info struct compatible with previous versions of the code.
+        return Trial(stim=self,
+                     stimulus_ori=stimulus_ori,
+                     stimulus_kap=stimulus_kap,
+                     reference_ori=reference_ori)()
+
+    def _generate_tuning(self):
+        _tuning_input = np.zeros((self.n_tuned_input, self.n_receptive_fields, self.n_ori))
+        _tuning_output = np.zeros((self.n_tuned_output, self.n_receptive_fields, self.n_ori))
+        stim_dirs = np.float32(np.arange(0, 180, 180 / self.n_ori))
+        pref_dirs = np.float32(np.arange(0, 180, 180 / (self.n_tuned_input)))
+        for n in range(self.n_tuned_input):
+            for i in range(self.n_ori):
+                d = np.cos((stim_dirs[i] - pref_dirs[n]) / 90 * np.pi)
+                _tuning_input[n, 0, i] = self.strength_input * np.exp(self.kappa * d) / np.exp(self.kappa)
+                if self.resp_decoding == 'onehot':
+                    _tuning_output[n, 0, i] = self.strength_output * (1. * (d == 1.))
+                else:
+                    _tuning_output[n, 0, i] = self.strength_output * np.exp(self.kappa * d) / np.exp(self.kappa)
+
+        if self.stim_encoding == 'single':
+            self.tuning_input = _tuning_input
+
+        elif self.stim_encoding == 'double':
+            self.tuning_input = np.tile(_tuning_input, (2, 1))
+
+        self.tuning_output = _tuning_output
+
+        self.stim_dirs = stim_dirs
+        self.pref_dirs = pref_dirs
 
     """
     def _gen_stim(self, stimulus_ori):
         # TODO(HG): need to be changed if n_ori =/= n_tuned
-        neural_input = random.standard_normal(size=(self.n_timesteps, self.batch_size, self.n_input))*self.noise_sd + self.noise_mean
+        neural_input = random.standard_normal(size=(stim.n_timesteps, self.batch_size, self.n_input))*self.noise_sd + self.noise_mean
         neural_input[:,:,:self.n_rule_input] += self._gen_input_rule()
         for t in range(self.batch_size):
             neural_input[self.design_rg['stim'],t,self.n_rule_input:] += self.tuning_input[:,0,stimulus_ori[t]].reshape((1,-1))
@@ -48,7 +79,7 @@ class Stimulus(object):
         return neural_input
 
     def _gen_output(self, stimulus_ori):
-        desired_output = np.zeros((self.n_timesteps,self.batch_size,self.n_output), dtype=np.float32)
+        desired_output = np.zeros((stim.n_timesteps,self.batch_size,self.n_output), dtype=np.float32)
         desired_output[:, :, :self.n_rule_output] = self._gen_output_rule()
         for t in range(self.batch_size):
             if self.resp_decoding == 'conti':
@@ -61,7 +92,7 @@ class Stimulus(object):
         return desired_output
 
     def _gen_mask(self):
-        mask = np.zeros((self.n_timesteps, self.batch_size, self.n_output), dtype=np.float32)
+        mask = np.zeros((stim.n_timesteps, self.batch_size, self.n_output), dtype=np.float32)
         # set "specific" period
         for step in ['iti','stim','delay','estim']:
             mask[self.design_rg[step], :, self.n_rule_output:] = self.mask[step]
@@ -75,112 +106,122 @@ class Stimulus(object):
 
     def _gen_input_rule(self):
         if self.n_rule_input == 0:
-            return np.array([]).reshape((self.n_timesteps,self.batch_size,0))
+            return np.array([]).reshape((stim.n_timesteps,self.batch_size,0))
 
         else:
-            rule_mat = np.zeros([self.n_timesteps, self.batch_size, self.n_rule_input])
+            rule_mat = np.zeros([stim.n_timesteps, self.batch_size, self.n_rule_input])
             for i,k in enumerate(self.input_rule_rg):
                 rule_mat[self.input_rule_rg[k], :, i] = self.input_rule_strength
             return rule_mat
 
     def _gen_output_rule(self):
         if self.n_rule_output == 0:
-            return np.array([]).reshape((self.n_timesteps,self.batch_size,0))
+            return np.array([]).reshape((stim.n_timesteps,self.batch_size,0))
 
         else:
-            rule_mat = np.zeros([self.n_timesteps, self.batch_size, self.n_rule_output])
+            rule_mat = np.zeros([stim.n_timesteps, self.batch_size, self.n_rule_output])
             for i,k in enumerate(self.output_rule_rg):
                 rule_mat[self.output_rule_rg[k], :, i] = self.output_rule_strength
             return rule_mat
-
-    # TODO(HG): simplify here (Make n_ori flexible!!!)
-    def _generate_tuning(self):
-        # Tuning function is a von Mises distribution
-        # Tuning input shape = (n_input, 1, n_orientations)??
-        _tuning_input  = np.zeros((self.n_tuned_input,  self.n_receptive_fields, self.n_ori))
-        _tuning_output = np.zeros((self.n_tuned_output, self.n_receptive_fields, self.n_ori))
-        stim_dirs = np.float32(np.arange(0,180,180/self.n_ori))
-        pref_dirs = np.float32(np.arange(0,180,180/self.n_tuned_input)) #josh: important change!
-
-        for n in range(self.n_tuned_input):
-            for i in range(self.n_ori):
-                d = np.cos((stim_dirs[i] - pref_dirs[n])/90*np.pi)
-                _tuning_input[n,0,i]  = self.strength_input*np.exp(self.kappa*d)/np.exp(self.kappa) #np.exp(kappa) is the height at mode
-                _tuning_output[n,0,i] = self.strength_output*np.exp(self.kappa*d)/np.exp(self.kappa)
-
-        if self.stim_encoding == 'single':
-            self.tuning_input  = _tuning_input
-
-        elif self.stim_encoding == 'double':
-            self.tuning_input = np.tile(_tuning_input,(2,1))
-
-        self.tuning_output  = _tuning_output
-        self.pref_dirs      = pref_dirs
     """
 
 class Trial(object):
     """
     make a Trial class in order to change the trial structures more flexible (i.e. balanced data set)
     """
-    def __init__(self, stim, stimulus_ori, stimulus_kap):
+    def __init__(self, stim, stimulus_ori, stimulus_kap, reference_ori):
         # attributes that need to be flexible
         self.stimulus_ori   = stimulus_ori
+        self.reference_ori  = reference_ori
         self.stimulus_kap   = stimulus_kap
         self.batch_size     = stimulus_ori.shape[0]
         self.n_subblock     = int(self.batch_size / stim.trial_per_subblock)
-        [self.neural_input, self.desired_output, self.input_tuning, self.output_tuning] = self._gen_stim(stim, stimulus_ori, stimulus_kap)
+        [self.neural_input, self.input_tuning, self.ref_neuron] = self._gen_stim(stim, reference_ori, stimulus_ori,
+                                                                         stimulus_kap)
+        [self.desired_output, self.output_tuning] = self._gen_output(stim, reference_ori, stimulus_ori, stimulus_kap)
         self.mask           = self._gen_mask(stim)
 
     def __call__(self):
         return {'neural_input'  : self.neural_input.astype(np.float32),
-                'desired_output': self.desired_output.astype(np.float32),
-                'mask'          : self.mask,
+                'stimulus_ori'  : self.stimulus_ori,
+                'reference_ori' : self.reference_ori,
+                'ref_neuron'    : self.ref_neuron,
+                'desired_decision': self.desired_output['decision'].astype(np.float32),
+                'desired_estim' : self.desired_output['estim'].astype(np.float32),
+                'mask_decision' : self.mask['decision'].astype(np.float32),
+                'mask_estim'    : self.mask['estim'].astype(np.float32),
                 'input_tuning'  : self.input_tuning,
                 'output_tuning' : self.output_tuning,
-                'stimulus_ori'  : self.stimulus_ori,
                 'stimulus_kap'  : self.stimulus_kap}
 
-    def _gen_stim(self, stim, stimulus_ori, stimulus_kap):
+    def _gen_stim(self, stim, reference_ori, stimulus_ori, stimulus_kap):
         assert stimulus_ori.shape == stimulus_kap.shape
 
         # initialize neural input with noise, and stimulus tuning without noise
         neural_input = random.standard_normal(size=(stim.n_timesteps, self.batch_size, stim.n_input))*stim.noise_sd + stim.noise_mean
-        # rules_input = self._gen_input_rule(stim)
         neural_input[:,:,:stim.n_rule_input] += self._gen_input_rule(stim) # add rules
-        stimulus_tunings = np.zeros(shape=(self.batch_size, stim.n_input))
-
-        desired_output = np.zeros((stim.n_timesteps,self.batch_size,stim.n_output), dtype=np.float32) # output has no noise
-        desired_output[:, :, :stim.n_rule_output] = self._gen_output_rule(stim)
 
         # stimulus directions and preferred directions
-        # Compute vonMises in the 2*theta space todo: write a functino for vonMises?
+        # Compute vonMises in the 2*theta space todo: write a function for vonMises?
         stim_dirs = np.tile(np.float32(np.arange(0, 180, 180 / stim.n_ori)).reshape(-1,1), [1, stim.n_tuned_input]) # stim_dirs x n_tuned_input
         pref_dirs_in    = np.tile(np.float32(np.arange(0, 180, 180 / stim.n_tuned_input)).reshape(1,-1), [self.batch_size, 1]) # B x n_tuned_input
-        din             = np.cos(2*(stim_dirs[stimulus_ori,:] - pref_dirs_in) / 90 * np.pi)      # B x n_tuned_input
+        din             = np.cos((stim_dirs[stimulus_ori,:] - pref_dirs_in) / 90 * np.pi)      # B x n_tuned_input
         input_tuning    = np.exp(stimulus_kap.reshape(-1,1)*din)/np.exp(stimulus_kap.reshape(-1,1))  # broadcasted to B x n_tuned_input
         input_tuning    = input_tuning/np.sum(input_tuning,1,keepdims = True)
 
-        neural_input[stim.design_rg['stim'],:,stim.n_rule_input:] += np.tile(input_tuning[np.newaxis,:,:],
-                                                                             [stim.design_rg['stim'].shape[0], 1, 1]) # time x B x n_tuned_input
+        ref_din         = np.cos((stim_dirs[(stimulus_ori + reference_ori) % stim.n_ori,:] - pref_dirs_in) / 90 * np.pi)      # B x n_tuned_input
+        # B x n_tuned_input
+        ref_neuron      = np.argmax(ref_din,axis=1)
+
+        for b in range(self.batch_size):
+            neural_input[stim.design_rg['stim'],b,stim.n_rule_input:] += \
+                np.tile(input_tuning[b, :], [stim.design_rg['stim'].shape[0], 1])
+
+            # make reference neuron
+            neural_input[stim.design_rg['decision'],b, ref_neuron[b]] += stim.strength_ref
+
+        if self.n_subblock > 1: # multi-trial settings #josh: i.e. concatenate runs in the sublock ??? todo: check this...
+            neural_input = neural_input.transpose((1,0,2)).reshape((self.n_subblock,-1,stim.n_input)).transpose((1,0,2))
+
+        return neural_input, input_tuning, ref_neuron
+
+
+    def _gen_output(self, stim, reference_ori, stimulus_ori, stimulus_kap):
+        desired_decision = np.zeros((stim.n_timesteps,self.batch_size,stim.n_output_dm), dtype=np.float32)
+        desired_estim    = np.zeros((stim.n_timesteps,self.batch_size,stim.n_output_em), dtype=np.float32)
+        desired_decision[:, :, :stim.n_rule_output_dm] = self._gen_output_rule(stim, type = 'decision')
+        desired_estim[:, :, :stim.n_rule_output_em]    = self._gen_output_rule(stim, type = 'estim')
 
         stim_dirs_out = np.tile(np.float32(np.arange(0, 180, 180 / stim.n_ori)).reshape(-1, 1),
                                 [1, stim.n_tuned_output])  # stim_dirs x n_tuned_output
         pref_dirs_out   = np.tile(np.float32(np.arange(0, 180, 180 / stim.n_tuned_output)).reshape(1,-1), [self.batch_size, 1])  # B x n_tuned_output
-        dout            = np.cos(2*(stim_dirs_out[stimulus_ori,:] - pref_dirs_out) / 90 * np.pi)        # B x n_output todo(josh): check that it is in the right domain (2theta)
+        dout            = np.cos((stim_dirs_out[stimulus_ori,:] - pref_dirs_out) / 90 * np.pi)        # B x n_output
+
         output_tuning   = np.exp(stimulus_kap.reshape(-1,1)*dout)/np.exp(stimulus_kap.reshape(-1,1))  # broadcasted to B x n_tuned_output
         output_tuning   = output_tuning/np.sum(output_tuning,1,keepdims = True)
 
-        desired_output[stim.output_rg, :, stim.n_rule_output:] = np.tile(output_tuning[np.newaxis,:,:],
-                                                                         [stim.output_rg.shape[0], 1, 1])  # time x B x n_tuned_input
+        for b in range(self.batch_size):
+            if reference_ori[b] == 0:
+                if np.random.random() > 0:
+                    desired_decision[stim.dm_output_rg, b, stim.n_rule_output_dm + 1] += 1
+                else:
+                    desired_decision[stim.dm_output_rg, b, stim.n_rule_output_dm] += 1
+            else:
+                desired_decision[stim.dm_output_rg, b, stim.n_rule_output_dm + (0 < reference_ori[b])] += 1
 
-        if self.n_subblock > 1: # multi-trial settings #josh: i.e. concatenate runs in the sublock ??? todo: check this...
-            neural_input = neural_input.transpose((1,0,2)).reshape((self.n_subblock,-1,stim.n_input)).transpose((1,0,2))
-            desired_output = desired_output.transpose((1,0,2)).reshape((self.n_subblock,-1,stim.n_output)).transpose((1,0,2))
+            if stim.resp_decoding == 'conti':
+                desired_estim[stim.em_output_rg, b, stim.n_rule_output_em:] = stimulus_ori[b] * np.pi / np.float32(
+                    stim.n_tuned_output)
+            elif stim.resp_decoding in ['disc', 'onehot']:
+                desired_estim[stim.em_output_rg, b, stim.n_rule_output_em:] = \
+                    np.tile(output_tuning[b,:],[stim.design_rg['estim'].shape[0],1])
 
-        neural_input = np.transpose(neural_input, (1,0,2)) # B x T x n_tuned_input
-        desired_output = np.transpose(desired_output, (1, 0, 2))
+        if self.n_subblock > 1: # multi-trial settings
+            desired_decision = desired_decision.transpose((1,0,2)).reshape((self.n_subblock,-1,stim.n_output_dm)).transpose((1,0,2))
+            desired_estim    = desired_estim.transpose((1,0,2)).reshape((self.n_subblock,-1,stim.n_output_em)).transpose((1,0,2))
 
-        return neural_input, desired_output, input_tuning, output_tuning
+
+        return {'decision' : desired_decision, 'estim' : desired_estim}, output_tuning
 
     """
     def _gen_output(self, stim, stimulus_ori):
@@ -197,98 +238,45 @@ class Trial(object):
     """
 
     def _gen_mask(self, stim):
-        mask = np.zeros((stim.n_timesteps, self.batch_size, stim.n_output), dtype=np.float32)
+        mask_decision = np.zeros((stim.n_timesteps, self.batch_size, stim.n_output_dm), dtype=np.float32)
+        mask_estim    = np.zeros((stim.n_timesteps, self.batch_size, stim.n_output_em), dtype=np.float32)
         # set "specific" period
-        for step in ['iti','stim','delay','estim']:
-            mask[stim.design_rg[step], :, stim.n_rule_output:] = stim.mask[step]
-            mask[stim.design_rg[step], :, :stim.n_rule_output] = stim.mask['rule_'+step]
+        for step in ['iti','stim','delay','decision','estim']:
+            mask_decision[stim.design_rg[step], :, stim.n_rule_output_dm:] = stim.mask_dm[step]
+            mask_decision[stim.design_rg[step], :, :stim.n_rule_output_dm] = stim.mask_dm['rule_'+step]
+            mask_estim[stim.design_rg[step], :, stim.n_rule_output_em:] = stim.mask_em[step]
+            mask_estim[stim.design_rg[step], :, :stim.n_rule_output_em] = stim.mask_em['rule_' + step]
         # set "globally dead" period
-        mask[stim.dead_rg, :, :] = 0
+        mask_decision[stim.dead_rg, :, :] = 0
+        mask_estim[stim.dead_rg, :, :] = 0
         if self.n_subblock > 1: # multi-trial settings
-            mask = mask.transpose((1,0,2)).\
-                reshape((self.n_subblock,-1,stim.n_output)).transpose((1,0,2))
-        return mask
+            mask_decision = mask_decision.transpose((1,0,2)).reshape((self.n_subblock,-1,stim.n_output_dm)).transpose((1,0,2))
+            mask_estim = mask_estim.transpose((1,0,2)).reshape((self.n_subblock,-1,stim.n_output_em)).transpose((1,0,2))
+        return {'decision' : mask_decision, 'estim' : mask_estim}
+
 
     def _gen_input_rule(self, stim):
         if stim.n_rule_input == 0:
             return np.array([]).reshape((stim.n_timesteps,self.batch_size,0))
-
         else:
             rule_mat = np.zeros([stim.n_timesteps, self.batch_size, stim.n_rule_input])
             for i,k in enumerate(stim.input_rule_rg):
                 rule_mat[stim.input_rule_rg[k], :, i] = stim.input_rule_strength
             return rule_mat
 
-    def _gen_output_rule(self, stim):
-        if stim.n_rule_output == 0:
-            return np.array([]).reshape((stim.n_timesteps,self.batch_size,0))
-        else:
-            rule_mat = np.zeros([stim.n_timesteps, self.batch_size, stim.n_rule_output])
-            for i,k in enumerate(stim.output_rule_rg):
-                rule_mat[stim.output_rule_rg[k], :, i] = stim.output_rule_strength
-            return rule_mat
-
-    def plot_trial(self, stim, TEST_TRIAL=None):
-        if TEST_TRIAL is None:
-            TEST_TRIAL = np.random.randint(self.batch_size)
-
-        axes = {}
-        fig = plt.figure(constrained_layout=True, figsize=(10, 8))
-        gs = fig.add_gridspec(6, 2)
-        axes[0] = fig.add_subplot(gs[0, 0])
-        im0 = axes[0].imshow(self.neural_input[:, TEST_TRIAL, :stim.n_rule_input].T,
-                             interpolation='none',
-                             aspect='auto');
-        axes[0].set_title("Input Rule")
-        axes[0].set_xlabel("Time (frames)")
-        fig.colorbar(im0, ax=axes[0])
-
-        axes[4] = fig.add_subplot(gs[1, 0])
-        im3 = axes[4].imshow(self.mask[:, TEST_TRIAL, :stim.n_rule_output].T,
-                             interpolation='none',
-                             aspect='auto');
-        axes[4].set_title("Training Mask_rules")
-        axes[4].set_xlabel("Time (frames)")
-        fig.colorbar(im3, ax=axes[4])
-
-        axes[5] = fig.add_subplot(gs[1, 1])
-        im4 = axes[5].imshow(self.mask[:, TEST_TRIAL, stim.n_rule_output:].T,
-                             interpolation='none',
-                             aspect='auto');
-        axes[5].set_title("Training Mask");
-        axes[5].set_xlabel("Time (frames)")
-        axes[5].set_ylabel("Neuron")
-        fig.colorbar(im4, ax=axes[5])
-
-        axes[2] = fig.add_subplot(gs[0, 1])
-        im2 = axes[2].imshow(self.desired_output[:, TEST_TRIAL, :stim.n_rule_output].T,
-                             interpolation='none',
-                             aspect='auto');
-        axes[2].set_title("Desired Output Rules")
-        axes[2].set_xlabel("Time (frames)")
-        fig.colorbar(im2, ax=axes[2])
-
-        axes[1] = fig.add_subplot(gs[2:4, :])
-        im1 = axes[1].imshow(self.neural_input[:, TEST_TRIAL, stim.n_rule_input:].T,
-                             extent=[0, self.neural_input.shape[0], stim.pref_dirs[0], stim.pref_dirs[-1]],
-                             origin='lower',
-                             interpolation='none',
-                             aspect='auto');
-        axes[1].set_title("Neural Input")
-        axes[1].set_xlabel("Time (frames)")
-        axes[1].set_ylabel("Neuron (pref. ori. deg)")
-        fig.colorbar(im1, ax=axes[1])
-
-        axes[3] = fig.add_subplot(gs[4:6, :])
-        im2 = axes[3].imshow(self.desired_output[:, TEST_TRIAL, stim.n_rule_output:].T,
-                             # extent=[0, trial_info['neural_input'].shape[0], stim.pref_dirs[0], stim.pref_dirs[-1]],
-                             origin='lower',
-                             interpolation='none',
-                             aspect='auto');
-        axes[3].set_title("Desired Output")
-        axes[3].set_xlabel("Time (frames)")
-        axes[3].set_ylabel("Neuron (#)")
-        fig.colorbar(im2, ax=axes[3])
-
-        # fig.tight_layout(pad=2.0)
-        plt.show()
+    def _gen_output_rule(self, stim, type):
+        if type == 'estim':
+            if stim.n_rule_output_em == 0:
+                return np.array([]).reshape((stim.n_timesteps,self.batch_size,0))
+            else:
+                rule_mat = np.zeros([stim.n_timesteps, self.batch_size, stim.n_rule_output_em])
+                for i,k in enumerate(stim.output_em_rule_rg):
+                    rule_mat[stim.output_em_rule_rg[k], :, i] = stim.output_em_rule_strength
+        elif type == 'decision':
+            if stim.n_rule_output_dm == 0:
+                return np.array([]).reshape((stim.n_timesteps, self.batch_size, 0))
+            else:
+                rule_mat = np.zeros([stim.n_timesteps, self.batch_size, stim.n_rule_output_dm])
+                for i, k in enumerate(stim.output_dm_rule_rg):
+                    rule_mat[stim.output_dm_rule_rg[k], :, i] = stim.output_dm_rule_strength
+        return rule_mat

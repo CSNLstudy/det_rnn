@@ -1,16 +1,12 @@
-import os, time, sys, copy
+import os, sys, copy
 import numpy as np
-import tensorflow as tf
-import itertools
 
 sys.path.append('../')
-from vnet.rvnet_hyper import rvnet_hp
-from vnet.rvnet_model import RVNET
+from models.vnet import rvnet_hp
+from models.vnet.rvnet_model import RVNET
 from det_rnn.base import par, update_parameters, Stimulus
 from utils.general import get_logger
 from utils.hyper import hyperparam_comb
-
-import det_rnn.train as utils_train
 
 experimentname  = 'mechanistic0'
 root_dir        = os.getcwd() + os.path.sep + '..'  # this should be /det_rnn folder
