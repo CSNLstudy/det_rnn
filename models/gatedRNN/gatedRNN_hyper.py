@@ -63,7 +63,10 @@ def grnn_hp(par = None):
 
         ##########################################################################################
         # network;
+
+        'out_gate'              : True,  # false not implemented yet
         # network; recurrent layer
+        'rnn_gate'              : True, # false not implemented yet
         'rnn_weights'           : 'normal',
         # learn:                learn the best sensory neuron tunings
         # sym_sensory:          symmetric in the sensory space

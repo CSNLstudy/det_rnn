@@ -56,11 +56,38 @@ class gRNN(BaseModel):
                                                                                              l2=hp['loss_L2']),
                                             name = 'decision'
                                             ) # should be 2
+
         # units
         self.est    = tf.keras.layers.Dense(par_train['n_tuned_output'],
                                             kernel_regularizer=tf.keras.regularizers.l1_l2(l1=hp['loss_L1'],
                                                                                            l2=hp['loss_L2']),
                                             name = 'estimation')
+
+        self.out_gate = hp['out_gate']
+
+        if self.out_gate:
+            self.dec_mdm    = tf.keras.layers.Dense(par_train['n_output_dm'] - par_train['n_rule_output_dm'],
+                                                kernel_regularizer = tf.keras.regularizers.l1_l2(l1=hp['loss_L1'],
+                                                                                                 l2=hp['loss_L2']),
+                                                name = 'dec_mdm'
+                                                ) # should be 2
+
+            self.dec_mda    = tf.keras.layers.Dense(par_train['n_output_dm'] - par_train['n_rule_output_dm'],
+                                                kernel_regularizer = tf.keras.regularizers.l1_l2(l1=hp['loss_L1'],
+                                                                                                 l2=hp['loss_L2']),
+                                                name = 'dec_mda'
+                                                ) # should be 2
+
+            self.est_mdm    = tf.keras.layers.Dense(par_train['n_tuned_output'],
+                                                kernel_regularizer=tf.keras.regularizers.l1_l2(l1=hp['loss_L1'],
+                                                                                               l2=hp['loss_L2']),
+                                                name = 'est_mdm')
+
+            self.est_mda    = tf.keras.layers.Dense(par_train['n_tuned_output'],
+                                                kernel_regularizer=tf.keras.regularizers.l1_l2(l1=hp['loss_L1'],
+                                                                                               l2=hp['loss_L2']),
+                                                name = 'est_mda')
+
 
         # save indices for convenience
         self.n_rule_input       = par_train['n_rule_input']
@@ -85,17 +112,30 @@ class gRNN(BaseModel):
     def evaluate(self, trial_info):
         # sensory_input   = self.sensory_layer(trial_info['neural_input'][:,:,2:]) # todo: take out rule more robustly
 
+        neural_input = tf.transpose(trial_info['neural_input'][:, :, :],perm=[1, 0, 2])
         if self.hp['neuron_stsp']:
-            outputs, states1, states2, states3 = self.rnn(tf.transpose(trial_info['neural_input'][:, :, ],
-                                                                       perm=[1, 0, 2]))
+            #self.rnn.reset_states() # checked that the states are reset every time evaluate is called
+            outputs, states1, states2, states3 = self.rnn(neural_input)
             states = [states1, states2, states3]
         else:
-            outputs, states     = self.rnn(tf.transpose(trial_info['neural_input'][:,:,],perm=[1,0,2]))
+            outputs, states     = self.rnn(neural_input)
 
         # [B, T, N, 1] = rnn_output.shape (has a null dimension for matrix multiplication in the rnncell)
         out = tf.squeeze(outputs,axis=-1)
-        out_dm = self.dec(out)
-        out_em = self.est(out)
+
+        # todo: should I add nonlinearity to the dm and em modules?
+        if self.out_gate:
+            out_dm = (1+self.dec_mdm(neural_input[:,:,:self.n_rule_input])) * self.dec(out) + \
+                     self.dec_mda(neural_input[:,:,:self.n_rule_input])
+
+            out_em = (1+self.est_mdm(neural_input[:,:,:self.n_rule_input])) * self.est(out) + \
+                     self.est_mda(neural_input[:,:,:self.n_rule_input])
+        else:
+            out_dm = self.dec(out)
+            out_em = self.est(out)
+
+        out_dm = tf.nn.relu(out_dm)
+        out_em = tf.nn.relu(out_em)
 
         out         = tf.transpose(out,perm=[1, 0, 2]) # todo: check dimensions
         out_dm      = tf.transpose(out_dm,perm=[1, 0, 2])
@@ -139,16 +179,25 @@ class gRNN(BaseModel):
         dec_prob           = tf.nn.softmax(out_em)
 
         # interpret desired outputs as unnormalized probabilities
-        est_target         = est_desired_out / tf.reduce_sum(est_desired_out, axis=2, keepdims=True)
-        dec_target         = dec_desired_out / tf.reduce_sum(dec_desired_out, axis=2, keepdims=True)
+        # nan when there is no output (0) => normalization
+        est_target         = est_desired_out / tf.reduce_sum(est_desired_out + EPSILON, axis=2, keepdims=True)
+        dec_target         = dec_desired_out / tf.reduce_sum(dec_desired_out + EPSILON, axis=2, keepdims=True)
 
         # todo: put on masks?
+        # average over time then batch
         est_loss_ce = tf.reduce_mean(
+            tf.reduce_mean(
+            tf.reduce_sum(
             tf.gather(-est_target, self.input_rule_rg['estimation'], axis=0)*
-            tf.gather(tf.nn.log_softmax(out_em), self.input_rule_rg['estimation'], axis=0))
+            tf.gather(tf.nn.log_softmax(out_em), self.input_rule_rg['estimation'], axis=0),
+            axis=-1)
+                ,axis=0))
         dec_loss_ce = tf.reduce_mean(
+            tf.reduce_mean(
+            tf.reduce_sum(
             tf.gather(-dec_target,self.input_rule_rg['decision'], axis=0) *
-            tf.gather(tf.nn.log_softmax(out_dm), self.input_rule_rg['decision'], axis=0))
+            tf.gather(tf.nn.log_softmax(out_dm), self.input_rule_rg['decision'], axis=0),axis=-1)
+                , axis=0))
 
         # regularization loss (implemented as keras module add_loss
         spike_loss = tf.reduce_mean(tf.math.square(rnn_output))
@@ -315,7 +364,8 @@ class RNNCell(tf.keras.layers.Layer):
         if self.noisetype is not None and dh_pre.shape[0] is not None:
             dh_pre = dh_pre + \
                      self.noise_sd * tf.random.normal(tf.shape(dh_pre), 0, tf.sqrt(2 * self.alpha),dtype=self.dtype)
-        h = (1-self.alpha)*prev_h + self.alpha * tf.nn.sigmoid(dh_pre)
+        h = (1-self.alpha)*prev_h + self.alpha * tf.nn.relu(tf.nn.tanh(dh_pre))
+        # using just relu => h blows up over time
         # h > 0  if prev_h > 0
 
         # todo: check Masse implementation.
@@ -324,7 +374,7 @@ class RNNCell(tf.keras.layers.Layer):
         #                                                    + tf.cast(_h_post, tf.float32) @ _w_rnn + self.var_dict['b_rnn'])
         #                            + tf.random.normal(_h.shape, 0, tf.sqrt(2 * hp['alpha_neuron']) * hp['noise_rnn_sd'],
         #                                               dtype=tf.float32))
-
+        # tf.math.reduce_any(tf.math.is_nan(h))
         if self.stsp:
             return h, [h, syn_x, syn_u]
         else:

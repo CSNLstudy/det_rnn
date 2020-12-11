@@ -174,11 +174,16 @@ class Trial(object):
         ref_neuron      = np.argmax(ref_din,axis=1)
 
         for b in range(self.batch_size):
+            # make stimulus
             neural_input[stim.design_rg['stim'],b,stim.n_rule_input:] += \
                 np.tile(input_tuning[b, :], [stim.design_rg['stim'].shape[0], 1])
 
-            # make reference neuron
+            # make reference stimulus
             neural_input[stim.design_rg['decision'],b, ref_neuron[b]] += stim.strength_ref
+
+            # there was a trial with no reference...
+            assert ref_neuron[b] is not None
+
 
         if self.n_subblock > 1: # multi-trial settings #josh: i.e. concatenate runs in the sublock ??? todo: check this...
             neural_input = neural_input.transpose((1,0,2)).reshape((self.n_subblock,-1,stim.n_input)).transpose((1,0,2))

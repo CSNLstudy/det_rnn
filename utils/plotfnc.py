@@ -104,10 +104,10 @@ def plot_rnn_output(trial_info,test_outputs,parOrStim, TEST_TRIAL=None, savename
     im5 = axes[5].imshow(test_outputs['est_output'][:, TEST_TRIAL, :].numpy().T,
                          interpolation='none',
                          aspect='auto');
-    axes[5].set_title("Decision neurons activity");
+    axes[5].set_title("Estimation neurons activity");
     axes[5].set_xlabel("Time (frames)")
     axes[5].set_ylabel("Neuron")
-    fig.colorbar(im3, ax=axes[3])
+    fig.colorbar(im5, ax=axes[5])
 
     plt.show()
     if savename is None:
@@ -453,7 +453,6 @@ def biasvar_figure(est_summary, stim_test, filename=None):
 
 
 def plot_decision_effects(df,df2):
-
     # plot distributions wrt reference and decision
     a4_dims = (11.7, 8.27)
     fig, ax = plt.subplots(figsize=a4_dims)
@@ -464,6 +463,10 @@ def plot_decision_effects(df,df2):
     # g.legend(['CCW','CW'])
     xlabels = ['{:,.2f}'.format(float(x.get_text())) for x in g1.get_xticklabels()];
     g1.set_xticklabels(xlabels)
+    g1.set_title("Estimation mean")
+    g1.set_xlabel("Reference (deg)")
+    g1.set_ylabel("Estimation error (cos)")
+
 
     axes = {}
     fig = plt.figure(constrained_layout=True, figsize=(12, 5))
@@ -472,16 +475,16 @@ def plot_decision_effects(df,df2):
     g = sns.scatterplot(x='Ref', y='mean', hue="CW", palette="hls", marker='o', s=200, data=df2)
     xlabels = ['{:,.2f}'.format(x) for x in g.get_xticks()]
     g.set_xticklabels(xlabels)
-    g.set_title("Estimation mean")
+    g.set_title("Estimation error mean")
     g.set_xlabel("Reference (deg)")
-    g.set_ylabel("mean (deg)")
+    g.set_ylabel("mean error (deg)")
 
     axes[1] = fig.add_subplot(gs[0, 1])
     g = sns.scatterplot(x='Ref', y='sd', hue="CW", palette="hls", marker='o', s=200, data=df2)
     xlabels = ['{:,.2f}'.format(x) for x in g.get_xticks()]
     g.set_xticklabels(xlabels)
-    g.set_title("Estimation std")
+    g.set_title("Estimation error std")
     g.set_xlabel("Reference (deg)")
-    g.set_ylabel("std (deg)")
+    g.set_ylabel("std of error (deg)")
 
     return None

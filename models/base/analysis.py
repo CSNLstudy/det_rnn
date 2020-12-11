@@ -1,8 +1,12 @@
+import sys, pickle, copy, cmath
+
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import tensorflow as tf
 import logging, requests
+
+from scipy.stats import circstd, circmean
 
 #logger = logging.getLogger(__name__)
 #logger.setLevel(logging.DEBUG)
@@ -95,7 +99,7 @@ def behavior_summary(trial_info, test_outputs, parOrStim, BatchIdx = None):
         ground_truth = tf.make_ndarray(tf.make_tensor_proto(ground_truth))
 
     estim_target = ground_truth * np.pi / par['n_ori']  # range: 0 to pi
-    estim_error = estim_mean - estim_target  # 0 to pi
+    estim_error = ((estim_mean - estim_target + np.pi/2) % np.pi) - np.pi/2  # 0 to pi
     estim_perf = np.cos(2 * estim_error)  # -1 to 1
 
     est_summary = {'est_mean': estim_mean,
@@ -124,7 +128,6 @@ def behavior_summary(trial_info, test_outputs, parOrStim, BatchIdx = None):
 
     return est_summary, dec_summary
 
-
 def estimation_decision(test_data, test_outputs, stim_test):
     est_summary, dec_summary = behavior_summary(test_data, test_outputs, stim_test)
 
@@ -145,32 +148,35 @@ def estimation_decision(test_data, test_outputs, stim_test):
     for ref_ori in stim_test.reference:
         # clockwise
         batchmask_cw = ((test_data['reference_ori'] == ref_ori) & CW_idx)
-        batchidx_cw = tf.squeeze(tf.where(batchmask_cw))
+        batchidx_cw = tf.squeeze(tf.where(batchmask_cw),axis=-1)
         est_summary, dec_summary = behavior_summary(test_data, test_outputs, stim_test, batchidx_cw)
         data = [(True, ref_ori * 180 / stim_test.n_ori,
-                 est_summary['est_mean'][i] * 180 / np.pi, est_summary['est_perf'][i],
-                 est_summary['est_error'][i], est_summary['est_perf'][i],
+                 est_summary['est_mean'][i] * 180 / np.pi, est_summary['est_target'][i],
+                 est_summary['est_error'][i]* 180 / np.pi, est_summary['est_perf'][i],
                  dec_summary['dec_error'][i], dec_summary['dec_perf'][i])
                 for i in range(sum(batchmask_cw.numpy()))]
         toappend = pd.DataFrame(data, columns=collist)
         dflist += [toappend]
+
         data2 += [(True, ref_ori * 180 / stim_test.n_ori,
-                   np.mean(est_summary['est_error'] * 180 / np.pi), np.std(est_summary['est_error'] * 180 / np.pi))]
+                   circmean(est_summary['est_error'] * 180 / np.pi, low=0,high=180),
+                   circstd(est_summary['est_error'] * 180 / np.pi, low=0,high=180))]
 
         # counter clockwise
         batchmask_ccw = (test_data['reference_ori'] == ref_ori) & CCW_idx
-        batchidx_ccw = tf.squeeze(tf.where(batchmask_ccw))
+        batchidx_ccw = tf.squeeze(tf.where(batchmask_ccw),axis=-1)
         est_summary, dec_summary = behavior_summary(test_data, test_outputs, stim_test, batchidx_ccw)
         data = [(False, ref_ori * 180 / stim_test.n_ori,
-                 est_summary['est_mean'][i] * 180 / np.pi, est_summary['est_perf'][i],
-                 est_summary['est_error'][i], est_summary['est_perf'][i],
+                 est_summary['est_mean'][i] * 180 / np.pi, est_summary['est_target'][i],
+                 est_summary['est_error'][i]* 180 / np.pi, est_summary['est_perf'][i],
                  dec_summary['dec_error'][i], dec_summary['dec_perf'][i])
                 for i in range(sum(batchmask_ccw.numpy()))]
         toappend = pd.DataFrame(data, columns=collist)
         dflist += [toappend]
 
         data2 += [(False, ref_ori * 180 / stim_test.n_ori,
-                   np.mean(est_summary['est_error'] * 180 / np.pi), np.std(est_summary['est_error'] * 180 / np.pi))]
+                   circmean(est_summary['est_error'] * 180 / np.pi, low=0,high=180),
+                   circstd(est_summary['est_error'] * 180 / np.pi, low=0,high=180))]
 
     df = pd.concat(dflist)
     df2 = pd.DataFrame(data2, columns=collist2)
