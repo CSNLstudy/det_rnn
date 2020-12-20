@@ -34,9 +34,8 @@ class Model(tf.Module):
 			y_dm_stack = y_dm_stack.write(i, y_dm_matmul + self.var_dict['b_out_dm'])
 			y_em_matmul = tf.cast(_h, tf.float32) @ self.var_dict['w_out_em']
 			y_em_stack = y_em_stack.write(i, y_em_matmul + self.var_dict['b_out_em'])
-			if hp['masse']:
-				syn_x_stack = syn_x_stack.write(i, tf.cast(_syn_x, tf.float32))
-				syn_u_stack = syn_u_stack.write(i, tf.cast(_syn_u, tf.float32))
+			syn_x_stack = syn_x_stack.write(i, tf.cast(_syn_x, tf.float32))
+			syn_u_stack = syn_u_stack.write(i, tf.cast(_syn_u, tf.float32))
 			i += 1
 		h_stack = h_stack.stack()
 		y_dm_stack = y_dm_stack.stack()

@@ -10,7 +10,8 @@ def initialize(dims, shape=0.1, scale=1.0):
 
 # Inherited from JsL
 def random_normal_abs(dims): # Todo (HL): random.gamma
-    y = np.random.gamma(0.1, 1.0, size=dims)
+    y = np.random.gamma(0.1, 1.0, size=dims) # for masse
+    # y = np.random.gamma(0.001, 0.01, size=dims) # for nomasse(but not trainable)
     return np.float32(y)
 
 def alternating(x, size):
