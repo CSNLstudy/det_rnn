@@ -24,7 +24,8 @@ def _alternating(x, size):
 def _EI_mask(n_hidden, exc_inh_prop):
 	n_exc = int(n_hidden * exc_inh_prop)
 	n_inh = n_hidden - n_exc
-	ind_inh = np.round(np.linspace(1, n_hidden-1, n_inh)).astype(int)
+	# ind_inh = np.round(np.linspace(1, n_hidden-1, n_inh)).astype(int)
+	ind_inh = np.arange(n_exc, n_exc+n_inh)
 
 	EI_list = np.ones(n_hidden, dtype=np.float32)
 	EI_list[ind_inh] = -1.

@@ -91,6 +91,7 @@ par = {
 	'alpha_input' 	: 0.7, 	# Chaudhuri et al., Neuron, 2015
 	'alpha_hidden' 	: 0.2,
 	'alpha_output' 	: 0.7,  # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex has similar decay profile with sensory cortex
+	'alpha_neuron'  : 0.2,
 
 	# Optimizer
 	'optimizer' : 'Adam', # TODO(HG):  other optim. options?
@@ -179,8 +180,11 @@ def update_parameters(par):
 	par.update({
 
 		'h0': _initialize((1, par['n_hidden']), par['scale_gamma']),
+		'w_in0': _initialize((par['n_input'], par['n_hidden']), par['scale_gamma']),
 		'w_rnn0': _initialize((par['n_hidden'], par['n_hidden']), par['scale_gamma']),
+		'w_out0': _initialize((par['n_hidden'], par['n_output']), par['scale_gamma']),
 		'b_rnn0': np.zeros(par['n_hidden'], dtype=np.float32),
+		'b_out0': np.zeros(par['n_output'], dtype=np.float32),
 
 		'syn_x_init': np.ones((par['batch_size'], par['n_hidden']), dtype=np.float32),
 		'syn_u_init': np.tile(_alternating((0.15, 0.45), par['n_hidden']), (par['batch_size'], 1)),
