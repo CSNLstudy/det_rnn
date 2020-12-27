@@ -6,8 +6,8 @@ import numpy as np
 import tensorflow as tf
 import time
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
-iModel = 1
-iteration = 2000
+iModel = 2
+iteration = 5000
 stimulus = Stimulus()
 
 par = update_parameters(par)

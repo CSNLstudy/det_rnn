@@ -25,10 +25,16 @@ par = update_parameters(par)
 h = model['h'][-1].numpy().astype('float32')
 w_rnn = model['w_rnn'][-1].numpy().astype('float32')
 b_rnn = model['b_rnn'][-1].numpy().astype('float32')
+b_out = model['b_out'][-1].numpy().astype('float32')
+w_out = model['w_out'][-1].numpy().astype('float32')
+w_in = model['w_in'][-1].numpy().astype('float32')
 
 var_dict = {}
 var_dict['h'] = h
 var_dict['w_rnn'] = w_rnn
+var_dict['w_out'] = w_out
+var_dict['b_out'] = b_out
+var_dict['w_in'] = w_in
 var_dict['b_rnn'] = b_rnn
 
 ## plot loss
@@ -123,51 +129,45 @@ syn_u_init = par['syn_u_init']
 # syn_u_init_in = par['syn_u_init_input']
 
 def rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn):
-
-    rnn_input = tf.concat((rnn_input, tf.zeros((par['batch_size'], par['n_hidden'] - par['n_input']))), axis=1)
-
-    syn_x += (par['alpha_std'] * (1 - syn_x) - par['dt']/1000 * syn_u * syn_x * h)  # what is alpha_std???
-    syn_u += (par['alpha_stf'] * (par['U'] - syn_u) + par['dt']/1000 * par['U'] * (1 - syn_u) * h)
+    syn_x += (par['alpha_std'] * (1 - syn_x) - par['dt'] / 1000 * syn_u * syn_x * h)  # what is alpha_std???
+    syn_u += (par['alpha_stf'] * (par['U'] - syn_u) + par['dt'] / 1000 * par['U'] * (1 - syn_u) * h)
 
     syn_x = tf.minimum(np.float32(1), tf.nn.relu(syn_x))
     syn_u = tf.minimum(np.float32(1), tf.nn.relu(syn_u))
     h_post = syn_u * syn_x * h
-    # h_post = h
 
-    noise_rnn = np.sqrt(2*par['alpha_mask'])*par['noise_rnn_sd']
-    h = tf.nn.relu((1 - par['alpha_mask']) * h
-         + par['alpha_mask'] * (rnn_input
-                                  + h_post @ w_rnn
-                                  + var_dict['b_rnn'])
-         + tf.random.normal(h.shape, 0, noise_rnn, dtype=tf.float32))
-
+    noise_rnn = tf.sqrt(2 * par['alpha_neuron']) * par['noise_rnn_sd']
+    h = tf.nn.relu((1 - par['alpha_neuron']) * h
+                   + par['alpha_neuron'] * (h_post @ w_rnn
+                                            + rnn_input @ tf.nn.relu(var_dict['w_in'])
+                                            + var_dict['b_rnn'])
+                   + tf.random.normal(h.shape, 0, noise_rnn, dtype=tf.float32))
     return h, syn_x, syn_u
 
 def run_model(in_data, var_dict, syn_x_init, syn_u_init):
+    self_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
+    self_syn_x = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
+    self_syn_u = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
+    self_output = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
 
-    self_h = np.zeros((par['n_timesteps'], par['batch_size'], par['n_hidden']), dtype=np.float32)
-    self_syn_x = np.zeros((par['n_timesteps'], par['batch_size'], par['n_hidden']), dtype=np.float32)
-    self_syn_u = np.zeros((par['n_timesteps'], par['batch_size'], par['n_hidden']), dtype=np.float32)
-    self_output = np.zeros((par['n_timesteps'], par['batch_size'], par['n_output']), dtype=np.float32)
-
-    h = np.ones((par['batch_size'], 1)) @ var_dict['h']
+    h = tf.ones((par['batch_size'], 1)) @ var_dict['h']
     syn_x = syn_x_init
     syn_u = syn_u_init
     w_rnn = par['EI_mask'] @ tf.nn.relu(var_dict['w_rnn'])
 
-    h_pre = np.float32(np.random.gamma(0.1, 0.2, size=h.shape))
-    # h_in = np.ones((par['batch_size'], 1)) @ var_dict['h_in']
-
-    c = 0
-    for rnn_input in in_data:
+    for it in range(par['n_timesteps']):
+        rnn_input = in_data[it, :, :]
         h, syn_x, syn_u = rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn)
-        #
-        self_h[c, :, :] = h
-        self_syn_x[c, :, :] = syn_x
-        self_syn_u[c, :, :] = syn_u
-        self_output[c, :, :] = h[:, -par['n_output']:]
-        c += 1
 
+        self_h = self_h.write(it, h)
+        self_syn_x = self_syn_x.write(it, syn_x)
+        self_syn_u = self_syn_u.write(it, syn_u)
+        self_output = self_output.write(it, h @ tf.nn.relu(var_dict['w_out']) + tf.nn.relu(var_dict['b_out']))
+
+    self_h = self_h.stack()
+    self_syn_x = self_syn_x.stack()
+    self_syn_u = self_syn_u.stack()
+    self_output = self_output.stack()
     return self_h, self_output, self_syn_x, self_syn_u, w_rnn
 
 h, output, syn_x, syn_u, w_rnn \
@@ -188,7 +188,7 @@ for i in range(30):
     plt.clf()
     iT = np.random.randint(batch_size)
     plt.subplot(221)
-    a = output[:,iT,:]
+    a = output[:,iT,:].numpy()
     plt.imshow(a.T,aspect='auto')
     plt.colorbar()
 
