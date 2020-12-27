@@ -6,8 +6,6 @@ import numpy as np
 import tensorflow as tf
 import time
 from shutil import copyfile
-import operator
-os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 nModel = np.array([0, 5])
 iteration = 10000
@@ -50,7 +48,7 @@ stimulus = Stimulus(par)
 #                       'stim'    : (1.5, 3.0),
 #                       'delay'   : (3.0, 6.0),
 #                       'estim'   : (6.0, 7.5)})
-#
+
 # trial_info = stimulus.generate_trial()
 #
 # ##
@@ -164,12 +162,6 @@ def calc_loss(syn_x_init, syn_u_init, in_data, out_target, mask_train):
     spike_loss = tf.reduce_sum(h**2)
     weight_loss = tf.reduce_sum(tf.nn.relu(w_rnn) ** n)
     loss = par['orientation_cost'] * loss_orient + par['spike_cost'] * spike_loss + par['weight_cost'] * weight_loss
-
-    MAP_output = output[par['output_rg'][par['output_rg']>np.max(par['dead_rg'])].min():, :, :].numpy()
-    MAP_output = np.argmax(MAP_output, axis=2) - 1
-    perf = np.sum(MAP_output == np.repeat([trial_info['stimulus_ori']], MAP_output.shape[0], axis=0)) / np.sum(MAP_output==MAP_output)
-    print(perf)
-
     return loss, loss_orient, spike_loss, weight_loss, loss_orient_print
 
 def append_model_performance(model_performance, loss, loss_orient, spike_loss, itime, var_dict):

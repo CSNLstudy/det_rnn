@@ -108,4 +108,3 @@ class Stimulus(object):
                 rule_mat[self.output_rule_rg[k], :, i] = self.output_rule_strength
             return rule_mat
 
-
