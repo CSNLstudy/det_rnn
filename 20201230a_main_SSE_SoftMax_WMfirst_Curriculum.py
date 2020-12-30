@@ -7,8 +7,8 @@ import tensorflow as tf
 import time
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 iModel = 1
-iteration = 2000
-curriculum_delays = [0, 0.5, 1, 1.5]
+iteration = 100000
+curriculum_delays = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9]
 curriculum_error = 10
 stimulus = Stimulus()
 par['batch_size'] = 200
@@ -77,7 +77,7 @@ def run_model(in_data, syn_x_init, syn_u_init):
 
     return self_h, self_output, self_syn_x, self_syn_u, w_rnn
 
-def calc_loss(syn_x_init, syn_u_init, in_data, out_target, idelay):
+def calc_loss(syn_x_init, syn_u_init, in_data, out_target, target_ori):
 
     h, output, _, _, w_rnn = run_model(in_data, syn_x_init, syn_u_init)
 
@@ -86,8 +86,8 @@ def calc_loss(syn_x_init, syn_u_init, in_data, out_target, idelay):
     ntarget = out_target / tf.repeat(starget, par['n_output'], axis=2)
     cenoutput = tf.nn.softmax(output, axis=2)
 
-    ipreori = tf.argmax(tf.reduce_mean(cenoutput[-idelay*100:, :, :], axis=0), axis=1) * 180 / 24
-    itargetori = trial_info['stimulus_ori'] * 180 / 24
+    ipreori = tf.argmax(tf.reduce_mean(cenoutput[-150:, :, :], axis=0), axis=1) * 180 / 24
+    itargetori = target_ori * 180 / 24
     ierror = ipreori - itargetori
     ierror = tf.reduce_sum(abs(ierror[ierror>90] - 180)) +\
                 tf.reduce_sum(abs(ierror[ierror<-90] + 180)) +\
@@ -96,9 +96,9 @@ def calc_loss(syn_x_init, syn_u_init, in_data, out_target, idelay):
     ierror = ierror/par['batch_size']
     ierror = tf.cast(ierror, dtype=tf.float32)
 
-    loss_orient = tf.cond(tf.less(ierror, 10),
+    loss_orient = tf.cond(tf.less(ierror, 15),
                      lambda: tf.reduce_sum((ntarget - cenoutput) ** 2),
-                     lambda: tf.reduce_sum((ntarget[-idelay*100:, :, :] - cenoutput[-idelay*100:, :, :]) ** 2))
+                     lambda: tf.reduce_sum((ntarget[-150:, :, :] - cenoutput[-150:, :, :]) ** 2))
 
     n = 2
     spike_loss = tf.reduce_sum(h**2)
@@ -137,9 +137,9 @@ model_performance = {'error': [], 'loss': [], 'loss_orient': [], 'spike_loss': [
                      'w_rnn': [], 'b_rnn': [], 'w_out': [], 'b_out': [], 'h': [], 'delay': []}
 
 @ tf.function
-def train_onestep(syn_x_init, syn_u_init, in_data, out_target, idelay):
+def train_onestep(syn_x_init, syn_u_init, in_data, out_target, target_ori):
     with tf.GradientTape() as t:
-        loss, loss_orient, spike_loss, weight_loss, ierror = calc_loss(syn_x_init, syn_u_init, in_data, out_target, idelay)
+        loss, loss_orient, spike_loss, weight_loss, ierror = calc_loss(syn_x_init, syn_u_init, in_data, out_target, target_ori)
     grads = t.gradient(loss, var_list)
     grads_and_vars = list(zip(grads, var_list))
     capped_gvs = []
@@ -177,18 +177,19 @@ for i in range(0, iteration):
     in_data = tf.constant(trial_info['neural_input'].astype('float32'))
     out_target = tf.constant(trial_info['desired_output'])
     mask_train = tf.constant(trial_info['mask'])
+    target_ori = tf.constant(trial_info['stimulus_ori'])
 
-    loss, loss_orient, spike_loss, ierror = train_onestep(syn_x_init, syn_u_init, in_data, out_target, idelay)
+    loss, loss_orient, spike_loss, ierror = train_onestep(syn_x_init, syn_u_init, in_data, out_target, target_ori)
     model_performance = append_model_performance(model_performance, loss, loss_orient, spike_loss, ierror, var_dict, idelay)
 
-    print('iModel=', iModel, ' icurri=', icurriculum, ', iter=', i+1,
+    print('iModel=', iModel, ', icurri=', icurriculum, ', idelay=', idelay, ', iter=', i+1,
           ', error_ori=', np.around(ierror, decimals=1),
           ', loss=', loss.numpy(), ', loss_orient=', np.round(loss_orient.numpy()*par['orientation_cost']),
           ', spike_loss=', np.around(spike_loss.numpy()*par['spike_cost'], decimals=1),
           ', min=', np.around((time.time() - t0)/60, decimals=1))
 
-    if np.mod(i+1, 500) == 0 or (np.mod(i+1, 20) == 0)*(i+1 <= 100) == 1\
-            or (np.mod(i+1, 50) == 0)*(i+1 > 100)*(i+1 <= 500) == 1 or i < 10:
+    if np.mod(i+1, 1000) == 0 or (np.mod(i+1, 20) == 0)*(i+1 <= 100) == 1\
+            or (np.mod(i+1, 50) == 0)*(i+1 > 100)*(i+1 <= 1000) == 1 or i < 10:
         save_results(model_performance, par, i+1)
 
 save_results(model_performance, par, i+1)

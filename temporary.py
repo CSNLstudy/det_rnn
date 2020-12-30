@@ -4,721 +4,185 @@ from det_rnn import *
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-from sklearn.svm import SVC
-from scipy import stats
-
-iModel = 2
-BatchSize_svm = 100
-nCrossVal = 10
-silence_timestep_in2in = np.array([300, 600]) # stimon=[150, 300], est=[450, 600]
-time_train = np.array([225, 375, 525])
-
-iteration_goal              = 10000
-iteration_load              = 2884
-n_orituned_neurons          = 25
-BatchSize                   = 70
-n_hidden                    = 130
-scale_gamma                 = 0.5
-
-connect_p_within            = 0.8
-connect_p_adjacent_forward  = 0.7
-connect_p_distant_forward   = 0.0
-connect_p_adjacent_back     = 0.3
-connect_p_distant_back      = 0.0
-
-alpha_input                 = 0.7 # Chaudhuri et al., Neuron, 2015
-alpha_hidden                = 0.2
-alpha_output                = 0.2 # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex's decay is in between input and hidden
-
-delay_test                  = 0
-delay_initial               = 1.5
-delta_delay_update          = 1.0 # if estimation errors of consecutive "N_conseq_epoch_est_error" is lower than "criterion_est_error", delay increases by "delta_delay_update"
-criterion_est_error         = 8
-N_conseq_epoch_est_error    = 100
-goal_delay                  = 1.5
-Darwin_Iter                 = 2000
-Darwin_EstError             = 30
-
-dxtick                      = 1000 # in ms
-
-par['n_tuned_input'] = n_orituned_neurons
-par['n_tuned_output'] = n_orituned_neurons
-par['n_ori'] = n_orituned_neurons
-par['n_hidden'] = n_hidden
-par['batch_size'] = BatchSize
-par['scale_gamma'] = scale_gamma
-par['connect_prob_within_module'] = connect_p_within
-par['connect_prob_adjacent_module_forward'] = connect_p_adjacent_forward
-par['connect_prob_distant_module_forward'] = connect_p_distant_forward
-par['connect_prob_adjacent_module_back'] = connect_p_adjacent_back
-par['connect_prob_distant_module_back'] = connect_p_distant_back
-par['silence_timestep_in2in'] = silence_timestep_in2in
-par['alpha_input'] = alpha_input 	# Chaudhuri et al., Neuron, 2015
-par['alpha_hidden'] = alpha_hidden
-par['alpha_output'] = alpha_output  # Chaudhuri et al., Neuron, 2015; Motor (F1) cortex has similar decay profile with sensory cortex
-par['delta_delay_update'] = delta_delay_update
-par['criterion_est_error'] = criterion_est_error
-par['N_conseq_epoch_est_error'] = N_conseq_epoch_est_error
-par['goal_delay'] = goal_delay
-par['Darwin_Iter'] = Darwin_Iter
-par['Darwin_EstError'] = Darwin_EstError
-par['delay_initial'] = delay_initial
+import time
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
+iModel = 4
+iteration = 20000
+stimulus = Stimulus()
+#
 par['design'].update({'iti'     : (0, 1.5),
-                      'stim'    : (1.5, 3.0),
-                      'delay'   : (3.0, 3.0 + delay_initial + delay_test),
-                      'estim'   : (3.0 + delay_initial + delay_test, 4.5 + delay_initial + delay_test)})
+                      'stim'    : (1.5,3.0),
+                      'delay'   : (3.0,4.5),
+                      'estim'   : (4.5,6.0)})
 
-savedir = os.path.dirname(os.path.realpath(__file__)) + \
-               '/savedir/connectp_w' + str(connect_p_within) + '_forward_a' + str(connect_p_adjacent_forward) + 'd' + str(connect_p_distant_forward) + \
-                    'back_a' + str(connect_p_adjacent_back) + 'd' + str(connect_p_distant_back) + 'scalegamma' + str(scale_gamma) + \
-               '/alpha_in' + str(par['alpha_input']) + '_h' + str(par['alpha_hidden']) + '_out' + str(par['alpha_output']) + \
-               '/delay_Init' + str(par['delay_initial']) + '_Delta' + str(par['delta_delay_update']) + '_ErrorCri' + str(par['criterion_est_error']) + '_Ntrial' + str(par['N_conseq_epoch_est_error']) + \
-               '/nIter' + str(iteration_goal) + 'BatchSize' + str(BatchSize) + \
-               '/iModel' + str(iModel)
-
-svmdir = '/svm/Batchsize' + str(BatchSize_svm) + '/silencing_input' + str(silence_timestep_in2in[0]) + 'to' + str(silence_timestep_in2in[1])
-
-if not os.path.isdir(savedir + svmdir):
-    os.makedirs(savedir + svmdir)
-
-modelname = '/Iter' + str(iteration_load) + '.pkl'
-fn = savedir + modelname
-model = pickle.load(open(fn, 'rb'))
-w_rnn2in_sparse_mask = model['parameters']['modular_sparse_mask_initial'] # this sparse mask should be identical with the training and testing
-
-par['batch_size'] = BatchSize_svm
 par = update_parameters(par)
-par_model = model['parameters']
-
-h = model['h'][-1].numpy().astype('float32')
-w_rnn = model['w_rnn'][-1].numpy().astype('float32')
-b_rnn = model['b_rnn'][-1].numpy().astype('float32')
-
-iw_rnn = par['EI_mask'] @ (w_rnn2in_sparse_mask * tf.nn.relu(w_rnn))
-
-var_dict = {}
-var_dict['h'] = h
-var_dict['w_rnn'] = w_rnn
-var_dict['b_rnn'] = b_rnn
-
-dxtick = dxtick/10
-
-## load stimulus for simulation result
-
+par['batch_size'] = 200
 stimulus = Stimulus(par)
 trial_info = stimulus.generate_trial()
 
-in_data = trial_info['neural_input'].astype('float32')
-out_target = trial_info['desired_output']
-mask_train = trial_info['mask']
-batch_size = par['batch_size']
-syn_x_init = par['syn_x_init']
-syn_u_init = par['syn_u_init']
+plt.imshow(trial_info['neural_input'][:,0,:].T,aspect='auto')
+plt.imshow(trial_info['desired_output'][:,0,:].T,aspect='auto')
+
+def initialize_parameters(iModel, par):
+
+    ipar = update_parameters(par)
+
+    ivar_dict = {}
+    ivar_list = []
+    for k, v in ipar.items():
+        if k[-1] == '0':
+            name = k[:-1]
+            ivar_dict[name] = tf.Variable(ipar[k], name)
+            ivar_list.append(ivar_dict[name])
+    isyn_x_init = tf.constant(ipar['syn_x_init'])
+    isyn_u_init = tf.constant(ipar['syn_u_init'])
+    ibatch_size = ipar['batch_size']
+
+    isavedir = os.path.dirname(os.path.realpath(__file__)) + '/savedir/WMfirst/iModel' + str(iModel)
+    if not os.path.isdir(isavedir):
+        os.makedirs(isavedir)
+
+    return ipar, ivar_dict, ivar_list, isyn_x_init, isyn_u_init, ibatch_size, isavedir
 
 def rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn):
-
-    rnn_input = tf.concat((rnn_input, tf.zeros((par['batch_size'], par['n_hidden'] - par['n_input']))), axis=1)
-
     syn_x += (par['alpha_std'] * (1 - syn_x) - par['dt']/1000 * syn_u * syn_x * h)  # what is alpha_std???
     syn_u += (par['alpha_stf'] * (par['U'] - syn_u) + par['dt']/1000 * par['U'] * (1 - syn_u) * h)
 
     syn_x = tf.minimum(np.float32(1), tf.nn.relu(syn_x))
     syn_u = tf.minimum(np.float32(1), tf.nn.relu(syn_u))
     h_post = syn_u * syn_x * h
-    # h_post = h
 
-    noise_rnn = np.sqrt(2*par['alpha_mask'])*par['noise_rnn_sd']
-    h = tf.nn.relu((1 - par['alpha_mask']) * h
-                   + par['alpha_mask'] * (rnn_input
-                                            + h_post @ w_rnn
-                                            + var_dict['b_rnn'])
-                   + tf.random.normal(h.shape, 0, noise_rnn, dtype=tf.float32))
-
+    noise_rnn = tf.sqrt(2*par['alpha_neuron'])*par['noise_rnn_sd']
+    h = tf.nn.relu((1 - par['alpha_neuron']) * h
+         + par['alpha_neuron'] * (h_post @ w_rnn
+                                  + rnn_input @ tf.nn.relu(var_dict['w_in'])
+                                  + tf.nn.relu(var_dict['b_rnn']))
+         + tf.random.normal(h.shape, 0, noise_rnn, dtype=tf.float32))
     return h, syn_x, syn_u
 
-def run_model(in_data, var_dict, syn_x_init, syn_u_init):
+def run_model(in_data, syn_x_init, syn_u_init):
+    self_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
+    self_syn_x = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
+    self_syn_u = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
+    self_output = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
 
-    self_h = np.zeros((par['n_timesteps'], par['batch_size'], par['n_hidden']), dtype=np.float32)
-    self_syn_x = np.zeros((par['n_timesteps'], par['batch_size'], par['n_hidden']), dtype=np.float32)
-    self_syn_u = np.zeros((par['n_timesteps'], par['batch_size'], par['n_hidden']), dtype=np.float32)
-
-    h = np.ones((par['batch_size'], 1)) @ var_dict['h']
+    h = tf.ones((par['batch_size'], 1)) @ var_dict['h']
     syn_x = syn_x_init
     syn_u = syn_u_init
-    w_rnn = par['EI_mask'] @ (w_rnn2in_sparse_mask * tf.nn.relu(var_dict['w_rnn']))
-
-    c = 0
-    for rnn_input in in_data:
-
-        if c >= silence_timestep_in2in[0] and c <= silence_timestep_in2in[1]:
-            iw_rnn = w_rnn * par['input_silencing_mask']
-        else:
-            iw_rnn = w_rnn
-
-        h, syn_x, syn_u = rnn_cell(rnn_input, h, syn_x, syn_u, iw_rnn)
-        #
-        self_h[c, :, :] = h
-        self_syn_x[c, :, :] = syn_x
-        self_syn_u[c, :, :] = syn_u
-        c += 1
-
-    return self_h, self_syn_x, self_syn_u, w_rnn
-
-h, syn_x, syn_u, w_rnn \
-    = run_model(in_data, var_dict, syn_x_init, syn_u_init)
-
-inputs = h[:, :, :par['n_input']]
-hidden = h[:, :, par['n_input'] : (par['n_hidden'] - par['n_output'])]
-output = h[:, :, -par['n_output']:]
-
-syn = syn_x * syn_u
-syn_inputs = syn[:, :, :par['n_input']]
-syn_hidden = syn[:, :, par['n_input'] : (par['n_hidden'] - par['n_output'])]
-syn_output = syn[:, :, -par['n_output']:]
-
-## figure conditions
-
-esti_on = par['design']['estim'][0]*np.array(1000/par['dt'])
-stim_onoff = par['design']['stim']*np.array(1000/par['dt'])
-ivmax = 0.5
-ivmin = 0.05
-ichance = np.array([1.0, 1.0])/(par['n_tuned_input']*1.0)
-
-## 1. decoding from input firing rate - vector
-
-boundCrossVal = np.linspace(0, par['batch_size'], nCrossVal + 1, dtype='int')
-Accuracy_input = np.zeros(par['n_timesteps'])
-for itime in range(par['n_timesteps']):
-    print('1. decoding from input firing rate 1 - vector ' + str(itime))
-    ipredict = np.zeros((par['batch_size']))
-    for iCrossVal in range(nCrossVal):
-        iInd_test = np.arange(boundCrossVal[iCrossVal], boundCrossVal[iCrossVal+1])
-        iInd_train = np.arange(0, par['batch_size'])
-        iInd_train = np.delete(iInd_train, iInd_test, axis=0)
-
-        itrain_input = inputs[itime, iInd_train, :]
-        itrain_stim = trial_info['stimulus_ori'][iInd_train]
-        itest_input = inputs[itime, iInd_test, :]
-        itest_stim = trial_info['stimulus_ori'][iInd_test]
-
-        svm_model_linear = SVC(kernel='linear', C=1).fit(itrain_input, itrain_stim)
-        svm_predictions = svm_model_linear.predict(itest_input)
-
-        ipredict[iInd_test] = svm_predictions
-    Accuracy_input[itime] = np.sum(ipredict == trial_info['stimulus_ori'])/par['batch_size']
-
-itrain_stim = trial_info['stimulus_ori']
-Accuracy_acrosstime_vector_input = np.zeros((par['n_timesteps'], 3))
-q = 0
-for itime_train in time_train:
-    itrain_input = inputs[itime_train, :, :]
-    svm_model_linear = SVC(kernel='linear', C=1).fit(itrain_input, itrain_stim)
-    for itime in range(par['n_timesteps']):
-        print('1. decoding from input firing rate ' + str(q+2) + ' - vector ' + str(itime))
-        ipredict = np.zeros((par['batch_size']))
-        for iCrossVal in range(nCrossVal):
-            iInd_test = np.arange(boundCrossVal[iCrossVal], boundCrossVal[iCrossVal+1])
-            itest_input = inputs[itime, iInd_test, :]
-            itest_stim = trial_info['stimulus_ori'][iInd_test]
-            svm_predictions = svm_model_linear.predict(itest_input)
-
-            ipredict[iInd_test] = svm_predictions
-        Accuracy_acrosstime_vector_input[itime, q] = np.sum(ipredict == trial_info['stimulus_ori'])/par['batch_size']
-    q += 1
-
-plt.rcParams.update({'font.size': 20})
-fig = plt.figure(figsize=(10, 7), dpi=80)
-plt.clf()
-plt.plot(Accuracy_input)
-plt.plot(Accuracy_acrosstime_vector_input)
-plt.rcParams.update({'font.size': 20})
-plt.plot(np.array([0.0, par['n_timesteps']*1.0]), ichance, 'k--')
-plt.plot(np.array([0.0, par['n_timesteps']*1.0]), np.array([0, 0]), 'k-')
-plt.plot(np.array([1, 1])*esti_on, np.array([0, 1]),'k--')
-plt.plot(np.array([1, 1])*stim_onoff[0], np.array([0, 1]),'k--')
-plt.plot(np.array([1, 1])*stim_onoff[1], np.array([0, 1]),'k--')
-plt.xlabel('time point')
-plt.ylabel('classification accuracy')
-plt.grid()
-plt.savefig(savedir + svmdir + '/1_Accuracy_input' + str(iteration_load) + '.png', bbox_inches='tight')
-
-## 2, decoding from hidden firing rate - vector
-
-Accuracy_hidden = np.zeros(par['n_timesteps'])
-for itime in range(par['n_timesteps']):
-    print('2. decoding from hidden firing rate 1 - vector ' + str(itime))
-    ipredict = np.zeros((par['batch_size']))
-    for iCrossVal in range(nCrossVal):
-        iInd_test = np.arange(boundCrossVal[iCrossVal], boundCrossVal[iCrossVal+1])
-        iInd_train = np.arange(0, par['batch_size'])
-        iInd_train = np.delete(iInd_train, iInd_test, axis=0)
-
-        itrain_h = hidden[itime, iInd_train, :]
-        itrain_stim = trial_info['stimulus_ori'][iInd_train]
-        itest_h = hidden[itime, iInd_test, :]
-        itest_stim = trial_info['stimulus_ori'][iInd_test]
-
-        svm_model_linear = SVC(kernel='linear', C=1).fit(itrain_h, itrain_stim)
-        svm_predictions = svm_model_linear.predict(itest_h)
-
-        ipredict[iInd_test] = svm_predictions
-    Accuracy_hidden[itime] = np.sum(ipredict == trial_info['stimulus_ori'])/par['batch_size']
-
-itrain_stim = trial_info['stimulus_ori']
-itime_train = 200
-Accuracy_acrosstime_vector_hidden = np.zeros((par['n_timesteps'], 3))
-q = 0
-for itime_train in time_train:
-    itrain_h = hidden[itime_train, :, :]
-    svm_model_linear = SVC(kernel='linear', C=1).fit(itrain_h, itrain_stim)
-    for itime in range(par['n_timesteps']):
-        print('2. decoding from hidden firing rate ' + str(q+2) + ' - vector ' + str(itime))
-        ipredict = np.zeros((par['batch_size']))
-        for iCrossVal in range(nCrossVal):
-            iInd_test = np.arange(boundCrossVal[iCrossVal], boundCrossVal[iCrossVal+1])
-            itest_h = hidden[itime, iInd_test, :]
-            itest_stim = trial_info['stimulus_ori'][iInd_test]
-            svm_predictions = svm_model_linear.predict(itest_h)
-
-            ipredict[iInd_test] = svm_predictions
-        Accuracy_acrosstime_vector_hidden[itime, q] = np.sum(ipredict == trial_info['stimulus_ori'])/par['batch_size']
-    q += 1
-
-fig = plt.figure(figsize=(10, 7), dpi=80)
-plt.clf()
-plt.plot(Accuracy_hidden)
-plt.plot(Accuracy_acrosstime_vector_hidden)
-plt.rcParams.update({'font.size': 20})
-plt.plot(np.array([0.0, par['n_timesteps']*1.0]), ichance, 'k--')
-plt.plot(np.array([0.0, par['n_timesteps']*1.0]), np.array([0, 0]), 'k-')
-plt.plot(np.array([1, 1])*esti_on, np.array([0, 1]),'k--')
-plt.plot(np.array([1, 1])*stim_onoff[0], np.array([0, 1]),'k--')
-plt.plot(np.array([1, 1])*stim_onoff[1], np.array([0, 1]),'k--')
-plt.xlabel('time point')
-plt.ylabel('classification accuracy')
-plt.grid()
-plt.savefig(savedir + svmdir + '/2_Accuracy_hidden' + str(iteration_load) + '.png', bbox_inches='tight')
-
-## 3, decoding from out firing rate - vector
-
-Accuracy_output = np.zeros(par['n_timesteps'])
-for itime in range(par['n_timesteps']):
-    print('3. decoding from out firing rate 1 - vector ' + str(itime))
-    ipredict = np.zeros((par['batch_size']))
-    for iCrossVal in range(nCrossVal):
-        iInd_test = np.arange(boundCrossVal[iCrossVal], boundCrossVal[iCrossVal+1])
-        iInd_train = np.arange(0, par['batch_size'])
-        iInd_train = np.delete(iInd_train, iInd_test, axis=0)
-
-        itrain_out = output[itime, iInd_train, :]
-        itrain_stim = trial_info['stimulus_ori'][iInd_train]
-        itest_out = output[itime, iInd_test, :]
-        itest_stim = trial_info['stimulus_ori'][iInd_test]
-
-        svm_model_linear = SVC(kernel='linear', C=1).fit(itrain_out, itrain_stim)
-        svm_predictions = svm_model_linear.predict(itest_out)
-
-        ipredict[iInd_test] = svm_predictions
-    Accuracy_output[itime] = np.sum(ipredict == trial_info['stimulus_ori'])/par['batch_size']
-
-itrain_stim = trial_info['stimulus_ori']
-Accuracy_acrosstime_vector_output = np.zeros((par['n_timesteps'], 3))
-q = 0
-for itime_train in time_train:
-    itrain_out = output[itime_train, :, :]
-    svm_model_linear = SVC(kernel='linear', C=1).fit(itrain_out, itrain_stim)
-    for itime in range(par['n_timesteps']):
-        print('3. decoding from out firing rate ' + str(q+2) + ' - vector ' + str(itime))
-        ipredict = np.zeros((par['batch_size']))
-        for iCrossVal in range(nCrossVal):
-            iInd_test = np.arange(boundCrossVal[iCrossVal], boundCrossVal[iCrossVal+1])
-            itest_out = output[itime, iInd_test, :]
-            itest_stim = trial_info['stimulus_ori'][iInd_test]
-            svm_predictions = svm_model_linear.predict(itest_out)
-
-            ipredict[iInd_test] = svm_predictions
-        Accuracy_acrosstime_vector_output[itime, q] = np.sum(ipredict == trial_info['stimulus_ori'])/par['batch_size']
-    q += 1
-
-fig = plt.figure(figsize=(10, 7), dpi=80)
-plt.clf()
-plt.plot(Accuracy_output)
-plt.plot(Accuracy_acrosstime_vector_output)
-plt.rcParams.update({'font.size': 20})
-plt.plot(np.array([0.0, par['n_timesteps']*1.0]), ichance, 'k--')
-plt.plot(np.array([0.0, par['n_timesteps']*1.0]), np.array([0, 0]), 'k-')
-plt.plot(np.array([1, 1])*esti_on, np.array([0, 1]),'k--')
-plt.plot(np.array([1, 1])*stim_onoff[0], np.array([0, 1]),'k--')
-plt.plot(np.array([1, 1])*stim_onoff[1], np.array([0, 1]),'k--')
-plt.plot(np.array([1, 1])*itime_train, np.array([0, 1]),'r--')
-plt.xlabel('time point')
-plt.ylabel('classification accuracy')
-plt.grid()
-plt.savefig(savedir + svmdir + '/3_Accuracy_output' + str(iteration_load) + '.png', bbox_inches='tight')
-
-## 4. decoding from input firing rate - matrix
-
-Accuracy_acrosstime_matrix_input = np.zeros((par['n_timesteps'], par['n_timesteps']))
-for itime_train in range(par['n_timesteps']):
-    print('4. decoding from input firing rate - matrix ' + str(itime_train))
-    itrain_input = inputs[itime_train, :, :]
-    svm_model_linear = SVC(kernel='linear', C=1).fit(itrain_input, trial_info['stimulus_ori'])
-    for itime_test in range(par['n_timesteps']):
-        itest_input = inputs[itime_test, :, :]
-        svm_predictions = svm_model_linear.predict(itest_input)
-        iaccuracy = np.sum(svm_predictions == trial_info['stimulus_ori'])/par['batch_size']
-        Accuracy_acrosstime_matrix_input[itime_train, itime_test] = iaccuracy
-
-fig = plt.figure(figsize=(13, 13), dpi=80)
-plt.rcParams.update({'font.size': 20})
-plt.imshow(Accuracy_acrosstime_matrix_input, vmin=ivmin, vmax=ivmax)
-plt.plot(np.array([1, 1])*esti_on, np.array([0, 1])*par['n_timesteps'], 'k--')
-plt.plot(np.array([0, 1])*par['n_timesteps'], np.array([1, 1])*esti_on, 'k--')
-plt.plot(np.array([1, 1])*stim_onoff[0], np.array([0, 1])*par['n_timesteps'], 'k--')
-plt.plot(np.array([0, 1])*par['n_timesteps'], np.array([1, 1])*stim_onoff[0], 'k--')
-plt.plot(np.array([1, 1])*stim_onoff[1], np.array([0, 1])*par['n_timesteps'], 'k--')
-plt.plot(np.array([0, 1])*par['n_timesteps'], np.array([1, 1])*stim_onoff[1], 'k--')
-plt.xlabel('test time step')
-plt.ylabel('train time step')
-plt.title('by input firing rate')
-plt.xlim([0, par['n_timesteps']])
-plt.ylim([0, par['n_timesteps']])
-plt.colorbar()
-plt.savefig(savedir + svmdir + '/4_Accuracy_input_matrix' + str(iteration_load) + '.png', bbox_inches='tight')
-
-## 5. decoding from hidden firing rate - maxtix
-
-Accuracy_acrosstime_matrix_hidden = np.zeros((par['n_timesteps'], par['n_timesteps']))
-for itime_train in range(par['n_timesteps']):
-    print('5. decoding from hidden firing rate - maxtix ' + str(itime_train))
-    itrain_h = hidden[itime_train, :, :]
-    svm_model_linear = SVC(kernel='linear', C=1).fit(itrain_h, trial_info['stimulus_ori'])
-    for itime_test in range(par['n_timesteps']):
-        itest_h = hidden[itime_test, :, :]
-        svm_predictions = svm_model_linear.predict(itest_h)
-        iaccuracy = np.sum(svm_predictions == trial_info['stimulus_ori']) / par['batch_size']
-        Accuracy_acrosstime_matrix_hidden[itime_train, itime_test] = iaccuracy
-
-fig = plt.figure(figsize=(13, 13), dpi=80)
-plt.rcParams.update({'font.size': 20})
-plt.imshow(Accuracy_acrosstime_matrix_hidden, vmin=ivmin, vmax=ivmax)
-plt.plot(np.array([1, 1])*esti_on, np.array([0, 1])*par['n_timesteps'], 'k--')
-plt.plot(np.array([0, 1])*par['n_timesteps'], np.array([1, 1])*esti_on, 'k--')
-plt.plot(np.array([1, 1])*stim_onoff[0], np.array([0, 1])*par['n_timesteps'], 'k--')
-plt.plot(np.array([0, 1])*par['n_timesteps'], np.array([1, 1])*stim_onoff[0], 'k--')
-plt.plot(np.array([1, 1])*stim_onoff[1], np.array([0, 1])*par['n_timesteps'], 'k--')
-plt.plot(np.array([0, 1])*par['n_timesteps'], np.array([1, 1])*stim_onoff[1], 'k--')
-plt.xlabel('test time step')
-plt.ylabel('train time step')
-plt.title('by hidden firing rate')
-plt.xlim([0, par['n_timesteps']])
-plt.ylim([0, par['n_timesteps']])
-plt.colorbar()
-plt.savefig(savedir + svmdir + '/5_Accuracy_hidden_matrix' + str(iteration_load) + '.png', bbox_inches='tight')
-
-## 6. decoding from output firing rate - maxtix
-
-Accuracy_acrosstime_matrix_output = np.zeros((par['n_timesteps'], par['n_timesteps']))
-for itime_train in range(par['n_timesteps']):
-    print('6. decoding from output firing rate - maxtix ' + str(itime_train))
-    itrain_h = output[itime_train, :, :]
-    svm_model_linear = SVC(kernel='linear', C=1).fit(itrain_h, trial_info['stimulus_ori'])
-    for itime_test in range(par['n_timesteps']):
-        itest_h = output[itime_test, :, :]
-        svm_predictions = svm_model_linear.predict(itest_h)
-        iaccuracy = np.sum(svm_predictions == trial_info['stimulus_ori']) / par['batch_size']
-        Accuracy_acrosstime_matrix_output[itime_train, itime_test] = iaccuracy
-
-fig = plt.figure(figsize=(13, 13), dpi=80)
-plt.rcParams.update({'font.size': 20})
-plt.imshow(Accuracy_acrosstime_matrix_output, vmin=ivmin, vmax=ivmax)
-plt.plot(np.array([1, 1])*esti_on, np.array([0, 1])*par['n_timesteps'], 'k--')
-plt.plot(np.array([0, 1])*par['n_timesteps'], np.array([1, 1])*esti_on, 'k--')
-plt.plot(np.array([1, 1])*stim_onoff[0], np.array([0, 1])*par['n_timesteps'], 'k--')
-plt.plot(np.array([0, 1])*par['n_timesteps'], np.array([1, 1])*stim_onoff[0], 'k--')
-plt.plot(np.array([1, 1])*stim_onoff[1], np.array([0, 1])*par['n_timesteps'], 'k--')
-plt.plot(np.array([0, 1])*par['n_timesteps'], np.array([1, 1])*stim_onoff[1], 'k--')
-plt.xlabel('test time step')
-plt.ylabel('train time step')
-plt.title('by output firing rate')
-plt.xlim([0, par['n_timesteps']])
-plt.ylim([0, par['n_timesteps']])
-plt.colorbar()
-plt.savefig(savedir + svmdir + '/6_Accuracy_output_matrix' + str(iteration_load) + '.png', bbox_inches='tight')
-
-## 7. decoding from input synapse - vector
-
-boundCrossVal = np.linspace(0, par['batch_size'], nCrossVal + 1, dtype='int')
-Accuracy_syn_input = np.zeros(par['n_timesteps'])
-for itime in range(par['n_timesteps']):
-    print('7. decoding from input synapse 1 - vector ' + str(itime))
-    ipredict = np.zeros((par['batch_size']))
-    for iCrossVal in range(nCrossVal):
-        iInd_test = np.arange(boundCrossVal[iCrossVal], boundCrossVal[iCrossVal+1])
-        iInd_train = np.arange(0, par['batch_size'])
-        iInd_train = np.delete(iInd_train, iInd_test, axis=0)
-
-        itrain_input = syn_inputs[itime, iInd_train, :]
-        itrain_stim = trial_info['stimulus_ori'][iInd_train]
-        itest_input = syn_inputs[itime, iInd_test, :]
-        itest_stim = trial_info['stimulus_ori'][iInd_test]
-
-        svm_model_linear = SVC(kernel='linear', C=1).fit(itrain_input, itrain_stim)
-        svm_predictions = svm_model_linear.predict(itest_input)
-
-        ipredict[iInd_test] = svm_predictions
-    Accuracy_syn_input[itime] = np.sum(ipredict == trial_info['stimulus_ori'])/par['batch_size']
-
-itime_train = 200
-itrain_input = syn_inputs[itime_train, :, :]
-itrain_stim = trial_info['stimulus_ori']
-svm_model_linear = SVC(kernel='linear', C=1).fit(itrain_input, itrain_stim)
-Accuracy_acrosstime_vector_syn_input = np.zeros(par['n_timesteps'])
-for itime in range(par['n_timesteps']):
-    print('7. decoding from input synapse 2 - vector ' + str(itime))
-    ipredict = np.zeros((par['batch_size']))
-    for iCrossVal in range(nCrossVal):
-        iInd_test = np.arange(boundCrossVal[iCrossVal], boundCrossVal[iCrossVal+1])
-        itest_input = syn_inputs[itime, iInd_test, :]
-        itest_stim = trial_info['stimulus_ori'][iInd_test]
-        svm_predictions = svm_model_linear.predict(itest_input)
-
-        ipredict[iInd_test] = svm_predictions
-    Accuracy_acrosstime_vector_syn_input[itime] = np.sum(ipredict == trial_info['stimulus_ori'])/par['batch_size']
-
-plt.rcParams.update({'font.size': 20})
-fig = plt.figure(figsize=(10, 7), dpi=80)
-plt.clf()
-plt.plot(Accuracy_syn_input)
-plt.plot(Accuracy_acrosstime_vector_syn_input)
-plt.rcParams.update({'font.size': 20})
-plt.plot(np.array([0.0, par['n_timesteps']*1.0]), ichance, 'k--')
-plt.plot(np.array([0.0, par['n_timesteps']*1.0]), np.array([0, 0]), 'k-')
-plt.plot(np.array([1, 1])*esti_on, np.array([0, 1]),'k--')
-plt.plot(np.array([1, 1])*stim_onoff[0], np.array([0, 1]),'k--')
-plt.plot(np.array([1, 1])*stim_onoff[1], np.array([0, 1]),'k--')
-plt.plot(np.array([1, 1])*itime_train, np.array([0, 1]),'r--')
-plt.xlabel('time point')
-plt.ylabel('classification accuracy')
-plt.savefig(savedir + svmdir + '/7_Accuracy_syn_input' + str(iteration_load) + '.png', bbox_inches='tight')
-
-## 8, decoding from hidden synapse - vector
-
-Accuracy_syn_hidden = np.zeros(par['n_timesteps'])
-for itime in range(par['n_timesteps']):
-    print('8, decoding from hidden synapse 1 - vector ' + str(itime))
-    ipredict = np.zeros((par['batch_size']))
-    for iCrossVal in range(nCrossVal):
-        iInd_test = np.arange(boundCrossVal[iCrossVal], boundCrossVal[iCrossVal+1])
-        iInd_train = np.arange(0, par['batch_size'])
-        iInd_train = np.delete(iInd_train, iInd_test, axis=0)
-
-        itrain_h = syn_hidden[itime, iInd_train, :]
-        itrain_stim = trial_info['stimulus_ori'][iInd_train]
-        itest_h = syn_hidden[itime, iInd_test, :]
-        itest_stim = trial_info['stimulus_ori'][iInd_test]
-
-        svm_model_linear = SVC(kernel='linear', C=1).fit(itrain_h, itrain_stim)
-        svm_predictions = svm_model_linear.predict(itest_h)
-
-        ipredict[iInd_test] = svm_predictions
-    Accuracy_syn_hidden[itime] = np.sum(ipredict == trial_info['stimulus_ori'])/par['batch_size']
-
-itime_train = 200
-itrain_h = syn_hidden[itime_train, :, :]
-itrain_stim = trial_info['stimulus_ori']
-svm_model_linear = SVC(kernel='linear', C=1).fit(itrain_h, itrain_stim)
-Accuracy_acrosstime_vector_syn_hidden = np.zeros(par['n_timesteps'])
-for itime in range(par['n_timesteps']):
-    print('8, decoding from hidden synapse 2 - vector ' + str(itime))
-    ipredict = np.zeros((par['batch_size']))
-    for iCrossVal in range(nCrossVal):
-        iInd_test = np.arange(boundCrossVal[iCrossVal], boundCrossVal[iCrossVal+1])
-        itest_h = syn_hidden[itime, iInd_test, :]
-        itest_stim = trial_info['stimulus_ori'][iInd_test]
-        svm_predictions = svm_model_linear.predict(itest_h)
-
-        ipredict[iInd_test] = svm_predictions
-    Accuracy_acrosstime_vector_syn_hidden[itime] = np.sum(ipredict == trial_info['stimulus_ori'])/par['batch_size']
-
-fig = plt.figure(figsize=(10, 7), dpi=80)
-plt.clf()
-plt.plot(Accuracy_syn_hidden)
-plt.plot(Accuracy_acrosstime_vector_syn_hidden)
-plt.rcParams.update({'font.size': 20})
-plt.plot(np.array([0.0, par['n_timesteps']*1.0]), ichance, 'k--')
-plt.plot(np.array([0.0, par['n_timesteps']*1.0]), np.array([0, 0]), 'k-')
-plt.plot(np.array([1, 1])*esti_on, np.array([0, 1]),'k--')
-plt.plot(np.array([1, 1])*stim_onoff[0], np.array([0, 1]),'k--')
-plt.plot(np.array([1, 1])*stim_onoff[1], np.array([0, 1]),'k--')
-plt.plot(np.array([1, 1])*itime_train, np.array([0, 1]),'r--')
-plt.xlabel('time point')
-plt.ylabel('classification accuracy')
-plt.savefig(savedir + svmdir + '/8_Accuracy_syn_hidden' + str(iteration_load) + '.png', bbox_inches='tight')
-
-## 9, decoding from output synapse - vector
-
-Accuracy_syn_output = np.zeros(par['n_timesteps'])
-for itime in range(par['n_timesteps']):
-    print('9, decoding from output synapse 1 - vector ' + str(itime))
-    ipredict = np.zeros((par['batch_size']))
-    for iCrossVal in range(nCrossVal):
-        iInd_test = np.arange(boundCrossVal[iCrossVal], boundCrossVal[iCrossVal+1])
-        iInd_train = np.arange(0, par['batch_size'])
-        iInd_train = np.delete(iInd_train, iInd_test, axis=0)
-
-        itrain_h = syn_output[itime, iInd_train, :]
-        itrain_stim = trial_info['stimulus_ori'][iInd_train]
-        itest_h = syn_output[itime, iInd_test, :]
-        itest_stim = trial_info['stimulus_ori'][iInd_test]
-
-        svm_model_linear = SVC(kernel='linear', C=1).fit(itrain_h, itrain_stim)
-        svm_predictions = svm_model_linear.predict(itest_h)
-
-        ipredict[iInd_test] = svm_predictions
-    Accuracy_syn_output[itime] = np.sum(ipredict == trial_info['stimulus_ori'])/par['batch_size']
-
-itime_train = 200
-itrain_h = syn_output[itime_train, :, :]
-itrain_stim = trial_info['stimulus_ori']
-svm_model_linear = SVC(kernel='linear', C=1).fit(itrain_h, itrain_stim)
-Accuracy_acrosstime_vector_syn_output = np.zeros(par['n_timesteps'])
-for itime in range(par['n_timesteps']):
-    print('9, decoding from output synapse 2 - vector ' + str(itime))
-    ipredict = np.zeros((par['batch_size']))
-    for iCrossVal in range(nCrossVal):
-        iInd_test = np.arange(boundCrossVal[iCrossVal], boundCrossVal[iCrossVal+1])
-        itest_h = syn_output[itime, iInd_test, :]
-        itest_stim = trial_info['stimulus_ori'][iInd_test]
-        svm_predictions = svm_model_linear.predict(itest_h)
-
-        ipredict[iInd_test] = svm_predictions
-    Accuracy_acrosstime_vector_syn_output[itime] = np.sum(ipredict == trial_info['stimulus_ori'])/par['batch_size']
-
-fig = plt.figure(figsize=(10, 7), dpi=80)
-plt.clf()
-plt.plot(Accuracy_syn_output)
-plt.plot(Accuracy_acrosstime_vector_syn_output)
-plt.rcParams.update({'font.size': 20})
-plt.plot(np.array([0.0, par['n_timesteps']*1.0]), ichance, 'k--')
-plt.plot(np.array([0.0, par['n_timesteps']*1.0]), np.array([0, 0]), 'k-')
-plt.plot(np.array([1, 1])*esti_on, np.array([0, 1]),'k--')
-plt.plot(np.array([1, 1])*stim_onoff[0], np.array([0, 1]),'k--')
-plt.plot(np.array([1, 1])*stim_onoff[1], np.array([0, 1]),'k--')
-plt.plot(np.array([1, 1])*itime_train, np.array([0, 1]),'r--')
-plt.xlabel('time point')
-plt.ylabel('classification accuracy')
-plt.savefig(savedir + svmdir + '/9_Accuracy_syn_output' + str(iteration_load) + '.png', bbox_inches='tight')
-
-## 10. decoding from input synapse - matrix
-
-Accuracy_acrosstime_matrix_syn_input = np.zeros((par['n_timesteps'], par['n_timesteps']))
-for itime_train in range(par['n_timesteps']):
-    print('10. decoding from input synapse - matrix' + str(itime_train))
-    itrain_input = syn_inputs[itime_train, :, :]
-    svm_model_linear = SVC(kernel='linear', C=1).fit(itrain_input, trial_info['stimulus_ori'])
-    for itime_test in range(par['n_timesteps']):
-        itest_input = syn_inputs[itime_test, :, :]
-        svm_predictions = svm_model_linear.predict(itest_input)
-        iaccuracy = np.sum(svm_predictions == trial_info['stimulus_ori'])/par['batch_size']
-        Accuracy_acrosstime_matrix_syn_input[itime_train, itime_test] = iaccuracy
-
-fig = plt.figure(figsize=(13, 13), dpi=80)
-plt.rcParams.update({'font.size': 20})
-plt.imshow(Accuracy_acrosstime_matrix_syn_input, vmin=ivmin, vmax=ivmax)
-plt.plot(np.array([1, 1])*esti_on, np.array([0, 1])*par['n_timesteps'], 'k--')
-plt.plot(np.array([0, 1])*par['n_timesteps'], np.array([1, 1])*esti_on, 'k--')
-plt.plot(np.array([1, 1])*stim_onoff[0], np.array([0, 1])*par['n_timesteps'], 'k--')
-plt.plot(np.array([0, 1])*par['n_timesteps'], np.array([1, 1])*stim_onoff[0], 'k--')
-plt.plot(np.array([1, 1])*stim_onoff[1], np.array([0, 1])*par['n_timesteps'], 'k--')
-plt.plot(np.array([0, 1])*par['n_timesteps'], np.array([1, 1])*stim_onoff[1], 'k--')
-plt.xlabel('test time step')
-plt.ylabel('train time step')
-plt.title('by input synapse')
-plt.xlim([0, par['n_timesteps']])
-plt.ylim([0, par['n_timesteps']])
-plt.colorbar()
-plt.savefig(savedir + svmdir + '/10_Accuracy_syn_input_matrix' + str(iteration_load) + '.png', bbox_inches='tight')
-
-## 11. decoding from hidden synapse - maxtix
-
-Accuracy_acrosstime_matrix_syn_hidden = np.zeros((par['n_timesteps'], par['n_timesteps']))
-for itime_train in range(par['n_timesteps']):
-    print('11. decoding from hidden synapse - maxtix ' + str(itime_train))
-    itrain_h = syn_hidden[itime_train, :, :]
-    svm_model_linear = SVC(kernel='linear', C=1).fit(itrain_h, trial_info['stimulus_ori'])
-    for itime_test in range(par['n_timesteps']):
-        itest_h = syn_hidden[itime_test, :, :]
-        svm_predictions = svm_model_linear.predict(itest_h)
-        iaccuracy = np.sum(svm_predictions == trial_info['stimulus_ori']) / par['batch_size']
-        Accuracy_acrosstime_matrix_syn_hidden[itime_train, itime_test] = iaccuracy
-
-fig = plt.figure(figsize=(13, 13), dpi=80)
-plt.rcParams.update({'font.size': 20})
-plt.imshow(Accuracy_acrosstime_matrix_syn_hidden, vmin=ivmin, vmax=ivmax)
-plt.plot(np.array([1, 1])*esti_on, np.array([0, 1])*par['n_timesteps'], 'k--')
-plt.plot(np.array([0, 1])*par['n_timesteps'], np.array([1, 1])*esti_on, 'k--')
-plt.plot(np.array([1, 1])*stim_onoff[0], np.array([0, 1])*par['n_timesteps'], 'k--')
-plt.plot(np.array([0, 1])*par['n_timesteps'], np.array([1, 1])*stim_onoff[0], 'k--')
-plt.plot(np.array([1, 1])*stim_onoff[1], np.array([0, 1])*par['n_timesteps'], 'k--')
-plt.plot(np.array([0, 1])*par['n_timesteps'], np.array([1, 1])*stim_onoff[1], 'k--')
-plt.xlabel('test time step')
-plt.ylabel('train time step')
-plt.title('by hidden synapse')
-plt.xlim([0, par['n_timesteps']])
-plt.ylim([0, par['n_timesteps']])
-plt.colorbar()
-plt.savefig(savedir + svmdir + '/11_Accuracy_syn_hidden_matrix' + str(iteration_load) + '.png', bbox_inches='tight')
-
-## 12. decoding from output synapse - maxtix
-
-Accuracy_acrosstime_matrix_syn_output = np.zeros((par['n_timesteps'], par['n_timesteps']))
-for itime_train in range(par['n_timesteps']):
-    print('12. decoding from output synapse - maxtix ' + str(itime_train))
-    itrain_h = syn_output[itime_train, :, :]
-    svm_model_linear = SVC(kernel='linear', C=1).fit(itrain_h, trial_info['stimulus_ori'])
-    for itime_test in range(par['n_timesteps']):
-        itest_h = syn_output[itime_test, :, :]
-        svm_predictions = svm_model_linear.predict(itest_h)
-        iaccuracy = np.sum(svm_predictions == trial_info['stimulus_ori']) / par['batch_size']
-        Accuracy_acrosstime_matrix_syn_output[itime_train, itime_test] = iaccuracy
-
-fig = plt.figure(figsize=(13, 13), dpi=80)
-plt.rcParams.update({'font.size': 20})
-plt.imshow(Accuracy_acrosstime_matrix_syn_output, vmin=ivmin, vmax=ivmax)
-plt.plot(np.array([1, 1])*esti_on, np.array([0, 1])*par['n_timesteps'], 'k--')
-plt.plot(np.array([0, 1])*par['n_timesteps'], np.array([1, 1])*esti_on, 'k--')
-plt.plot(np.array([1, 1])*stim_onoff[0], np.array([0, 1])*par['n_timesteps'], 'k--')
-plt.plot(np.array([0, 1])*par['n_timesteps'], np.array([1, 1])*stim_onoff[0], 'k--')
-plt.plot(np.array([1, 1])*stim_onoff[1], np.array([0, 1])*par['n_timesteps'], 'k--')
-plt.plot(np.array([0, 1])*par['n_timesteps'], np.array([1, 1])*stim_onoff[1], 'k--')
-plt.xlabel('test time step')
-plt.ylabel('train time step')
-plt.title('by output synapse')
-plt.xlim([0, par['n_timesteps']])
-plt.ylim([0, par['n_timesteps']])
-plt.colorbar()
-plt.savefig(savedir + svmdir + '/12_Accuracy_syn_output_matrix' + str(iteration_load) + '.png', bbox_inches='tight')
-
-svm_results = { 'Accuracy_input': Accuracy_input,
-                'Accuracy_hidden': Accuracy_hidden,
-                'Accuracy_output': Accuracy_output,
-                'Accuracy_acrosstime_vector_input': Accuracy_acrosstime_vector_input,
-                'Accuracy_acrosstime_vector_hidden': Accuracy_acrosstime_vector_hidden,
-                'Accuracy_acrosstime_vector_output': Accuracy_acrosstime_vector_output,
-                'Accuracy_acrosstime_matrix_input': Accuracy_acrosstime_matrix_input,
-                'Accuracy_acrosstime_matrix_hidden': Accuracy_acrosstime_matrix_hidden,
-                'Accuracy_acrosstime_matrix_output': Accuracy_acrosstime_matrix_output,
-
-                'Accuracy_syn_input': Accuracy_syn_input,
-                'Accuracy_syn_hidden': Accuracy_syn_hidden,
-                'Accuracy_syn_output': Accuracy_syn_output,
-                'Accuracy_acrosstime_vector_syn_input': Accuracy_acrosstime_vector_syn_input,
-                'Accuracy_acrosstime_vector_syn_hidden': Accuracy_acrosstime_vector_syn_hidden,
-                'Accuracy_acrosstime_vector_syn_output': Accuracy_acrosstime_vector_syn_output,
-                'Accuracy_acrosstime_matrix_syn_input': Accuracy_acrosstime_matrix_syn_input,
-                'Accuracy_acrosstime_matrix_syn_hidden': Accuracy_acrosstime_matrix_syn_hidden,
-                'Accuracy_acrosstime_matrix_syn_output': Accuracy_acrosstime_matrix_syn_output
-                }
-pickle.dump(svm_results, open(savedir + svmdir + '/svm_results.pkl', 'wb'))
-# model = pickle.load(open(savedir + svmdir + '/svm_results.pkl', 'rb'))
+    w_rnn = par['EI_mask'] @ tf.nn.relu(var_dict['w_rnn'])
+
+    for it in range(par['n_timesteps']):
+        rnn_input = in_data[it, :, :]
+        h, syn_x, syn_u = rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn)
+
+        self_h = self_h.write(it, h)
+        self_syn_x = self_syn_x.write(it, syn_x)
+        self_syn_u = self_syn_u.write(it, syn_u)
+        self_output = self_output.write(it, h @ tf.nn.relu(var_dict['w_out']) + tf.nn.relu(var_dict['b_out']))
+
+    self_h = self_h.stack()
+    self_syn_x = self_syn_x.stack()
+    self_syn_u = self_syn_u.stack()
+    self_output = self_output.stack()
+
+    return self_h, self_output, self_syn_x, self_syn_u, w_rnn
+
+def calc_loss(syn_x_init, syn_u_init, in_data, out_target, target_ori):
+
+    h, output, _, _, w_rnn = run_model(in_data, syn_x_init, syn_u_init)
+
+    starget = tf.reduce_sum(out_target, axis=2)
+    starget = tf.expand_dims(starget, axis=2)
+    ntarget = out_target / tf.repeat(starget, par['n_output'], axis=2)
+    cenoutput = tf.nn.softmax(output, axis=2)
+
+    ipreori = tf.argmax(tf.reduce_mean(cenoutput[450:, :, :], axis=0), axis=1) * 180 / 24
+    itargetori = target_ori * 180 / 24
+    ierror = ipreori - itargetori
+    ierror = tf.reduce_sum(abs(ierror[ierror>90] - 180)) +\
+                tf.reduce_sum(abs(ierror[ierror<-90] + 180)) +\
+                tf.reduce_sum(abs(ierror[abs(ierror)==90])) + \
+                tf.reduce_sum(abs(ierror[abs(ierror)<90]))
+    ierror = ierror/par['batch_size']
+    ierror = tf.cast(ierror, dtype=tf.float32)
+
+    loss_orient = tf.cond(tf.less(ierror, 10),
+                     lambda: tf.reduce_sum((ntarget - cenoutput) ** 2),
+                     lambda: tf.reduce_sum((ntarget[450:, :, :] - cenoutput[450:, :, :]) ** 2))
+
+    n = 2
+    spike_loss = tf.reduce_sum(h**2)
+    weight_loss = tf.reduce_sum(tf.nn.relu(w_rnn) ** n)
+    loss = par['orientation_cost'] * loss_orient + par['spike_cost'] * spike_loss + par['weight_cost'] * weight_loss
+    return loss, loss_orient, spike_loss, weight_loss, ierror
+
+def append_model_performance(model_performance, loss, loss_orient, spike_loss, ierror, var_dict):
+    model_performance['loss'].append(loss)
+    model_performance['loss_orient'].append(loss_orient)
+    model_performance['spike_loss'].append(spike_loss)
+    model_performance['iteration'].append(iteration)
+    model_performance['error'].append(ierror)
+    model_performance['w_in'].append(var_dict['w_in'])
+    model_performance['w_rnn'].append(var_dict['w_rnn'])
+    model_performance['b_rnn'].append(var_dict['b_rnn'])
+    model_performance['w_out'].append(var_dict['w_out'])
+    model_performance['b_out'].append(var_dict['b_out'])
+    model_performance['h'].append(var_dict['h'])
+    return model_performance
+
+def save_results(model_performance, par, iteration):
+    results = {'parameters': par, 'iteration': iteration}
+    for k, v in model_performance.items():
+        results[k] = v
+    pickle.dump(results, open(savedir + '/Iter' + str(iteration) + '.pkl', 'wb'))
+    print('Model results saved in', savedir, '/Iter', str(iteration), '.pkl')
+
+t0 = time.time()
+# for iModel in range(1, nModel):
+
+par, var_dict, var_list, syn_x_init, syn_u_init, batch_size, savedir = initialize_parameters(iModel, par)
+opt = tf.optimizers.Adam(learning_rate=par['learning_rate'])
+model_performance = {'error': [], 'loss': [], 'loss_orient': [], 'spike_loss': [], 'iteration': [], 'w_in': [],
+                     'w_rnn': [], 'b_rnn': [], 'w_out': [], 'b_out': [], 'h': []}
+
+@ tf.function
+def train_onestep(syn_x_init, syn_u_init, in_data, out_target, target_ori):
+    with tf.GradientTape() as t:
+        loss, loss_orient, spike_loss, weight_loss, ierror = calc_loss(syn_x_init, syn_u_init, in_data, out_target, target_ori)
+    grads = t.gradient(loss, var_list)
+    grads_and_vars = list(zip(grads, var_list))
+    capped_gvs = []
+    for grad, var in grads_and_vars:
+        if 'w_rnn' in var.name:
+            grad *= par['w_rnn_mask']
+        elif 'w_out' in var.name:
+            grad *= par['w_out_mask']
+        elif 'w_in' in var.name:
+            grad *= par['w_in_mask']
+        capped_gvs.append((tf.clip_by_norm(grad, par['clip_max_grad_val']), var))
+    opt.apply_gradients(grads_and_vars=capped_gvs)
+    return loss, loss_orient, spike_loss, ierror
+
+i = 0
+for i in range(0, iteration):
+
+    trial_info = stimulus.generate_trial()
+    in_data = tf.constant(trial_info['neural_input'].astype('float32'))
+    out_target = tf.constant(trial_info['desired_output'])
+    mask_train = tf.constant(trial_info['mask'])
+    target_ori = tf.constant(trial_info['stimulus_ori'])
+
+    loss, loss_orient, spike_loss, ierror = train_onestep(syn_x_init, syn_u_init, in_data, out_target, target_ori)
+    model_performance = append_model_performance(model_performance, loss, loss_orient, spike_loss, ierror, var_dict)
+
+    print('iModel=', iModel , ', iter=', i+1,
+          ', error_ori=', np.around(ierror, decimals=1),
+          ', loss=', loss.numpy(), ', loss_orient=', np.round(loss_orient.numpy()*par['orientation_cost']),
+          ', spike_loss=', np.around(spike_loss.numpy()*par['spike_cost'], decimals=1),
+          ', min=', np.around((time.time() - t0)/60, decimals=1))
+
+    if np.mod(i+1, 500) == 0 or (np.mod(i+1, 20) == 0)*(i+1 <= 100) == 1\
+            or (np.mod(i+1, 50) == 0)*(i+1 > 100)*(i+1 <= 500) == 1 or i < 10:
+        save_results(model_performance, par, i+1)
+
+save_results(model_performance, par, i+1)

@@ -7,7 +7,7 @@ import tensorflow as tf
 import time
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 iModel = 3
-iteration = 10000
+iteration = 20000
 stimulus = Stimulus()
 #
 par['design'].update({'iti'     : (0, 1.5),
@@ -96,7 +96,7 @@ def calc_loss(syn_x_init, syn_u_init, in_data, out_target, target_ori):
     ntarget = out_target / tf.repeat(starget, par['n_output'], axis=2)
     cenoutput = tf.nn.softmax(output, axis=2)
 
-    ipreori = tf.argmax(tf.reduce_mean(cenoutput[300:, :, :], axis=0), axis=1) * 180 / 24
+    ipreori = tf.argmax(tf.reduce_mean(cenoutput[450:, :, :], axis=0), axis=1) * 180 / 24
     itargetori = target_ori * 180 / 24
     ierror = ipreori - itargetori
     ierror = tf.reduce_sum(abs(ierror[ierror>90] - 180)) +\
@@ -106,9 +106,9 @@ def calc_loss(syn_x_init, syn_u_init, in_data, out_target, target_ori):
     ierror = ierror/par['batch_size']
     ierror = tf.cast(ierror, dtype=tf.float32)
 
-    loss_orient = tf.cond(tf.less(ierror, 15),
+    loss_orient = tf.cond(tf.less(ierror, 10),
                      lambda: tf.reduce_sum((ntarget - cenoutput) ** 2),
-                     lambda: tf.reduce_sum((ntarget[300:, :, :] - cenoutput[300:, :, :]) ** 2))
+                     lambda: tf.reduce_sum((ntarget[450:, :, :] - cenoutput[450:, :, :]) ** 2))
 
     n = 2
     spike_loss = tf.reduce_sum(h**2)
