@@ -6,8 +6,8 @@ import numpy as np
 import tensorflow as tf
 import time
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
-iModel = 5
-iteration = 10000
+iModel = 1
+iteration = 2000
 stimulus = Stimulus()
 
 par = update_parameters(par)
@@ -30,7 +30,7 @@ def initialize_parameters(iModel, par):
     isyn_u_init = tf.constant(ipar['syn_u_init'])
     ibatch_size = ipar['batch_size']
 
-    isavedir = os.path.dirname(os.path.realpath(__file__)) + '/savedir/iModel' + str(iModel)
+    isavedir = os.path.dirname(os.path.realpath(__file__)) + '/savedir/WMfirst/iModel' + str(iModel)
     if not os.path.isdir(isavedir):
         os.makedirs(isavedir)
 
@@ -48,7 +48,7 @@ def rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn):
     h = tf.nn.relu((1 - par['alpha_neuron']) * h
          + par['alpha_neuron'] * (h_post @ w_rnn
                                   + rnn_input @ tf.nn.relu(var_dict['w_in'])
-                                  + var_dict['b_rnn'])
+                                  + tf.nn.relu(var_dict['b_rnn']))
          + tf.random.normal(h.shape, 0, noise_rnn, dtype=tf.float32))
     return h, syn_x, syn_u
 
@@ -88,6 +88,7 @@ def calc_loss(syn_x_init, syn_u_init, in_data, out_target):
     ntarget = out_target / tf.repeat(starget, par['n_output'], axis=2)
 
     cenoutput = tf.nn.softmax(output, axis=2)
+
     loss_orient = tf.reduce_sum((ntarget-cenoutput)**2)
 
     n = 2
@@ -117,6 +118,7 @@ def save_results(model_performance, par, iteration):
     print('Model results saved in', savedir, '/Iter', str(iteration), '.pkl')
 
 t0 = time.time()
+# for iModel in range(1, nModel):
 
 par, var_dict, var_list, syn_x_init, syn_u_init, batch_size, savedir = initialize_parameters(iModel, par)
 opt = tf.optimizers.Adam(learning_rate=par['learning_rate'])

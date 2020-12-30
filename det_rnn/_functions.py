@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 
 __all__ = ['_initialize', '_random_normal_abs', '_alternating',
 		   '_EI_mask', '_modular_sparse_mask', '_convert_to_rg',

@@ -10,27 +10,10 @@ iModel = 1
 iteration = 2000
 stimulus = Stimulus()
 
-# par['design'].update({'iti'     : (0, 0.5),
-#                       'stim'    : (0.5,2.0),
-#                       'delay'   : (2.0,4.5),
-#                       'estim'   : (4.5,6.0)})
-
 par = update_parameters(par)
 par['batch_size'] = 200
 stimulus = Stimulus(par)
 trial_info = stimulus.generate_trial()
-
-##
-
-# fig, axes = plt.subplots(3,1, figsize=(10,8))
-# TEST_TRIAL = np.random.randint(stimulus.batch_size)
-# a0 = axes[0].imshow(trial_info['neural_input'][:,TEST_TRIAL,:].T, interpolation='none',aspect='auto'); axes[0].set_title("Neural Input"); fig.colorbar(a0, ax=axes[0])
-# a1 = axes[1].imshow(trial_info['desired_output'][:,TEST_TRIAL,:].T, interpolation='none',aspect='auto'); axes[1].set_title("Desired Output"); fig.colorbar(a1, ax=axes[1])
-# a2 = axes[2].imshow(trial_info['mask'][:,TEST_TRIAL,:].T,interpolation='none', aspect='auto'); axes[2].set_title("Training Mask"); fig.colorbar(a2, ax=axes[2]) # a bug here
-# fig.tight_layout(pad=2.0)
-# plt.show()
-
-##
 
 def initialize_parameters(iModel, par):
 
@@ -88,18 +71,7 @@ def run_model(in_data, syn_x_init, syn_u_init):
         self_syn_x = self_syn_x.write(it, syn_x)
         self_syn_u = self_syn_u.write(it, syn_u)
         self_output = self_output.write(it, h @ tf.nn.relu(var_dict['w_out']) + tf.nn.relu(var_dict['b_out']))
-    #
-    # c = 0
-    # for rnn_input in in_data:
-    #     # within a loop
-    #     h, syn_x, syn_u = rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn)
-    #
-    #     self_h = self_h.write(c, h)
-    #     self_syn_x = self_syn_x.write(c, syn_x)
-    #     self_syn_u = self_syn_u.write(c, syn_u)
-    #     self_output = self_output.write(c, h @ tf.nn.relu(var_dict['w_out']) + tf.nn.relu(var_dict['b_out']))
-    #     c += 1
-    #
+
     self_h = self_h.stack()
     self_syn_x = self_syn_x.stack()
     self_syn_u = self_syn_u.stack()

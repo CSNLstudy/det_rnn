@@ -5,9 +5,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 
-iModel = 1
+iModel = 5
 
-iteration = 2000
+iteration = 10000
 BatchSize = 200
 
 savedir = os.path.dirname(os.path.realpath(__file__)) + '/savedir/iModel' + str(iModel)
@@ -102,7 +102,7 @@ cb = plt.colorbar()
 # plt.imshow(np.ones((5,1))@b_out[:, np.newaxis].T, vmin=0, vmax=MaxVal2)
 # plt.title('b_out')
 # cb = plt.colorbar()
-plt.savefig(savedir + '/TrainingSummary_weight_nIter' + str(iteration_load) + '.png', bbox_inches='tight')
+plt.savefig(savedir + '/TrainingSummary_weight_nIter' + str(iteration) + '.png', bbox_inches='tight')
 
 
 ## load stimulus for simulation result
@@ -110,14 +110,13 @@ plt.savefig(savedir + '/TrainingSummary_weight_nIter' + str(iteration_load) + '.
 stimulus = Stimulus(par)
 trial_info = stimulus.generate_trial()
 #
-# fig, axes = plt.subplots(3,1, figsize=(10,8))
-# TEST_TRIAL = np.random.randint(stimulus.batch_size)
-# a0 = axes[0].imshow(trial_info['neural_input'][:,TEST_TRIAL,:].T, aspect='auto'); axes[0].set_title("Neural Input"); fig.colorbar(a0, ax=axes[0])
-# a1 = axes[1].imshow(trial_info['desired_output'][:,TEST_TRIAL,:].T, aspect='auto'); axes[1].set_title("Desired Output"); fig.colorbar(a1, ax=axes[1])
-# a2 = axes[2].imshow(trial_info['mask'][:,TEST_TRIAL,:].T, aspect='auto'); axes[2].set_title("Training Mask"); fig.colorbar(a2, ax=axes[2]) # a bug here
-# fig.tight_layout(pad=2.0)
-# plt.show()
-
+fig, axes = plt.subplots(3,1, figsize=(10,8))
+TEST_TRIAL = np.random.randint(stimulus.batch_size)
+a0 = axes[0].imshow(trial_info['neural_input'][:,TEST_TRIAL,:].T, aspect='auto'); axes[0].set_title("Neural Input"); fig.colorbar(a0, ax=axes[0])
+a1 = axes[1].imshow(trial_info['desired_output'][:,TEST_TRIAL,:].T, aspect='auto'); axes[1].set_title("Desired Output"); fig.colorbar(a1, ax=axes[1])
+a2 = axes[2].imshow(trial_info['mask'][:,TEST_TRIAL,:].T, aspect='auto'); axes[2].set_title("Training Mask"); fig.colorbar(a2, ax=axes[2]) # a bug here
+fig.tight_layout(pad=2.0)
+plt.show()
 
 in_data = trial_info['neural_input'].astype('float32')
 out_target = trial_info['desired_output']

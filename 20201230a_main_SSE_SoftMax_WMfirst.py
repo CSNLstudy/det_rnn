@@ -6,8 +6,8 @@ import numpy as np
 import tensorflow as tf
 import time
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
-iModel = 5
-iteration = 10000
+iModel = 1
+iteration = 2000
 stimulus = Stimulus()
 
 par = update_parameters(par)
@@ -30,7 +30,7 @@ def initialize_parameters(iModel, par):
     isyn_u_init = tf.constant(ipar['syn_u_init'])
     ibatch_size = ipar['batch_size']
 
-    isavedir = os.path.dirname(os.path.realpath(__file__)) + '/savedir/iModel' + str(iModel)
+    isavedir = os.path.dirname(os.path.realpath(__file__)) + '/savedir/WMfirst/iModel' + str(iModel)
     if not os.path.isdir(isavedir):
         os.makedirs(isavedir)
 
@@ -48,7 +48,7 @@ def rnn_cell(rnn_input, h, syn_x, syn_u, w_rnn):
     h = tf.nn.relu((1 - par['alpha_neuron']) * h
          + par['alpha_neuron'] * (h_post @ w_rnn
                                   + rnn_input @ tf.nn.relu(var_dict['w_in'])
-                                  + var_dict['b_rnn'])
+                                  + tf.nn.relu(var_dict['b_rnn']))
          + tf.random.normal(h.shape, 0, noise_rnn, dtype=tf.float32))
     return h, syn_x, syn_u
 
@@ -86,21 +86,33 @@ def calc_loss(syn_x_init, syn_u_init, in_data, out_target):
     starget = tf.reduce_sum(out_target, axis=2)
     starget = tf.expand_dims(starget, axis=2)
     ntarget = out_target / tf.repeat(starget, par['n_output'], axis=2)
-
     cenoutput = tf.nn.softmax(output, axis=2)
-    loss_orient = tf.reduce_sum((ntarget-cenoutput)**2)
+
+    ipreori = tf.argmax(tf.reduce_mean(cenoutput[450:, :, :], axis=0), axis=1) * 180 / 24
+    itargetori = trial_info['stimulus_ori'] * 180 / 24
+    ierror = ipreori - itargetori
+    ierror = tf.reduce_sum(abs(ierror[ierror>90] - 180)) +\
+                tf.reduce_sum(abs(ierror[ierror<-90] + 180)) +\
+                tf.reduce_sum(abs(ierror[abs(ierror)==90])) + \
+                tf.reduce_sum(abs(ierror[abs(ierror)<90]))
+    ierror = ierror/par['batch_size']
+
+    loss_orient = tf.cond(tf.less(ierror, 10),
+                     lambda: tf.reduce_sum((ntarget - cenoutput) ** 2),
+                     lambda: tf.reduce_sum((ntarget[450:, :, :] - cenoutput[450:, :, :]) ** 2))
 
     n = 2
     spike_loss = tf.reduce_sum(h**2)
     weight_loss = tf.reduce_sum(tf.nn.relu(w_rnn) ** n)
     loss = par['orientation_cost'] * loss_orient + par['spike_cost'] * spike_loss + par['weight_cost'] * weight_loss
-    return loss, loss_orient, spike_loss, weight_loss
+    return loss, loss_orient, spike_loss, weight_loss, ierror
 
-def append_model_performance(model_performance, loss, loss_orient, spike_loss, i, var_dict):
+def append_model_performance(model_performance, loss, loss_orient, spike_loss, ierror, var_dict):
     model_performance['loss'].append(loss)
     model_performance['loss_orient'].append(loss_orient)
     model_performance['spike_loss'].append(spike_loss)
     model_performance['iteration'].append(iteration)
+    model_performance['error'].append(ierror)
     model_performance['w_in'].append(var_dict['w_in'])
     model_performance['w_rnn'].append(var_dict['w_rnn'])
     model_performance['b_rnn'].append(var_dict['b_rnn'])
@@ -117,16 +129,17 @@ def save_results(model_performance, par, iteration):
     print('Model results saved in', savedir, '/Iter', str(iteration), '.pkl')
 
 t0 = time.time()
+# for iModel in range(1, nModel):
 
 par, var_dict, var_list, syn_x_init, syn_u_init, batch_size, savedir = initialize_parameters(iModel, par)
 opt = tf.optimizers.Adam(learning_rate=par['learning_rate'])
-model_performance = {'loss': [], 'loss_orient': [], 'spike_loss': [], 'iteration': [], 'w_in': [],
+model_performance = {'error': [], 'loss': [], 'loss_orient': [], 'spike_loss': [], 'iteration': [], 'w_in': [],
                      'w_rnn': [], 'b_rnn': [], 'w_out': [], 'b_out': [], 'h': []}
 
 @ tf.function
 def train_onestep(syn_x_init, syn_u_init, in_data, out_target):
     with tf.GradientTape() as t:
-        loss, loss_orient, spike_loss, weight_loss = calc_loss(syn_x_init, syn_u_init, in_data, out_target)
+        loss, loss_orient, spike_loss, weight_loss, ierror = calc_loss(syn_x_init, syn_u_init, in_data, out_target)
     grads = t.gradient(loss, var_list)
     grads_and_vars = list(zip(grads, var_list))
     capped_gvs = []
@@ -139,7 +152,7 @@ def train_onestep(syn_x_init, syn_u_init, in_data, out_target):
             grad *= par['w_in_mask']
         capped_gvs.append((tf.clip_by_norm(grad, par['clip_max_grad_val']), var))
     opt.apply_gradients(grads_and_vars=capped_gvs)
-    return loss, loss_orient, spike_loss
+    return loss, loss_orient, spike_loss, ierror
 
 i = 0
 for i in range(0, iteration):
@@ -149,10 +162,11 @@ for i in range(0, iteration):
     out_target = tf.constant(trial_info['desired_output'])
     mask_train = tf.constant(trial_info['mask'])
 
-    loss, loss_orient, spike_loss = train_onestep(syn_x_init, syn_u_init, in_data, out_target)
-    model_performance = append_model_performance(model_performance, loss, loss_orient, spike_loss, i, var_dict)
+    loss, loss_orient, spike_loss, ierror = train_onestep(syn_x_init, syn_u_init, in_data, out_target)
+    model_performance = append_model_performance(model_performance, loss, loss_orient, spike_loss, ierror, var_dict)
 
     print('iModel=', iModel , ', iter=', i+1,
+          ', error_ori=', np.around(ierror, decimals=1),
           ', loss=', loss.numpy(), ', loss_orient=', np.round(loss_orient.numpy()*par['orientation_cost']),
           ', spike_loss=', np.around(spike_loss.numpy()*par['spike_cost'], decimals=1),
           ', min=', np.around((time.time() - t0)/60, decimals=1))
