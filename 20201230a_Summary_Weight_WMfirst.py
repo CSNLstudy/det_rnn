@@ -6,12 +6,12 @@ import numpy as np
 import tensorflow as tf
 import scipy.stats as stat
 
-iModel = 5
+iModel = 2
 
-iteration = 10000
+iteration = 2000
 BatchSize = 200
 
-savedir = os.path.dirname(os.path.realpath(__file__)) + '/savedir/iModel' + str(iModel)
+savedir = os.path.dirname(os.path.realpath(__file__)) + '/savedir/WMfirst/iModel' + str(iModel)
 
 if not os.path.isdir(savedir + '/Training/Iter' + str(iteration)):
     os.makedirs(savedir + '/Training/Iter' + str(iteration))
