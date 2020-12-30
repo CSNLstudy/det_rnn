@@ -6,10 +6,10 @@ import numpy as np
 import tensorflow as tf
 import time
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
-iModel = 1
+iModel = 2
 iteration = 100000
 curriculum_delays = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9]
-curriculum_error = 10
+curriculum_error = 5
 stimulus = Stimulus()
 par['batch_size'] = 200
 
