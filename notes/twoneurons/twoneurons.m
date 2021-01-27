@@ -227,15 +227,15 @@ close(gcf)
 %% Stability of the matrices
 
 % simulationFigure();
+% lemma1: if you "interpolate" with an identity matrix, the eigenvectors
+% stay the same => obvious. use definition of eigenvalue.
 alpha = rand();
-A = [1,0;0,-1];%eye(2); diag(rand(2,1));
-W = rand(2,2); %0.5-rand(2,2); %rand(2,2);
+A = eye(2); %[1,0;0,-1];%eye(2); diag(rand(2,1));
+W = 0.5-rand(2,2); %rand(2,2); %0.5-rand(2,2); %rand(2,2);
 
 [V1, D1] = eig(W);
 [V2, D2] = eig(A);
 [V3, D3] = eig((1-alpha)*A + alpha*W);
 disp(V1);disp(V2);disp(V3);
-
-
 
 [U,S,V] = svd(W);% m*W = U,S,V

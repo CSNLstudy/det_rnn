@@ -301,9 +301,7 @@ end
 
 function updateDecayedW(guistruct, m, W,alpha)
     %% W
-    B = getappdata(f,'B');
-    
-    decay = (1-alpha)*B;
+    decay = (1-alpha)*eye(2,2);
     W = decay + alpha*m*W; % change W but do not save in appdata
     e = eig(W);
     [V,D] = eig(W);
