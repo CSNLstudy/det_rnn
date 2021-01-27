@@ -283,7 +283,7 @@ function updateWRNN(guistruct,m,W)
         W(1,1),W(1,2), W(2,1), W(2,2));
     guistruct.wrnn.mat_label.String = str1;
 
-    if imag(V(1,1)) == 0 
+    if (imag(V(1,1)) == 0) && (imag(V(2,1)) == 0) 
         str2 = sprintf('ev1: \n %+4.2f \n %+4.2f', ...
             real(V(1,1)), real(V(2,1)));
         str3 = sprintf('ev2: \n %+4.2f \n %+4.2f', ...
@@ -301,7 +301,9 @@ end
 
 function updateDecayedW(guistruct, m, W,alpha)
     %% W
-    decay = (1-alpha)*eye(2,2);
+    B = getappdata(f,'B');
+    
+    decay = (1-alpha)*B;
     W = decay + alpha*m*W; % change W but do not save in appdata
     e = eig(W);
     [V,D] = eig(W);

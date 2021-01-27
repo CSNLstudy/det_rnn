@@ -1,6 +1,11 @@
 Nsamples = 10000;
 B = [1,0;0,-1]; % Dale's law matrix
 
+gamma = true;
+if gamma == true
+    pd = makedist('Gamma','a',0.1,'b',1); 
+end
+
 %% Eigenvalues of positive matrices and Dale's law.
 rand_eig         = nan(Nsamples,2);
 rand_eig_real    = [];
@@ -8,8 +13,14 @@ dale_rand_eig    = nan(Nsamples,2);
 dale_rand_eig_r  = [];
 
 for iter = 1:Nsamples
-    rand_eig(iter,:) = eig(rand(2,2));          % uniformly distributed random numbers in (0,1)
-    dale_rand_eig(iter,:) = eig(rand(2,2)*B);   % Dales law applied.
+    if gamma == true
+        A = pd.random(2,2);
+    else
+        A = rand(2,2);
+    end
+    
+    rand_eig(iter,:) = eig(A);          % uniformly distributed random numbers in (0,1)
+    dale_rand_eig(iter,:) = eig(A*B);   % Dales law applied.
     
     rand_eig_real(iter) = isreal(rand_eig(iter,:));
     dale_rand_eig_r(iter)  = isreal(dale_rand_eig(iter,:));
@@ -25,7 +36,11 @@ hline(0);vline(0);
 xlabel('eig1')
 ylabel('eig2')
 legend('real', 'complex','y=-x')
-title('Eigenvalues of random positive matrix, U(0,1)')
+if gamma == false
+    title('Eigenvalues of random positive matrix U(0,1)')
+else
+    title('Eigenvalues of random positive matrix Gamma(0.1,1)')
+end
 
 subplot(2,2,2); hold on;
 scatter(dale_rand_eig(logical(dale_rand_eig_r),1),dale_rand_eig(logical(dale_rand_eig_r),2),10, 'b','filled');
@@ -36,13 +51,18 @@ hline(0);vline(0);
 xlabel('eig1')
 ylabel('eig2')
 legend('real', 'complex','y=x')
-title('Eigenvalues of random positive matrix + Dales law')
+title('+ Dales law  ')
 
 multiplier = 10;
 for iter = 1:Nsamples
-    A = multiplier*rand(2,2);
-    rand_eig(iter,:) = eig(A);          % uniformly distributed random numbers in (0,1)
-    dale_rand_eig(iter,:) = eig(A*B);   % Dales law applied.
+    if gamma == true
+        A = pd.random(2,2);
+    else
+        A = rand(2,2);
+    end
+    
+    rand_eig(iter,:) = eig(multiplier*A);          % uniformly distributed random numbers in (0,1)
+    dale_rand_eig(iter,:) = eig(multiplier*A*B);   % Dales law applied.
     
     rand_eig_real(iter) = isreal(rand_eig(iter,:));
     dale_rand_eig_r(iter)  = isreal(dale_rand_eig(iter,:));
@@ -57,7 +77,11 @@ hline(0);vline(0);
 xlabel('eig1')
 ylabel('eig2')
 legend('real', 'complex','y=-x')
-title('Eigenvalues of random positive matrix U(0,10)')
+if gamma == false
+    title('Eigenvalues of random positive matrix U(0,10)')
+else
+    title('Eigenvalues of random positive matrix 10*Gamma(0.1,1)')
+end
 
 subplot(2,2,4); hold on;
 scatter(dale_rand_eig(logical(dale_rand_eig_r),1),dale_rand_eig(logical(dale_rand_eig_r),2),10, 'b','filled');
@@ -68,10 +92,16 @@ hline(0);vline(0);
 xlabel('eig1')
 ylabel('eig2')
 legend('real', 'complex','y=x')
-title('Eigenvalues of random positive matrix + Dales law')
+title(' + Dales law')
 
-savefig(gcf,'D:\proj\det_rnn\notes\twoneurons\positiveMatrix.fig')
-saveas(gcf,'D:\proj\det_rnn\notes\twoneurons\positiveMatrix.png')
+if gamma == true
+    savefig(gcf,'D:\proj\det_rnn\notes\twoneurons\positiveMatrix_gamma.fig')
+    saveas(gcf,'D:\proj\det_rnn\notes\twoneurons\positiveMatrix_gamma.png')
+else
+    savefig(gcf,'D:\proj\det_rnn\notes\twoneurons\positiveMatrix.fig')
+    saveas(gcf,'D:\proj\det_rnn\notes\twoneurons\positiveMatrix.png')
+end
+
 close(gcf)
 
 %% Modifying self-connections
@@ -87,9 +117,14 @@ multiplier = 1; % random matrix amplitude
 for iter = 1:Nsamples
     alpha = rand();
     alphas(iter) = alpha; 
-    A = multiplier*rand(2,2); % select a positive matrix
-    rand_eig(iter,:) = eig((1-alpha)*eye(2,2) + alpha*A);          % uniformly distributed random numbers in (0,1)
-    dale_rand_eig(iter,:) = eig((1-alpha)*eye(2,2) + alpha*A*B);   % Dales law applied.
+    
+    if gamma == true
+        A = pd.random(2,2);
+    else
+        A = rand(2,2);
+    end    
+    rand_eig(iter,:) = eig((1-alpha)*eye(2,2) + alpha*multiplier*A);          % uniformly distributed random numbers in (0,1)
+    dale_rand_eig(iter,:) = eig((1-alpha)*eye(2,2) + alpha*multiplier*A*B);   % Dales law applied.
     
     rand_eig_real(iter) = isreal(rand_eig(iter,:));
     dale_rand_eig_r(iter)  = isreal(dale_rand_eig(iter,:));
@@ -109,7 +144,12 @@ hline(0);vline(0);
 xlabel('eig1')
 ylabel('eig2')
 legend('real', 'complex','y=-x')
-title('Eigenvalues of random positive matrix U(0,1) with decay (1-\alpha)I')
+
+if gamma == false
+    title('Eigenvalues of random positive matrix U(0,1) with decay (1-\alpha)I')
+else
+    title('Eigenvalues of random positive matrix Gamma(0.1,1) with decay (1-\alpha)I')
+end
 
 subplot(2,2,2); hold on;
 scatter(dale_rand_eig(logical(dale_rand_eig_r),1),dale_rand_eig(logical(dale_rand_eig_r),2),...
@@ -122,16 +162,21 @@ c = colorbar; c.Label.String = 'alpha';
 hline(0);vline(0);
 xlabel('eig1')
 ylabel('eig2')
-legend('real', 'complex','y=x')
+l = legend('real', 'complex','y=x'); l.Location = 'northwest';
 title('+ Dales law')
 
 multiplier = 10; % random matrix amplitude
 for iter = 1:Nsamples
     alpha = rand();
     alphas(iter) = alpha; 
-    A = multiplier*rand(2,2); % select a positive matrix
-    rand_eig(iter,:) = eig((1-alpha)*eye(2,2) + A);          % uniformly distributed random numbers in (0,1)
-    dale_rand_eig(iter,:) = eig((1-alpha)*eye(2,2) + A*B);   % Dales law applied.
+    
+    if gamma == true
+        A = pd.random(2,2);
+    else
+        A = rand(2,2);
+    end
+    rand_eig(iter,:) = eig((1-alpha)*eye(2,2) + alpha*multiplier*A);          % uniformly distributed random numbers in (0,1)
+    dale_rand_eig(iter,:) = eig((1-alpha)*eye(2,2) + alpha*multiplier*A*B);   % Dales law applied.
     
     rand_eig_real(iter) = isreal(rand_eig(iter,:));
     dale_rand_eig_r(iter)  = isreal(dale_rand_eig(iter,:));
@@ -148,7 +193,12 @@ hline(0);vline(0);
 xlabel('eig1')
 ylabel('eig2')
 legend('real', 'complex','y=-x')
-title('Eigenvalues of random positive matrix U(0,10) with decay (1-\alpha)I')
+
+if gamma == false
+    title('Eigenvalues of random positive matrix U(0,10) with decay (1-\alpha)I')
+else
+    title('Eigenvalues of random positive matrix 10*Gamma(0.1,1) with decay (1-\alpha)I')
+end
 
 subplot(2,2,4); hold on;
 scatter(dale_rand_eig(logical(dale_rand_eig_r),1),dale_rand_eig(logical(dale_rand_eig_r),2),...
@@ -164,24 +214,28 @@ ylabel('eig2')
 l = legend('real', 'complex','y=x'); l.Location = 'northwest';
 title('+ Dales law')
 
-savefig(gcf,'D:\proj\det_rnn\notes\twoneurons\positiveMatrix_wDecay.fig')
-saveas(gcf,'D:\proj\det_rnn\notes\twoneurons\positiveMatrix_wDecay.png')
+if gamma == true
+    savefig(gcf,'D:\proj\det_rnn\notes\twoneurons\positiveMatrix_wDecay_gamma.fig')
+    saveas(gcf,'D:\proj\det_rnn\notes\twoneurons\positiveMatrix_wDecay_gamma.png')
+else
+    savefig(gcf,'D:\proj\det_rnn\notes\twoneurons\positiveMatrix_wDecay.fig')
+    saveas(gcf,'D:\proj\det_rnn\notes\twoneurons\positiveMatrix_wDecay.png')
+end
+
 close(gcf)
 
 %% Stability of the matrices
 
-time = 1000;
-multiplier = 1;
+% simulationFigure();
+alpha = rand();
+A = rand(2,2);
+W = rand(2,2);
 
-while true
-    alpha   = rand();
-    A       = rand(2,2);
-    
-    [V,D] = eig(A*B);
-    V
-    D
-    
-end
-    
+[V1, D1] = eig(W);
+[V2, D2] = eig(
+[V3, D3] = eig((1-alpha)*A + alpha*W);
+disp(V1);disp(V2);
 
 
+
+[U,S,V] = svd(m*W)% m*W = U,S,V
