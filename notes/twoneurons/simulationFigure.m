@@ -10,7 +10,7 @@ m = 1;
 alpha = rand();
 NoiseStd = 1;
 init = rand(2,1);
-nsteps = 100;
+nsteps = 1000;
 
 %% GUI
 guistruct = struct();
@@ -44,9 +44,9 @@ a_high = uicontrol('Parent',f,'Style','text','Position',[a_l+a_w-20, a_b-20,50,2
 n_l = 150; n_b = 100; n_w = 300; n_h = 30;
 maxnoise = 10;
 guistruct.noiseControl = uicontrol('Parent',f,'Style','slider',...
-    'SliderStep', [0.01, 0.1], ...
     'Position',[n_l n_b n_w n_h],...
-    'value',alpha, 'min',0, 'max',maxnoise);
+    'value',alpha, 'min',0, 'max',maxnoise,...
+    'SliderStep', [0.001, 0.02]);
 guistruct.n_label = annotation(f,'textbox','String',['Noise = ' sprintf('%4.2f',NoiseStd)], ...
     'FontSize',10,'units','pix','Interpreter','Tex',...
     'Position', [n_l-100,n_b,90,n_h]);       
@@ -60,8 +60,8 @@ e_l = 150; e_b = 300; e_w = 300; e_h = 30;
 maxEig = 10;
 guistruct.EigControl = uicontrol('Parent',f,'Style','slider',...
     'Position',[e_l e_b e_w e_h],...
-    'SliderStep', [0.1, 1], ...
-    'value',m, 'min',0, 'max', maxEig);
+    'value',m, 'min',0, 'max', maxEig,...
+    'SliderStep', [0.001,0.02]);
 guistruct.e_label = annotation(f,'textbox','String',['MaxEig = ' sprintf('%4.2f',m)], ...
     'FontSize',10,'units','pix','Interpreter','Tex',...
     'Position', [e_l-120,e_b,110,e_h]);       
@@ -70,10 +70,26 @@ e_low = uicontrol('Parent',f,'Style','text','Position',[e_l-20, e_b-20,50,20],..
 e_high = uicontrol('Parent',f,'Style','text','Position',[e_l+e_w-20, e_b-20,50,20],...
                 'String',num2str(maxEig),'FontSize', 15);    
 
+% [1 41 1920 962]
+t_l = 1750; t_b = 92; t_w = 100;  t_h = 50; h = 900;
+guistruct.toglogscale.ax3 = uicontrol('Parent',f,'Style','togglebutton','String', 'log scale',...
+                        'Position',[t_l, (t_b+50), t_w, t_h]);
+guistruct.toglogscale.ax2 = uicontrol('Parent',f,'Style','togglebutton','String', 'log scale',...
+    'Position',[t_l, (t_b + h*1/3 + 50), t_w, t_h]);
+guistruct.toglogscale.ax1 = uicontrol('Parent',f,'Style','togglebutton','String', 'log scale',...
+    'Position',[t_l, (t_b + h*2/3 +50), t_w, t_h]);
+guistruct.togautoscale.ax3 = uicontrol('Parent',f,'Style','pushbutton','String', 'auto scale',...
+    'Position',[t_l, (t_b +100), t_w, t_h]);
+guistruct.togautoscale.ax2 = uicontrol('Parent',f,'Style','pushbutton','String', 'auto scale',...
+    'Position',[t_l, (t_b + h*1/3 + 100), t_w, t_h]);
+guistruct.togautoscale.ax1 = uicontrol('Parent',f,'Style','pushbutton','String', 'auto scale',...
+    'Position',[t_l, (t_b + h*2/3 +100), t_w, t_h]);
+guistruct.togTime = uicontrol('Parent',f,'Style','togglebutton','String', 'full time',...
+    'Position',[t_l, (t_b + h*2/3 +180), t_w, t_h]);
+                    
 guistruct.ax1 = subplot(3,3,[2,3]); xlabel('Time (sec)');
 guistruct.ax2 = subplot(3,3,[5,6]); xlabel('Time (sec)');
 guistruct.ax3 = subplot(3,3,[8,9]); xlabel('Time (sec)');
-linkaxes([ax1,ax2,ax3],'x');
 
 b_l = 100; b_b = 880; b_w = 150; b_h = 75;
 e = eig(W);
@@ -151,7 +167,66 @@ guistruct.NewSim = uicontrol(gcf,'Style', 'push', 'String', 'Generate New Simula
     'Position', [b_l+100+b_w, b_b, b_w, b_h]);
 guistruct.NewSim.Callback = @(eb,ed) generateNewSim(guistruct);
 
+guistruct.toglogscale.ax1.Callback = @(eb,ed) togglescale(guistruct, 1, 1);
+guistruct.toglogscale.ax2.Callback = @(eb,ed) togglescale(guistruct, 1, 2);
+guistruct.toglogscale.ax3.Callback = @(eb,ed) togglescale(guistruct, 1, 3);
+guistruct.togautoscale.ax1.Callback = @(eb,ed) togglescale(guistruct, 2, 1);
+guistruct.togautoscale.ax2.Callback = @(eb,ed) togglescale(guistruct, 2, 2);
+guistruct.togautoscale.ax3.Callback = @(eb,ed) togglescale(guistruct, 2, 3);
+
+guistruct.togTime.Callback = @(eb,ed) toggleTime(guistruct);
+
 generateNewWeights(guistruct); % initialize
+end
+
+function togglescale(guistruct, type, ax)
+
+    if ax == 1
+        currax = guistruct.ax1;
+        if type == 1
+            currbutt = guistruct.toglogscale.ax1;
+        elseif type ==2
+            currbutt = guistruct.togautoscale.ax1; 
+        end
+    elseif ax ==2
+        currax = guistruct.ax2;
+        if type == 1
+            currbutt = guistruct.toglogscale.ax2;
+        elseif type ==2
+            currbutt = guistruct.togautoscale.ax2; 
+        end
+    elseif ax == 3
+        currax = guistruct.ax3;
+        if type == 1
+            currbutt = guistruct.toglogscale.ax3;
+        elseif type ==2
+            currbutt = guistruct.togautoscale.ax3; 
+        end
+    end
+    
+    axes(currax); 
+    
+    if type == 1
+        if currbutt.Value == currbutt.Max
+            set(gca,'Yscale','log')        % change to log scale
+        else
+            set(gca,'Yscale','linear')        % change to log scale
+        end
+    elseif type == 2
+        axis 'auto y'
+    end
+end
+
+function toggleTime(guistruct)
+    linkaxes([guistruct.ax1,guistruct.ax2,guistruct.ax3],'x');
+    axes(guistruct.ax1)
+    Nsteps    = getappdata(guistruct.f,'nsteps');
+
+    if guistruct.togTime.Value == guistruct.togTime.Max
+        xlim([0,Nsteps])        
+    else
+        xlim([0,Nsteps/10])    
+    end
 end
 
 function changeData(guistruct,varname,changeval)
@@ -244,7 +319,7 @@ function updateDecayedW(guistruct, m, W,alpha)
         W(1,1),W(1,2), W(2,1), W(2,2));
     guistruct.w.mat_label.String = str1;
 
-    if imag(V(1,1)) == 0 
+    if (imag(V(1,1)) == 0) && (imag(V(2,1)) == 0) 
         str2 = sprintf('ev1: \n %+4.2f \n %+4.2f', ...
             real(V(1,1)), real(V(2,1)));
         str3 = sprintf('ev2: \n %+4.2f \n %+4.2f', ...
@@ -291,20 +366,23 @@ function generateNewSim(guistruct)
     axes(guistruct.ax1); cla; hold on;
     plot(r(:,1),'b'); plot(r(:,2),'r');
     title('Decay + dale'); 
-    xlabel('Time'); legend('Exc', 'Inh')
+    xlabel('Time'); legend('Exc', 'Inh');
     %set(gca,'Yscale','log')
     
     axes(guistruct.ax2); cla; hold on;
     plot(r1(:,1),'b'); plot(r1(:,2),'r');
     title('Decay + dale + relu'); 
-    xlabel('Time'); legend('Exc', 'Inh')
+    xlabel('Time'); legend('Exc', 'Inh');
     %set(gca,'Yscale','log')
     
     axes(guistruct.ax3); cla; hold on;
     plot(r2(:,1),'b'); plot(r2(:,2),'r');
     title('Decay + dale + relu + noise'); 
-    xlabel('Time'); legend('Exc', 'Inh')
+    xlabel('Time'); legend('Exc', 'Inh');
     %set(gca,'Yscale','log')
+    
+    linkaxes([guistruct.ax1,guistruct.ax2,guistruct.ax3],'x');
+    xlim([0,1000])
     
     setappdata(f,'init', init);
 end
