@@ -22,26 +22,31 @@ class LinearFixedPointNetwork:
 
     """
 
-    def __init__(self, input_mat, par, 
+    def __init__(self, input_mat, par=None, 
         identity_map=None, encoding_dim=None, accumulation_rate=None, 
-        eigenvalues=None,  pad_vectors=None, activation_fun='linear'):
-        
+        eigenvalues=None,  pad_vectors=None, activation_fun='linear', eps=1e-7, verbose=False):
+
+        self.eps   = eps       # epsilon for checking pattern orthonormality
         self.input = input_mat # [N_stimulus_dimension x N_stimulus_category]
-        self.alpha = par['alpha_neuron']
-        self.noise = par['noise_rnn_sd']
-        self.strength       = par['strength_output']
-        self.n_hidden       = par['n_hidden']
         self.input_dim      = self.input.shape[0]
         self.input_category = self.input.shape[1]
-        self.input_duration = len(par['design_rg']['stim'])
-        self.batch_size     = par['batch_size']
+        
+        if par is None: # use intrinsic par
+            self._default_par()
+        else:
+            self.alpha          = par['alpha_neuron']
+            self.noise          = par['noise_rnn_sd']
+            self.strength       = par['strength_output']
+            self.n_hidden       = par['n_hidden']
+            self.input_duration = len(par['design_rg']['stim'])
+            self.batch_size     = par['batch_size']
 
-        self.identity_map = identity_map
-        self.encoding_dim = encoding_dim
+        self.identity_map   = identity_map
+        self.encoding_dim   = encoding_dim
         self.accumulation_rate = accumulation_rate
-        self.eigenvalues  = eigenvalues
-        self.pad_vectors  = pad_vectors
-        self.act_fun      = activation_fun  # currently only available for "linear"
+        self.eigenvalues    = eigenvalues
+        self.pad_vectors    = pad_vectors
+        self.act_fun        = activation_fun  # currently only available for "linear"
 
         if identity_map is None:
             # Inference using Moore–Penrose pseudoinverse
@@ -54,24 +59,42 @@ class LinearFixedPointNetwork:
             self.accumulation_rate = self.strength/self.input_duration
         if eigenvalues is None:
             _eigenvalues = np.ones(self.encoding_dim)
-            _eigenvalues[self.input_category:] = 0.00001  # arbitrary decaying factor
+            _eigenvalues[self.input_category:] = 0.00001  # arbitrary decaying factor (for stability)
             self.eigenvalues = _eigenvalues
         if pad_vectors is None:
             self.pad_vectors = np.zeros((self.encoding_dim-self.input_category,self.input_dim))
+
+        # TODO(HG)
+        # check if eivenvalues are real
+        # if complex, phase information should be first computed
         
-    def fit(self, patterns):
+    def fit(self, patterns=None, Win=None, Wout=None):
         # fit the network to the desired eigenvectors(i.e. patterns)
-        # patterns = self._complete_eigenvectors(patterns)
-        # is_orthonormal = self._check_orthonormality(patterns)
 
-        Win   = patterns @ np.concatenate((self.identity_map,self.pad_vectors),axis=0) * self.accumulation_rate
-        Wrec  = patterns @ np.diag(self.eigenvalues) @ patterns.T
-        Wrec  = 1./self.alpha * (Wrec + (self.alpha-1.) * np.eye(self.encoding_dim))
-        Wout  = patterns.T
+        if patterns is None: 
+            # (TODO) if no patterns are given, orthogonal bases are generated
+            pass 
+        else:
+            # patterns = self._complete_eigenvectors(patterns)
+            is_orthonormal = self._check_orthonormality(patterns)
 
-        self.Win  = Win
-        self.Wrec = Wrec
-        self.Wout = Wout
+        if is_orthonormal: 
+            _Wrec  = patterns @ np.diag(self.eigenvalues) @ patterns.T
+            _Wout  = patterns.T
+        else: 
+            _Wrec  = patterns @ np.diag(self.eigenvalues) @ np.linalg.inv(patterns)
+            _Wout  = np.linalg.inv(patterns)
+
+        _Win   = patterns @ np.concatenate((self.identity_map,self.pad_vectors),axis=0) * self.accumulation_rate
+        _Wrec  = 1./self.alpha * (_Wrec + (self.alpha-1.) * np.eye(self.encoding_dim))
+
+        self.Wrec = _Wrec
+        
+        if Win is None: self.Win  = _Win
+        else: self.Win  = Win
+        
+        if Wout is None: self.Wout = _Wout
+        else: self.Wout = Wout
 
     def predict(self, input_data, apply_Wout=True):
         return self._rnn_model(input_data, apply_Wout=apply_Wout)
@@ -108,4 +131,15 @@ class LinearFixedPointNetwork:
         pass
 
     def _check_orthonormality(self, patterns):
-        pass 
+        if np.sum(np.abs(patterns @ patterns.T - np.eye(patterns.shape[0]))) < self.eps: return True
+        else:
+            warnings.warn("Patterns seem not orthonormal. Matrix inverse precision might be compromised.")
+            return False
+
+    def _default_par(self):
+        self.alpha          = 0.1
+        self.noise          = 0.05
+        self.strength       = 1.
+        self.n_hidden       = 100
+        self.input_duration = 150
+        self.batch_size     = 128
