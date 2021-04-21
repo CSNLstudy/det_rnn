@@ -25,10 +25,10 @@ def behavior_summary(trial_info, test_outputs, parOrStim, BatchIdx = None):
 
     output:
     estimation:
-    - ground_truth,
-    - estim_mean,
-    - raw_error,
-    - beh_perf
+    - est_mean: (range: -pi/2 to pi/2) The estimated angle in radians of the network output. Averaged across time and trials
+    - est_target: (range: 0 to pi). The target of estimate
+    - est_error: (range: -pi/2 to pi/2) est_mean - target
+    - est_perf: (range: -1 to 1) cos(est_error). 1 is the best.
 
     decision:
     - dec_target
@@ -88,29 +88,31 @@ def behavior_summary(trial_info, test_outputs, parOrStim, BatchIdx = None):
     if len(est_output.shape) == 2:  # single tuning
         estim_mean = post_mean  # 0 to pi
     else:  # time series
-        # todo: check this
         # posterior mean collapsed along time
         estim_sinr = (np.sin(2 * post_mean)).mean(axis=0)
         estim_cosr = (np.cos(2 * post_mean)).mean(axis=0)
-        estim_mean = np.arctan2(estim_sinr, estim_cosr) / 2  # -pi to pi, -pi/2 to pi
+        estim_mean = np.arctan2(estim_sinr, estim_cosr) / 2  # -pi to pi => -pi/2 to pi/2
+
+    assert np.all(estim_mean <= np.pi/2) and np.all(estim_mean >= - np.pi/2)
 
       # 0 to (n_tuned_output-1)
     if tf.is_tensor(ground_truth):
         ground_truth = tf.make_ndarray(tf.make_tensor_proto(ground_truth))
 
     estim_target = ground_truth * np.pi / par['n_ori']  # range: 0 to pi
-    estim_error = ((estim_mean - estim_target + np.pi/2) % np.pi) - np.pi/2  # 0 to pi
+    estim_error = ((estim_mean - estim_target + np.pi/2) % np.pi) - np.pi/2  # -pi/2 to pi/2
     estim_perf = np.cos(2 * estim_error)  # -1 to 1
 
     est_summary = {'est_mean': estim_mean,
-                     'est_target': estim_target,
-                     'est_error': estim_error,
-                     'est_perf': estim_perf}
+                   'est_target': estim_target,
+                   'est_error': estim_error,
+                   'est_perf': estim_perf}
 
     dec_output = tf.gather(dec_output, par['input_rule_rg']['decision'], axis=0)  # collect estimation times
     cenoutput = tf.nn.softmax(dec_output[:, :, :], axis=2)
     cenoutput = cenoutput.numpy()
     post_prob = cenoutput  # posterior mean as a function of time
+
     # Dirichlet normaliation todo (josh): remove, or add eps before softmax?
     dec_mean = post_prob / (np.sum(post_prob, axis=2, keepdims=True) + np.finfo(np.float32).eps)
     dec_mean = tf.reduce_mean(dec_mean,axis=0) # average over time.
@@ -125,6 +127,8 @@ def behavior_summary(trial_info, test_outputs, parOrStim, BatchIdx = None):
                    'dec_target': dec_target,
                    'dec_error': dec_error,
                    'dec_perf': dec_perf}
+
+    # error: decision weighted by the probability
 
     return est_summary, dec_summary
 
@@ -159,7 +163,7 @@ def estimation_decision(test_data, test_outputs, stim_test):
         dflist += [toappend]
 
         data2 += [(True, ref_ori * 180 / stim_test.n_ori,
-                   circmean(est_summary['est_error'] * 180 / np.pi, low=0,high=180),
+                   circmean(est_summary['est_error'] * 180 / np.pi, low=-90,high=90),
                    circstd(est_summary['est_error'] * 180 / np.pi, low=0,high=180))]
 
         # counter clockwise
@@ -175,15 +179,18 @@ def estimation_decision(test_data, test_outputs, stim_test):
         dflist += [toappend]
 
         data2 += [(False, ref_ori * 180 / stim_test.n_ori,
-                   circmean(est_summary['est_error'] * 180 / np.pi, low=0,high=180),
+                   circmean(est_summary['est_error'] * 180 / np.pi, low=-90,high=90),
                    circstd(est_summary['est_error'] * 180 / np.pi, low=0,high=180))]
 
-    df = pd.concat(dflist)
+    df = pd.concat(dflist, ignore_index=True)
     df2 = pd.DataFrame(data2, columns=collist2)
 
     if np.all(df['CW'].to_numpy()) or np.all(np.logical_not(df['CW'].to_numpy())):
-        # if everything is true or false, cheat a bit.
-        df['CW'][0] = False
-        df['CW'][1] = True
+        # if everything is true or false, cheat a bit
+        # otherwise, we can't plot stuff.
+        fakedf = pd.DataFrame([(False, 0, 0 , 0, 0, 0, 0, 0), (True, 0, 0, 0, 0, 0, 0, 0)],
+                            columns=collist)
+        dflist += [fakedf]
+        df = pd.concat(dflist, ignore_index=True)
 
     return df, df2

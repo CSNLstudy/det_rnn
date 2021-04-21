@@ -1,0 +1,1 @@
+def hpsearch(hpdict):

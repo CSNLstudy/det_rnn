@@ -1,4 +1,5 @@
-import os, sys, yaml
+import copy, os, sys, yaml
+import pickle
 
 import numpy as np
 from scipy.interpolate import interp1d
@@ -8,18 +9,16 @@ from tensorboard.plugins.hparams import api as tf_hpapi
 
 sys.path.append('../')
 import det_rnn.train as utils_train
-from models.base.analysis import behavior_summary
+from models.base.analysis import behavior_summary, estimation_decision
+from utils.plotfnc import *
 from utils.general import get_logger, Progbar, export_plot
 
-from utils.plotfnc import plot_trial, plot_rnn_output
-
 class BaseModel(tf.Module):
-    def __init__(self, hp, par_train,
+    def __init__(self, hp,
                  hypsearch_dict=None,
                  dtype=None, logger=None):
         """
         hp: network hyperparameters
-        par_train: stimulus parameters used to train the network (since efficient coding is dependent on stimulus distribution)
         hypsearch_dict: todo
 
         Creates
@@ -31,16 +30,21 @@ class BaseModel(tf.Module):
 
         super(BaseModel, self).__init__()
         self.dtype = dtype
-        self.hp = hp
+        self.hp = copy.deepcopy(hp)
 
-
-        #self._initialize_variable(hp, par_train) # todo: check that this errors out bc not implemented
         #self.build()
 
-        # tensorboard
-        if not os.path.exists(self.hp['output_path']):
-            os.makedirs(self.hp['output_path'])
+        # set up directories for the model, logs and tb
+        self.hp['output_path'] = self.hp['output_base'] + '{:03}'.format(self.hp['model_number'])
+        while os.path.exists(self.hp['output_path']):
+            # find a new folder, increment model number
+            self.hp['model_number'] += 1
+            self.hp['output_path'] = self.hp['output_base'] + '{:03}'.format(self.hp['model_number'])
+        os.makedirs(self.hp['output_path'])
+        self.hp['model_output'] = os.path.join(self.hp['output_path'], 'model')
+        self.hp['log_path'] = os.path.join(self.hp['output_path'], 'logs')
         self.writer = tf.summary.create_file_writer(self.hp['output_path'])
+        print('model output path = ' + self.hp['output_path'])
 
         if hypsearch_dict is not None:
             with self.writer.as_default():
@@ -55,8 +59,10 @@ class BaseModel(tf.Module):
         if logger is None:
             self.logger = get_logger(self.hp['log_path'])
 
+        self.scheduler = None # implement some scheduler
+
         # dump all the hyperparameters into a readable YAML file
-        with open(self.hp['output_path'] + os.path.sep + 'data.yml', 'w') as outfile:
+        with open(self.hp['output_path'] + os.path.sep + 'hp.yaml', 'w') as outfile:
             yaml.dump(hp, outfile, default_flow_style=False)
 
     # all the networks to train goes here.
@@ -79,7 +85,10 @@ class BaseModel(tf.Module):
         raise NotImplementedError
 
     ''' UTILS '''
-    def _initialize_variable(self, hp, par_train):
+    def _initialize_variable(self, hp):
+        raise NotImplementedError
+
+    def visualize_weights(self):
         raise NotImplementedError
 
     ''' Train operations'''
@@ -96,41 +105,54 @@ class BaseModel(tf.Module):
 
         prog = Progbar(target=niter)
 
+        # test on the same test set.
+        test_data = utils_train.tensorize_trial(stim_test.generate_trial(), dtype=self.dtype)
+        self.optimizer = tf.optimizers.Adam(self.hp['learning_rate']) # use same optimizer across iterations
+
         # interact with environment
         while t < niter:
             t += 1
 
             # perform a training step
             train_data = utils_train.tensorize_trial(stim_train.generate_trial(), dtype = self.dtype)
-            loss_struct, grad = self.update_step(train_data)
+            loss_struct, train_outputs, grad = self.update_step(train_data)
             loss_train += [loss_struct['loss']]
 
             if self.trainable_variables is None:
                 print('No trainable variables. Done training! ')
                 break
 
-            # evaluate loss on test set
-            test_data                       = utils_train.tensorize_trial(stim_test.generate_trial(), dtype = self.dtype)
+            # evaluate loss on the same test set
             test_lossStruct, test_outputs   = self.evaluate(test_data)
             loss_test                       += [test_lossStruct['loss']]
 
             # output behavior summary
+            train_est_summary, train_dec_summary = behavior_summary(train_data, train_outputs, stim_train)
             est_summary, dec_summary = behavior_summary(test_data, test_outputs, stim_test)
 
             # add losses to tensorboard
             with self.writer.as_default():
-                tf.summary.scalar('Test estimation average error', np.mean(np.abs(est_summary['est_error'])), step=t)
-                tf.summary.scalar('Test decision average performance', np.mean(np.abs(dec_summary['dec_perf'])), step=t)
-            for (name, val) in loss_struct.items():
-                tf.summary.scalar('train ' + name, val, step=t)
-            for (name, val) in test_lossStruct.items():
-                tf.summary.scalar('test ' + name, val, step=t)
+                tf.summary.scalar('Test est cos performance', np.mean(np.abs(est_summary['est_perf'])),step=t)
+                tf.summary.scalar('Test dec performance', np.mean(np.abs(dec_summary['dec_perf'])), step=t)
+
+                tf.summary.scalar('Train est cos performance', np.mean(np.abs(train_est_summary['est_perf'])), step=t)
+                tf.summary.scalar('Train dec performance', np.mean(np.abs(train_dec_summary['dec_perf'])), step=t)
+                tf.summary.scalar('Gradient norm', grad, step = t)
+                for (name, val) in loss_struct.items():
+                    tf.summary.scalar('train ' + name, val, step=t)
+                for (name, val) in test_lossStruct.items():
+                    tf.summary.scalar('test ' + name, val, step=t)
+
+                if self.scheduler is not None:
+                    tf.summary.scalar('(Schedule) off', self.scheduler.switch, step=t)
+                    for (name, val) in self.scheduler.get_params().items():
+                        tf.summary.scalar('(Schedule) params ' + name, val, step=t)
 
             # logging stuff
             prog.update(t, exact=[("Train Loss", loss_struct['loss']),
                                   ("Test Loss", test_lossStruct['loss']),
-                                  ("Test estimation cos error: ", np.mean(np.abs(est_summary['est_perf']))),
-                                  ("Test decision performance: ", np.mean(dec_summary['dec_perf'])),
+                                  ("Test est cos(error)", np.mean(np.abs(est_summary['est_perf']))),
+                                  ("Test dec perf", np.mean(dec_summary['dec_perf'])),
                                   ("Grads", grad)])
 
             if (t % self.hp['saving_freq']) == 1:
@@ -139,11 +161,36 @@ class BaseModel(tf.Module):
                                                 loss_struct['loss'],
                                                 test_lossStruct['loss']))
 
-                self.save_model(t, stim_test) #Save Model
+                savestruct = {'test_lossStruct': test_lossStruct,
+                              'test_outputs': test_outputs,
+                              'loss_test': loss_test,
+                              'est_summary': est_summary,
+                              'dec_summary': dec_summary,
+                              'stim_test': stim_test,
+                              'test_data': test_data}
+
+                self.save_model(t, savestruct) #Save Model
+                #self.visualize_weights()
+
+            # update scheduler
+            if self.scheduler is not None:
+                self.scheduler.update(t,
+                                      np.mean(np.abs(est_summary['est_perf'])),
+                                      np.mean(np.abs(dec_summary['dec_perf'])))
+
+            # stop if the network is good enough
+            if grad == 0:
+                print('(rnn training) grad is zero. Terminating...')
+                t = niter
+
+            if (np.mean(np.abs(est_summary['est_perf'])) > 0.95 and \
+                np.mean(np.abs(dec_summary['dec_perf'])) > 0.95):
+                print('(rnn training) Reached good performance! Terminating')
+                t = niter
 
         # last words
         self.logger.info("- Training done.")
-        self.save_model('final', stim_test) # save and output behavior
+        self.save_model('final', savestruct) # save and output behavior
         export_plot(loss_train, loss_test, 'loss' , self.hp['output_path'] + os.path.sep + 'losses')
 
         # output graph on tensorflow using trace (need to enable tf.function
@@ -159,11 +206,16 @@ class BaseModel(tf.Module):
         trial_info  : from the stimulus struct
         t           : time
         """
-        optimizer = tf.optimizers.Adam(self.hp['learning_rate']) #todo: flexible learning rate
+        if self.scheduler is not None:
+            # note: if using scheduler, may need to do SGD, since the loss function change and the lr changes
+            # reset adam optimizer.
+            self.optimizer = tf.optimizers.Adam(self.scheduler.get_params()['learning_rate'])
+            # self.optimizer.lr.assign(self.scheduler.get_params()['learning_rate'])
+            # otherwise, keep the same optimizer as before
 
         # calculate gradients
         with tf.GradientTape() as tape:
-            loss_struct, etc = self.evaluate(trial_info)
+            loss_struct, outputs = self.evaluate(trial_info)
 
             # add regularization loss; todo: check that this wasn't added in the evalute (or elsewhere)
             reg_loss = []
@@ -191,10 +243,10 @@ class BaseModel(tf.Module):
                 assert not tf.math.reduce_any(tf.math.is_nan(grads))
                 # tf.softmax(trial_info['output_tuning'])
             grads_clipped.append(tf.clip_by_norm(grad, self.hp['clip_max_grad_val']))
-        optimizer.apply_gradients(zip(grads_clipped, self.trainable_variables))
+        self.optimizer.apply_gradients(zip(grads_clipped, self.trainable_variables))
         gradnorm = tf.linalg.global_norm(grads)
 
-        return loss_struct, gradnorm
+        return loss_struct, outputs, gradnorm
 
         # todo: add all these for RNN.
         # 'neural_input'  : self.neural_input.astype(np.float32),
@@ -204,25 +256,31 @@ class BaseModel(tf.Module):
         #                 'stimulus_ori'  : self.stimulus_ori,
         #                 'stimulus_kap'  : self.stimulus_kap
 
-    def save_model(self, t, stim_test):
+    def save_model(self, t, savestruct):
         filename = self.hp['model_output'] + os.path.sep +'iter' + str(t)
         # self.save_weights(filename)
 
         tf.saved_model.save(self, filename)
-        self.plot_summary(stim_test, filename=filename)
+        self.plot_summary(savestruct, filename=filename)
 
-    def plot_summary(self, stim_test, filename = None):
-        # todo: output behavior plot
-        test_data = stim_test.generate_trial()
-        lossStruct, test_outputs = self.evaluate(test_data)
+    def plot_summary(self, savestruct, filename = None):
+        test_lossStruct = savestruct['test_lossStruct']
+        test_outputs    = savestruct['test_outputs']
+        loss_test       = savestruct['loss_test']
+        est_summary     = savestruct['est_summary']
+        dec_summary     = savestruct['dec_summary']
+        stim_test       = savestruct['stim_test']
+        test_data       = savestruct['test_data']
 
-        # todo: behavioral summary
-        #est_summary, dec_summary = behavior_summary(test_data, test_outputs, stim_test)
-
-        if filename is not None:
-            plot_rnn_output(test_data, test_outputs, stim_test, savename=filename + 'sampleTrial')
+        if filename is None:
+            pass
         else:
-            plot_rnn_output(test_data, test_outputs, stim_test)
+            # estimation summary)
+            behavior_figure(est_summary, filename=os.path.join(filename, 'BehaviorSummary'))
 
-        # todo: return summary variables?
-        return None
+            # plot rnn decision effects on estimation
+            df_trials, df_sum = estimation_decision(test_data, test_outputs, stim_test)
+            plot_decision_effects(df_trials, df_sum, filename=os.path.join(filename, 'DecisionEffectsOnEstim'))
+            plot_rnn_output(test_data, test_outputs, stim_test, savename=os.path.join(filename,'sampleTrial'))
+
+        return df_trials, df_sum

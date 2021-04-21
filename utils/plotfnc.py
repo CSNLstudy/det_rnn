@@ -6,6 +6,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
+import matplotlib.ticker as mticker
 
 from models.base.analysis import behavior_summary
 
@@ -24,7 +25,9 @@ logging.getLogger('matplotlib.font_manager').disabled = True
 
 EPSILON = 1e-7
 
-def plot_rnn_output(trial_info,test_outputs,parOrStim, TEST_TRIAL=None, savename=None):
+def plot_rnn_output(trial_info,test_outputs,parOrStim,
+                    TEST_TRIAL=None,
+                    savename=None):
     if TEST_TRIAL is None:
         TEST_TRIAL = np.random.randint(parOrStim.batch_size)
 
@@ -43,12 +46,12 @@ def plot_rnn_output(trial_info,test_outputs,parOrStim, TEST_TRIAL=None, savename
         par = parOrStim
 
     axes = {}
-    fig = plt.figure(constrained_layout=True, figsize=(20, 15))
+    fig = plt.figure(constrained_layout=True, figsize=(10, 20))
     gs = fig.add_gridspec(21, 1)
 
     # neural input (3)
     axes[0] = fig.add_subplot(gs[0:3, :])
-    im0 = axes[0].imshow(trial_info['neural_input'][:, TEST_TRIAL, par['n_rule_input']:].T,
+    im0 = axes[0].imshow(trial_info['neural_input'][:, TEST_TRIAL, par['n_rule_input']:].numpy().T,
                          origin='lower',
                          interpolation='none',
                          aspect='auto');
@@ -70,7 +73,8 @@ def plot_rnn_output(trial_info,test_outputs,parOrStim, TEST_TRIAL=None, savename
 
     # decision desired output (1)
     axes[2] = fig.add_subplot(gs[13, :])
-    im2 = axes[2].imshow(trial_info['desired_decision'][:, TEST_TRIAL, par['n_rule_output_dm']:].T,
+    im2 = axes[2].imshow(trial_info['desired_decision'][:, TEST_TRIAL, par['n_rule_output_dm']:].numpy().T,
+                         origin='lower',
                          interpolation='none',
                          aspect='auto');
     axes[2].set_title("Decision: Desired Output");
@@ -81,6 +85,7 @@ def plot_rnn_output(trial_info,test_outputs,parOrStim, TEST_TRIAL=None, savename
     # decision activity (1)
     axes[3] = fig.add_subplot(gs[14, :])
     im3 = axes[3].imshow(test_outputs['dec_output'][:, TEST_TRIAL, :].numpy().T,
+                         origin='lower',
                          interpolation='none',
                          aspect='auto');
     axes[3].set_title("Decision neurons activity");
@@ -90,7 +95,7 @@ def plot_rnn_output(trial_info,test_outputs,parOrStim, TEST_TRIAL=None, savename
 
     # estimation desired output (3)
     axes[4] = fig.add_subplot(gs[15:18, :])
-    im4 = axes[4].imshow(trial_info['desired_estim'][:, TEST_TRIAL, par['n_rule_output_em']:].T,
+    im4 = axes[4].imshow(trial_info['desired_estim'][:, TEST_TRIAL, par['n_rule_output_em']:].numpy().T,
                          origin='lower',
                          interpolation='none',
                          aspect='auto')
@@ -102,6 +107,7 @@ def plot_rnn_output(trial_info,test_outputs,parOrStim, TEST_TRIAL=None, savename
     # estimation activity (3)
     axes[5] = fig.add_subplot(gs[18:21, :])
     im5 = axes[5].imshow(test_outputs['est_output'][:, TEST_TRIAL, :].numpy().T,
+                         origin='lower',
                          interpolation='none',
                          aspect='auto');
     axes[5].set_title("Estimation neurons activity");
@@ -109,22 +115,22 @@ def plot_rnn_output(trial_info,test_outputs,parOrStim, TEST_TRIAL=None, savename
     axes[5].set_ylabel("Neuron")
     fig.colorbar(im5, ax=axes[5])
 
-    plt.show()
     if savename is None:
         plt.show()
     else:
         plt.savefig(savename)
+    plt.close()
 
 def plot_trial(trial_info, stim, TEST_TRIAL=None, savename=None):
     if TEST_TRIAL is None:
         TEST_TRIAL = np.random.randint(stim.batch_size)
 
     axes = {}
-    fig = plt.figure(constrained_layout=True, figsize=(10, 8))
+    fig = plt.figure(constrained_layout=True, figsize=(10, 12))
     gs = fig.add_gridspec(10, 2)
 
     # input rule
-    axes[0] = fig.add_subplot(gs[0, 0])
+    axes[0] = fig.add_subplot(gs[0, :])
     im0 = axes[0].imshow(trial_info['neural_input'][:, TEST_TRIAL, :stim.n_rule_input].T,
                          interpolation='none',
                          aspect='auto')
@@ -226,7 +232,6 @@ def plot_trial(trial_info, stim, TEST_TRIAL=None, savename=None):
     else:
         plt.savefig(savename)
 
-# todo: var_dict function is outdated
 def make_var_dict_figure(model):
     fig = plt.figure(figsize=(9.5, 12))
 
@@ -451,8 +456,7 @@ def biasvar_figure(est_summary, stim_test, filename=None):
 
     return errorMean, errorSTD , binN
 
-
-def plot_decision_effects(df,df2):
+def plot_decision_effects(df,df2, filename = None):
     # plot distributions wrt reference and decision
     a4_dims = (11.7, 8.27)
     fig, ax = plt.subplots(figsize=a4_dims)
@@ -467,12 +471,21 @@ def plot_decision_effects(df,df2):
     g1.set_xlabel("Reference (deg)")
     g1.set_ylabel("Estimation error (cos)")
 
+    # save stuff or show and close
+    if filename is not None:
+        plt.savefig(filename+'dist')
+    else:
+        plt.show()
+    plt.close()
+
 
     axes = {}
     fig = plt.figure(constrained_layout=True, figsize=(12, 5))
     gs = fig.add_gridspec(1, 2)
     axes[0] = fig.add_subplot(gs[0, 0])
     g = sns.scatterplot(x='Ref', y='mean', hue="CW", palette="hls", marker='o', s=200, data=df2)
+    ticks_loc = g.get_xticks().tolist()
+    g.xaxis.set_major_locator(mticker.FixedLocator(ticks_loc))
     xlabels = ['{:,.2f}'.format(x) for x in g.get_xticks()]
     g.set_xticklabels(xlabels)
     g.set_title("Estimation error mean")
@@ -481,10 +494,19 @@ def plot_decision_effects(df,df2):
 
     axes[1] = fig.add_subplot(gs[0, 1])
     g = sns.scatterplot(x='Ref', y='sd', hue="CW", palette="hls", marker='o', s=200, data=df2)
+    ticks_loc = g.get_xticks().tolist()
+    g.xaxis.set_major_locator(mticker.FixedLocator(ticks_loc))
     xlabels = ['{:,.2f}'.format(x) for x in g.get_xticks()]
     g.set_xticklabels(xlabels)
     g.set_title("Estimation error std")
     g.set_xlabel("Reference (deg)")
     g.set_ylabel("std of error (deg)")
+
+    # save stuff or show and close
+    if filename is not None:
+        plt.savefig(filename)
+    else:
+        plt.show()
+    plt.close()
 
     return None

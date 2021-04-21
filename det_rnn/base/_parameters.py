@@ -28,9 +28,9 @@ par = {
 	'input_rule' :  'design', # {'fixation': whole period, 'response':estim}
 	'output_dm_rule': 'design',  # {'fixation' : (0,before estim)}
 	'output_em_rule': 'design',  # {'fixation' : (0,before estim)}
-	'input_rule_strength'	: 0.8, 
-	'output_dm_rule_strength' : 0.8,
-	'output_em_rule_strength' : 0.8,
+	'input_rule_strength'	: 1,
+	'output_dm_rule_strength' : 1,
+	'output_em_rule_strength' : 1,
 
 	'reference': [-4, -3, -2, -1, 1, 2, 3, 4],
 	'strength_ref': 1.,
@@ -59,7 +59,7 @@ par = {
 	'connect_prob'			: 0.1,    # modular connectivity
 
 	# Timings and rates
-	'dt'                    : 10.,     # unit: ms
+	'dt'                    : 5.,     # unit: ms
 	'membrane_time_constant': 100,     # tau
 
 	# Input and noise
@@ -76,7 +76,6 @@ par = {
 	'kappa_dist_shape' 		: 2,		# shape of gamma distribution for kappa of the von Mises; 
 	'kappa_dist_scale' 		: 1,		# mean of gamma distribution for kappa of the von Mises; 
 
-
 	# Loss parameters
 	'orientation_cost' 		: 1, # TODO(HL): cost for target-output
 
@@ -86,13 +85,13 @@ par = {
 
 	# Neuronal settings
 	'n_receptive_fields': 1,
-	'n_tuned_input'	 	: 48,  # number of possible orientation-tuned neurons (input) => for stimulus generation?
-	'n_tuned_output' 	: 48,  # number of possible orientation-tuned neurons (output)
-	'n_ori'	 	 		: 24 , # number of possible orientations (output) josh: input orientations?
+	'n_tuned_input'	 	: 48,  		# number of possible orientation-tuned neurons (input) => for stimulus generation?
+	'n_tuned_output' 	: 48,  		# number of possible orientation-tuned neurons (output)
+	'n_ori'	 	 		: 24 , 		# number of possible orientations (output) josh: input orientations?
 	'noise_mean' 		: 0,
 	'noise_sd'   		: 0.005,     # 0.05
-	'n_recall_tuned' 	: 24,   # precision at the moment of recall
-	'n_hidden' 	 		: 100,		 # number of rnn units TODO(HL): h_hidden to 100
+	'n_recall_tuned' 	: 24,        # precision at the moment of recall
+	'n_hidden' 	 		: 300,		 # number of rnn units
 
 	# Experimental settings
 	'batch_size' 	: 128,
@@ -140,9 +139,10 @@ def update_parameters(par):
 	if par['input_rule'] is 'design':
 		par['input_rule_rg'] = convert_to_rg({'stimulus'  : par['design']['stim'],
 											  'decision'  : par['design']['decision'],
+											  'delay'	  : par['design']['delay'],
 											  'estimation': par['design']['estim']},
 											 par['dt'])
-		par['n_rule_input']  = 3
+		par['n_rule_input']  = 4
 	else:
 		par['input_rule_rg']  = convert_to_rg(par['input_rule'], par['dt'])
 		par['n_rule_input']   = len(par['input_rule'])

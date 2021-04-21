@@ -66,65 +66,6 @@ class Stimulus(object):
         self.stim_dirs = stim_dirs
         self.pref_dirs = pref_dirs
 
-    """
-    def _gen_stim(self, stimulus_ori):
-        # TODO(HG): need to be changed if n_ori =/= n_tuned
-        neural_input = random.standard_normal(size=(stim.n_timesteps, self.batch_size, self.n_input))*self.noise_sd + self.noise_mean
-        neural_input[:,:,:self.n_rule_input] += self._gen_input_rule()
-        for t in range(self.batch_size):
-            neural_input[self.design_rg['stim'],t,self.n_rule_input:] += self.tuning_input[:,0,stimulus_ori[t]].reshape((1,-1))
-        if self.n_subblock > 1: # multi-trial settings
-            neural_input = neural_input.transpose((1,0,2)).\
-                reshape((self.n_subblock,-1,self.n_input)).transpose((1,0,2))
-        return neural_input
-
-    def _gen_output(self, stimulus_ori):
-        desired_output = np.zeros((stim.n_timesteps,self.batch_size,self.n_output), dtype=np.float32)
-        desired_output[:, :, :self.n_rule_output] = self._gen_output_rule()
-        for t in range(self.batch_size):
-            if self.resp_decoding == 'conti':
-                desired_output[self.output_rg, t, self.n_rule_output:] = stimulus_ori[t] * np.pi / np.float32(self.n_tuned_output)
-            elif self.resp_decoding in ['disc', 'onehot']:
-                desired_output[self.output_rg, t, self.n_rule_output:] = self.tuning_output[:, 0, stimulus_ori[t]].reshape((1, -1))
-        if self.n_subblock > 1: # multi-trial settings
-            desired_output = desired_output.transpose((1,0,2)).\
-                reshape((self.n_subblock,-1,self.n_output)).transpose((1,0,2))
-        return desired_output
-
-    def _gen_mask(self):
-        mask = np.zeros((stim.n_timesteps, self.batch_size, self.n_output), dtype=np.float32)
-        # set "specific" period
-        for step in ['iti','stim','delay','estim']:
-            mask[self.design_rg[step], :, self.n_rule_output:] = self.mask[step]
-            mask[self.design_rg[step], :, :self.n_rule_output] = self.mask['rule_'+step]
-        # set "globally dead" period
-        mask[self.dead_rg, :, :] = 0
-        if self.n_subblock > 1: # multi-trial settings
-            mask = mask.transpose((1,0,2)).\
-                reshape((self.n_subblock,-1,self.n_output)).transpose((1,0,2))
-        return mask
-
-    def _gen_input_rule(self):
-        if self.n_rule_input == 0:
-            return np.array([]).reshape((stim.n_timesteps,self.batch_size,0))
-
-        else:
-            rule_mat = np.zeros([stim.n_timesteps, self.batch_size, self.n_rule_input])
-            for i,k in enumerate(self.input_rule_rg):
-                rule_mat[self.input_rule_rg[k], :, i] = self.input_rule_strength
-            return rule_mat
-
-    def _gen_output_rule(self):
-        if self.n_rule_output == 0:
-            return np.array([]).reshape((stim.n_timesteps,self.batch_size,0))
-
-        else:
-            rule_mat = np.zeros([stim.n_timesteps, self.batch_size, self.n_rule_output])
-            for i,k in enumerate(self.output_rule_rg):
-                rule_mat[self.output_rule_rg[k], :, i] = self.output_rule_strength
-            return rule_mat
-    """
-
 class Trial(object):
     """
     make a Trial class in order to change the trial structures more flexible (i.e. balanced data set)
@@ -167,7 +108,7 @@ class Trial(object):
         pref_dirs_in    = np.tile(np.float32(np.arange(0, 180, 180 / stim.n_tuned_input)).reshape(1,-1), [self.batch_size, 1]) # B x n_tuned_input
         din             = np.cos((stim_dirs[stimulus_ori,:] - pref_dirs_in) / 90 * np.pi)      # B x n_tuned_input
         input_tuning    = np.exp(stimulus_kap.reshape(-1,1)*din)/np.exp(stimulus_kap.reshape(-1,1))  # broadcasted to B x n_tuned_input
-        input_tuning    = input_tuning/np.sum(input_tuning,1,keepdims = True)
+        #input_tuning    = input_tuning/np.sum(input_tuning,1,keepdims = True) # normalize to probability
 
         ref_din         = np.cos((stim_dirs[(stimulus_ori + reference_ori) % stim.n_ori,:] - pref_dirs_in) / 90 * np.pi)      # B x n_tuned_input
         # B x n_tuned_input
@@ -179,7 +120,7 @@ class Trial(object):
                 np.tile(input_tuning[b, :], [stim.design_rg['stim'].shape[0], 1])
 
             # make reference stimulus
-            neural_input[stim.design_rg['decision'],b, ref_neuron[b]] += stim.strength_ref
+            neural_input[stim.design_rg['decision'],b, stim.n_rule_input + ref_neuron[b]] += stim.strength_ref
 
             # there was a trial with no reference...
             assert ref_neuron[b] is not None
@@ -227,20 +168,6 @@ class Trial(object):
 
 
         return {'decision' : desired_decision, 'estim' : desired_estim}, output_tuning
-
-    """
-    def _gen_output(self, stim, stimulus_ori):
-        desired_output = np.zeros((stim.n_timesteps,self.batch_size,stim.n_output), dtype=np.float32)
-        desired_output[:, :, :stim.n_rule_output] = self._gen_output_rule(stim)
-        for t in range(self.batch_size):
-            if stim.resp_decoding == 'conti':
-                desired_output[stim.output_rg, t, stim.n_rule_output:] = stimulus_ori[t] * np.pi / np.float32(stim.n_tuned_output)
-            elif stim.resp_decoding in ['disc', 'onehot']:
-                desired_output[stim.output_rg, t, stim.n_rule_output:] = stim.tuning_output[:, 0, stimulus_ori[t]].reshape((1, -1))
-        if self.n_subblock > 1: # multi-trial settings
-
-        return desired_output
-    """
 
     def _gen_mask(self, stim):
         mask_decision = np.zeros((stim.n_timesteps, self.batch_size, stim.n_output_dm), dtype=np.float32)
