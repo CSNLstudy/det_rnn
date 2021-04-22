@@ -17,24 +17,23 @@ def grnn_hp(par = None):
 
         ##########################################################################################
         # losses and training
-        'loss_mse_dec'          : 1,
-        'loss_mse_est'          : 1,
-        'loss_ce_dec'           : 1e7, # CE is needed for distribution learning
-        'loss_ce_est'           : 1e3,
+        'loss_mse_dec'      : 1e-4,
+        'loss_mse_est'      : 1e-4,
+        'loss_ce_dec'       : 10, # CE is needed for distribution learning
+        'loss_ce_est'       : 1e-1,
 
         # regularization loss
-        'loss_spike' 	    : 2e-4, #2e-3, # 'spike_cost'  : 2e-3,
-        'loss_L1' 		    : 2e-4, #2e-3, # weight regularization
+        'loss_spike' 	    : 1e-4, #2e-3, # 'spike_cost'  : 2e-3,
+        'loss_L1' 		    : 1e-4, #2e-3, # weight regularization
         'loss_L2' 		    : 0, #2e-3, # weight regularization
         # dropout when training the output
         'dropout'           : 0, # <=0, no drop out. otherwise 0 < dropout < 1 to indicate probability of dropout
-
         'nsteps_train'      : 5000, # todo: figure out if this is used?
         'learning_rate'     : 5e-3,	  # adam optimizer learning rate = lowest possible learning rate. the first
                                       # learning rate is about x10
-        'clip_max_grad_val' : 0.1,
+        'clip_max_grad_val' : 10,
 
-        'scheduler'         : 'scheduler_estimFirst',
+        'scheduler'         : None, # 'scheduler_separate', 'scheduler_estimFirst', None
 
         ##########################################################################################
         # neuron
@@ -45,7 +44,7 @@ def grnn_hp(par = None):
         # 'neuron_tau' 	    : 100,  # time constant = dt/alpha ~ i.e. 10/0.1 = 100ms
         'tau_train'         : True,
         'tau_min'           : 10,
-        'tau_max'           : 20000,
+        'tau_max'           : 15000,
         'noise_sd'  	    : 0.5,  # should we learn this?
 
         # neuron, stsp and Dale's law

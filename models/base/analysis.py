@@ -18,6 +18,8 @@ logging.getLogger('matplotlib').disabled = True
 logging.getLogger('matplotlib.font_manager').disabled = True
 #logging.getLogger('DEBUG').disabled = True
 
+EPSILON = 1e-7
+
 def behavior_summary(trial_info, test_outputs, parOrStim, BatchIdx = None):
     '''
     trial_info:
@@ -62,20 +64,25 @@ def behavior_summary(trial_info, test_outputs, parOrStim, BatchIdx = None):
         ground_truth        = trial_info['stimulus_ori']
         desired_decision    = trial_info['desired_decision']
 
-        # estimation
+
+    # estimation
     if len(est_output.shape) == 2:  # single tuning (est_output.shape is B x neurons)
         est_output = est_output
         cenoutput = tf.nn.softmax(est_output, axis=1)
         cenoutput = cenoutput.numpy()
         post_prob = cenoutput
-    else:  # time series (pred_output.shape is B x T x neurons)
+    else:  # time series (pred_output.shape is T X B x x neurons)
         est_output = tf.gather(est_output, par['input_rule_rg']['estimation'],
                                axis=0)  # collect estimation times
-        cenoutput = tf.nn.softmax(est_output, axis=2)
-        cenoutput = cenoutput.numpy()
-        post_prob = cenoutput  # posterior mean as a function of time
-        # Dirichlet normaliation todo (josh): remove, or add eps before softmax?
-        post_prob = post_prob / (np.sum(post_prob, axis=2, keepdims=True) + np.finfo(np.float32).eps)
+
+        post_prob = est_output / tf.reduce_sum(est_output + EPSILON, axis=2, keepdims=True)
+        post_prob = post_prob.numpy()
+
+        # cenoutput = tf.nn.softmax(est_output, axis=2)
+        # cenoutput = cenoutput.numpy()
+        # post_prob = cenoutput  # posterior mean as a function of time
+        # # Dirichlet normaliation todo (josh): remove, or add eps before softmax?
+        # post_prob = post_prob / (np.sum(post_prob, axis=2, keepdims=True) + np.finfo(np.float32).eps)
 
     # post_support = np.linspace(0, np.pi, par['n_tuned_output'], endpoint=False) + np.pi / par['n_ori'] / 2 # hmm??why add the np.pi?
     # Convert domain from (0,pi) => (0, 2pi) => circular mean of the posterior (-pi, pi)
@@ -109,12 +116,15 @@ def behavior_summary(trial_info, test_outputs, parOrStim, BatchIdx = None):
                    'est_perf': estim_perf}
 
     dec_output = tf.gather(dec_output, par['input_rule_rg']['decision'], axis=0)  # collect estimation times
-    cenoutput = tf.nn.softmax(dec_output[:, :, :], axis=2)
-    cenoutput = cenoutput.numpy()
-    post_prob = cenoutput  # posterior mean as a function of time
+    post_prob = dec_output / tf.reduce_sum(dec_output + EPSILON, axis=2, keepdims=True)
+    dec_mean = post_prob.numpy()
+
+    # cenoutput = tf.nn.softmax(dec_output[:, :, :], axis=2)
+    # cenoutput = cenoutput.numpy()
+    # post_prob = cenoutput  # posterior mean as a function of time
 
     # Dirichlet normaliation todo (josh): remove, or add eps before softmax?
-    dec_mean = post_prob / (np.sum(post_prob, axis=2, keepdims=True) + np.finfo(np.float32).eps)
+    # dec_mean = post_prob / (np.sum(post_prob, axis=2, keepdims=True) + np.finfo(np.float32).eps)
     dec_mean = tf.reduce_mean(dec_mean,axis=0) # average over time.
 
     dec_target = tf.gather(desired_decision[:, :, par['n_rule_output_dm']:], par['input_rule_rg']['decision'],

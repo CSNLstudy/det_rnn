@@ -92,7 +92,6 @@ class BaseModel(tf.Module):
         raise NotImplementedError
 
     ''' Train operations'''
-    # todo: add schedulers
     def train(self, stim_train, stim_test, niter = None):
         """
         """
@@ -115,7 +114,7 @@ class BaseModel(tf.Module):
 
             # perform a training step
             train_data = utils_train.tensorize_trial(stim_train.generate_trial(), dtype = self.dtype)
-            loss_struct, train_outputs, grad = self.update_step(train_data)
+            loss_struct, grad = self.update_step(train_data)
             loss_train += [loss_struct['loss']]
 
             if self.trainable_variables is None:
@@ -123,6 +122,7 @@ class BaseModel(tf.Module):
                 break
 
             # evaluate loss on the same test set
+            train_lossStruct, train_outputs = self.evaluate(train_data)
             test_lossStruct, test_outputs   = self.evaluate(test_data)
             loss_test                       += [test_lossStruct['loss']]
 
@@ -246,7 +246,7 @@ class BaseModel(tf.Module):
         self.optimizer.apply_gradients(zip(grads_clipped, self.trainable_variables))
         gradnorm = tf.linalg.global_norm(grads)
 
-        return loss_struct, outputs, gradnorm
+        return loss_struct, gradnorm
 
         # todo: add all these for RNN.
         # 'neural_input'  : self.neural_input.astype(np.float32),

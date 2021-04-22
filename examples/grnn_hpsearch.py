@@ -26,14 +26,14 @@ from models.gatedRNN.gatedRNN import gRNN
 from models.gatedRNN.gatedRNN_hyper import grnn_hp
 
 # hyperparameters
-hp_dict = {'loss_ce_est': [1, 1e3],
-           'loss_ce_dec': [1e5, 1e3],
-           'scheduler': ['scheduler_estimFirst', None],
+hp_dict = {'loss_ce_est': [10, 1],
+           'loss_ce_dec': [1e-1, 1],
            'n_hidden': [300,500,100],
-           'tau_max': [30000, 1000, 200],
+           'learning_rate': [5e-3, 5e-5],
            'tau_min': [10, 100, 1000],
-           'gate_rnn': [True, False],
-           'learning_rate': [5e-5, 5e-3]}
+           'tau_max': [20000, 1000, 200],
+           'scheduler': ['scheduler_estimFirst', None],
+           'gate_rnn': [True, False]}
 
 # # for debugging
 # hp_dict = {'n_hidden': [50],
@@ -57,7 +57,7 @@ collist.append('dec_perf')
 collist.append('model_number')
 dflist = []
 
-Nmaxtrain = 150
+Nmaxtrain = 100
 modelN = 0
 lastrunend = 0 # if restarting
 
@@ -70,6 +70,9 @@ if os.path.isfile(dfpath):
 for params in hypsearch:
     if modelN < lastrunend:
         # skip how many ever models were already done?
+        continue
+
+    if params[hp_names.index('tau_max')] < params[hp_names.index('tau_min')]:
         continue
 
     # training set

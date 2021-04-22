@@ -86,8 +86,6 @@ stim_test = Stimulus(par_test)
 test_data = stim_test.generate_trial()
 
 grnn_hp = grnn_hp(par_train)
-grnn_hp['neuron_stsp'] = False
-grnn_hp['learning_rate'] = 0.05
 grnn = gRNN(grnn_hp)
 
 niter = 1

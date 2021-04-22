@@ -51,7 +51,12 @@ def plot_rnn_output(trial_info,test_outputs,parOrStim,
 
     # neural input (3)
     axes[0] = fig.add_subplot(gs[0:3, :])
-    im0 = axes[0].imshow(trial_info['neural_input'][:, TEST_TRIAL, par['n_rule_input']:].numpy().T,
+
+    neuralinput = trial_info['neural_input'][:, TEST_TRIAL, par['n_rule_input']:]
+    if not isinstance(neuralinput,np.ndarray):
+        neuralinput = neuralinput.numpy()
+
+    im0 = axes[0].imshow(neuralinput.T,
                          origin='lower',
                          interpolation='none',
                          aspect='auto');
@@ -61,8 +66,12 @@ def plot_rnn_output(trial_info,test_outputs,parOrStim,
     fig.colorbar(im0, ax=axes[0])
 
     # hidden neural activity (10)
+    rnnoutput = test_outputs['rnn_output'][:, TEST_TRIAL, :]
+    if not isinstance(rnnoutput,np.ndarray):
+        rnnoutput = rnnoutput.numpy()
+
     axes[1] = fig.add_subplot(gs[3:13, :])
-    im1 = axes[1].imshow(test_outputs['rnn_output'][:, TEST_TRIAL, :].numpy().T,
+    im1 = axes[1].imshow(rnnoutput.T,
                          origin='lower',
                          interpolation='none',
                          aspect='auto');
@@ -72,8 +81,11 @@ def plot_rnn_output(trial_info,test_outputs,parOrStim,
     fig.colorbar(im1, ax=axes[1])
 
     # decision desired output (1)
+    decdesout = trial_info['desired_decision'][:, TEST_TRIAL, par['n_rule_output_dm']:]
+    if not isinstance(decdesout,np.ndarray):
+        decdesout = decdesout.numpy()
     axes[2] = fig.add_subplot(gs[13, :])
-    im2 = axes[2].imshow(trial_info['desired_decision'][:, TEST_TRIAL, par['n_rule_output_dm']:].numpy().T,
+    im2 = axes[2].imshow(decdesout.T,
                          origin='lower',
                          interpolation='none',
                          aspect='auto');
@@ -94,8 +106,11 @@ def plot_rnn_output(trial_info,test_outputs,parOrStim,
     fig.colorbar(im3, ax=axes[3])
 
     # estimation desired output (3)
+    decestout = trial_info['desired_estim'][:, TEST_TRIAL, par['n_rule_output_em']:]
+    if not isinstance(decestout,np.ndarray):
+        decestout = decestout.numpy()
     axes[4] = fig.add_subplot(gs[15:18, :])
-    im4 = axes[4].imshow(trial_info['desired_estim'][:, TEST_TRIAL, par['n_rule_output_em']:].numpy().T,
+    im4 = axes[4].imshow(decestout.T,
                          origin='lower',
                          interpolation='none',
                          aspect='auto')
