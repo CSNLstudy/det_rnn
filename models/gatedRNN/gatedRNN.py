@@ -95,10 +95,12 @@ class gRNN(BaseModel):
             self.scheduler = scheduler_estimFirst(self.hp)
         elif self.hp['scheduler'] == 'scheduler_separate':
             self.scheduler = scheduler_separate(self.hp)
+        elif self.hp['scheduler'] == 'scheduler_timeconstant':
+            self.scheduler = scheduler_timeconst(self.hp)
         else:
             self.scheduler = None
 
-    @tf.function
+    #@tf.function
     def evaluate(self, trial_info):
         # sensory_input   = self.sensory_layer(trial_info['neural_input'][:,:,2:]) # todo: take out rule more robustly
 
@@ -149,9 +151,13 @@ class gRNN(BaseModel):
         return lossStruct, {'rnn_output': out, 'rnn_states': states,
                             'dec_output': out_dm, 'est_output': out_em}
 
-    @tf.function
+    #@tf.function
     def calc_loss(self, trial_info, output):
-        if self.scheduler is not None:
+        if self.hp['scheduler'] == 'scheduler_timeconstant':
+            train_params = self.scheduler.get_params()
+            self.hp['tau_max'] = self.scheduler.taumax
+            self.rnncell.hp['tau_max'] = self.scheduler.taumax
+        elif self.scheduler is not None:
             train_params = self.scheduler.get_params()
         else:
             train_params = self.hp
@@ -208,7 +214,7 @@ class gRNN(BaseModel):
         dec_loss_ce = tf.reduce_mean(
             tf.reduce_mean(
             tf.reduce_sum(
-            tf.gather(-dec_target,self.hp['input_rule_rg']['decision'][50:], axis=0) *
+            tf.gather(-dec_target,self.hp['input_rule_rg']['decision'], axis=0) *
             tf.gather(tf.math.log(dec_prob + EPSILON), self.hp['input_rule_rg']['decision'], axis=0),
                 axis=-1)
                 , axis=0))
@@ -372,7 +378,6 @@ class scheduler_none():
         # do nothing
         a = t+1
 
-
 class scheduler_estimFirst():
     def __init__(self,hp):
         self.hp     = copy.deepcopy(hp)
@@ -427,7 +432,6 @@ class scheduler_estimFirst():
             # may be stuck at local minima.
             # note that ADAM optimizer by default normalizes learning by gradient norm.
             self.hp['learning_rate'] = self.hp['learning_rate'] / self.decay
-
 
 class scheduler_separate():
     def __init__(self,hp):
@@ -488,6 +492,49 @@ class scheduler_separate():
             # may be stuck at local minima.
             # note that ADAM optimizer by default normalizes learning by gradient norm.
             self.hp['learning_rate'] = self.hp['learning_rate'] / self.decay
+
+class scheduler_timeconst():
+    def __init__(self,hp):
+        self.hp     = copy.deepcopy(hp)
+        self.taumin = hp['tau_min']
+        self.taumax = hp['tau_max']
+        self.nbad = 0
+        self.baseLR = hp['learning_rate']
+
+    def get_params(self):
+        train_params = {
+            'loss_mse_dec'  : self.hp['loss_mse_dec'],
+            'loss_mse_est'  : self.hp['loss_mse_est'],
+            'loss_ce_dec'   : self.hp['loss_ce_dec'],
+            'loss_ce_est'   : self.hp['loss_ce_est'],
+            'loss_spike'    : self.hp['loss_spike'],
+            'loss_L1'       : self.hp['loss_L1'],
+            'loss_L2'       : self.hp['loss_L2'],
+            'dropout'       : self.hp['dropout'],
+            'learning_rate' : self.hp['learning_rate'],
+            'clip_max_grad_val' : self.hp['clip_max_grad_val']
+        }
+
+        # try estimation only
+        train_params['loss_mse_dec']    = 0
+        train_params['loss_ce_dec']     = 0
+        train_params['dropout']         = 0
+
+        return train_params
+
+    def update(self,t,est_perf,dec_perf):
+        # learn estimation first, and makes sure est is good
+
+        if est_perf > 0.95 : # estimation and decision mode
+            self.nbad = 0
+            self.taumax = self.taumax * 0.9
+
+        if self.nbad > 20: # increase tau max
+            self.nbad = 0
+            self.taumax = self.taumax * 1.1
+
+        if self.taumax < self.taumin:
+            self.taumax = self.taumin
 
 
 ############################ Submodules ############################
@@ -555,7 +602,7 @@ class RNNCell(tf.keras.layers.Layer):
         else:
             self.tau_unnorm = tf.random.normal([self.hp['n_hidden']])
 
-    @tf.function
+    #@tf.function
     def get_initial_state(self, inputs=None, batch_size=None, dtype=None):
         states = [tf.zeros((batch_size,self.hp['n_hidden'],1),dtype=self.dtype)]
         if self.hp['stsp']:
@@ -565,7 +612,7 @@ class RNNCell(tf.keras.layers.Layer):
 
         return states
 
-    @tf.function
+    #@tf.function
     def __call__(self, inputs, states):
         """
         inputs: [B, n_sensory + n_MD]
