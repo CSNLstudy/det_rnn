@@ -143,6 +143,10 @@ class BaseModel(tf.Module):
                 for (name, val) in test_lossStruct.items():
                     tf.summary.scalar('test ' + name, val, step=t)
 
+                if self.hp.__contains__('tau_max'):
+                    tf.summary.scalar('tau max', self.hp['tau_max'], step=t)
+                    tf.summary.scalar('tau min', self.hp['tau_min'], step=t)
+
                 if self.scheduler is not None:
                     tf.summary.scalar('(Schedule) off', self.scheduler.switch, step=t)
                     for (name, val) in self.scheduler.get_params().items():

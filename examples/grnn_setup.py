@@ -88,7 +88,7 @@ test_data = stim_test.generate_trial()
 grnn_hp = grnn_hp(par_train)
 grnn = gRNN(grnn_hp)
 
-niter = 1
+niter = 2000
 grnn.train(stim_train = stim_train, stim_test= stim_train, niter=niter)
 test_lossStruct, test_outputs   = grnn.evaluate(test_data)
 
