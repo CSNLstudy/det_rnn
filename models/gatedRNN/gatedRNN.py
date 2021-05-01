@@ -103,6 +103,10 @@ class gRNN(BaseModel):
     #@tf.function
     def evaluate(self, trial_info):
         # sensory_input   = self.sensory_layer(trial_info['neural_input'][:,:,2:]) # todo: take out rule more robustly
+        if self.hp['scheduler'] == 'scheduler_timeconstant':
+            train_params                = self.scheduler.get_params()
+            self.hp['tau_max']          = self.scheduler.taumax
+            self.rnncell.hp['tau_max']  = self.scheduler.taumax
 
         neural_input = tf.transpose(trial_info['neural_input'][:, :, :],perm=[1, 0, 2])
         if self.hp['stsp']:
@@ -153,11 +157,7 @@ class gRNN(BaseModel):
 
     #@tf.function
     def calc_loss(self, trial_info, output):
-        if self.hp['scheduler'] == 'scheduler_timeconstant':
-            train_params = self.scheduler.get_params()
-            self.hp['tau_max'] = self.scheduler.taumax
-            self.rnncell.hp['tau_max'] = self.scheduler.taumax
-        elif self.scheduler is not None:
+        if self.scheduler is not None:
             train_params = self.scheduler.get_params()
         else:
             train_params = self.hp
@@ -498,6 +498,7 @@ class scheduler_timeconst():
         self.hp     = copy.deepcopy(hp)
         self.taumin = hp['tau_min']
         self.taumax = hp['tau_max']
+        self.switch = 0
         self.nbad = 0
         self.baseLR = hp['learning_rate']
 
@@ -528,6 +529,8 @@ class scheduler_timeconst():
         if est_perf > 0.95 : # estimation and decision mode
             self.nbad = 0
             self.taumax = self.taumax * 0.9
+        else:
+            self.nbad += 1
 
         if self.nbad > 20: # increase tau max
             self.nbad = 0
@@ -535,6 +538,7 @@ class scheduler_timeconst():
 
         if self.taumax < self.taumin:
             self.taumax = self.taumin
+
 
 
 ############################ Submodules ############################
