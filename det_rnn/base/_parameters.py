@@ -16,10 +16,15 @@ par = {
 
 	# Mask specs
 	'dead': 'design',  # ((0,0.1),(estim_start, estim_start+0.1))
-	'mask_dm': {'iti': 1., 'stim': 1., 'decision': 1600., 'delay': 1., 'estim': 1.,
-				'rule_iti': 2., 'rule_stim': 2., 'rule_decision': 3200.,  'rule_delay': 2., 'rule_estim': 2.},  # strengthe
-	'mask_em': {'iti': 1., 'stim': 1., 'decision': 1., 'delay': 1., 'estim': 200.,
-				'rule_iti': 2., 'rule_stim': 2., 'rule_decision': 2., 'rule_delay': 2., 'rule_estim': 400.},  # strength
+	'mask_dm': {'iti': 0., 'stim': 0., 'decision': 1., 'delay': 0., 'estim': 0.,
+				'rule_iti': 0., 'rule_stim': 0., 'rule_decision': 2.,  'rule_delay': 0., 'rule_estim': 0.},  # strengthe
+	# 'mask_em': {'iti': 1., 'stim': 1., 'decision': 1., 'delay': 1., 'estim': 200.,
+	# 			'rule_iti': 2., 'rule_stim': 2., 'rule_decision': 2., 'rule_delay': 2., 'rule_estim': 400.},  # strength
+	'mask_em': {'iti': 0., 'stim': 1., 'decision': 1., 'delay': 1., 'estim': 1.,
+				'rule_iti': 0., 'rule_stim': 2., 'rule_decision': 2., 'rule_delay': 2., 'rule_estim': 1.},  # strength
+	# 'mask_em': {'iti': 1., 'stim': 1., 'decision': 1., 'delay': 1., 'estim': 10.,
+	# 			'rule_iti': 2., 'rule_stim': 2., 'rule_decision': 2., 'rule_delay': 2., 'rule_estim': 20.},  # strength
+
 
 	## for onehot output, 'estim' : 20., 'rule_estim' : 20. worked
 
@@ -32,7 +37,8 @@ par = {
 	'output_em_rule_strength' : 0.8,
 
 	# Decision specs
-	'reference': [-4, -3, -2, -1, 1, 2, 3, 4],
+	# 'reference': [-4, -3, -2, -1, 1, 2, 3, 4],
+	'reference': [-11,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1,1,2,3,4,5,6,7,8,9,10,11],
 	'strength_ref': 1.,
 	'strength_decision': 0.8,
 
@@ -59,8 +65,8 @@ par = {
 	'connect_prob'			: 0.1,    # modular connectivity
 
 	# Timings and rates
-	'dt'                    : 10.,     # unit: ms
-	'membrane_time_constant': 100,     # tau
+	'dt'                    : 20.,     # unit: ms
+	'tau'   			    : 100,     # tau
 
 	# Input and noise
 	'input_mean'            : 0.0,
@@ -76,22 +82,23 @@ par = {
 	'orientation_cost' 		: 1, # TODO(HL): cost for target-output
 
 	# Training specs
-	'n_iterations'        : 300,
-	'iters_between_outputs' : 100,
+	# 'n_iterations'        : 300,
+	# 'iters_between_outputs' : 100,
 
 	# Neuronal settings
 	'n_receptive_fields': 1,
 	'n_tuned_input'	 : 24,  # number of possible orientation-tuned neurons (input)
 	'n_tuned_output' : 24,  # number of possible orientation-tuned neurons (input)
-	'n_ori'	 	 : 24 , # number of possible orientaitons (output)
-	'noise_mean' : 0,
-	'noise_sd'   : 0.005,     # 0.05
-	'n_recall_tuned' : 24,   # precision at the moment of recall
-	'n_hidden' 	 : 100,		 # number of rnn units TODO(HL): h_hidden to 100
+	'n_ori'	 	     : 24 , # number of possible orientaitons (output)
+	'noise_mean'     : 0,
+	'noise_sd'       : 0.005, # 0.05
+	'n_recall_tuned' : 24,  # precision at the moment of recall
+	'n_hidden1' 	 : 50,  
+	'n_hidden2' 	 : 50,  
 
 	# Experimental settings
 	'batch_size' 	: 128,
-	'alpha_neuron'  : 0.1,    # changed from tf.constant TODO(HL): alpha changed from 0.2 to 0.1 (Masse)
+	# 'alpha_neuron'  : 0.1,    # changed from tf.constant TODO(HL): alpha changed from 0.2 to 0.1 (Masse)
 
 	# Optimizer
 	'optimizer' : 'Adam', # TODO(HG):  other optim. options?
@@ -104,14 +111,14 @@ def update_parameters(par):
 
 	#
 	par.update({
-		'n_timesteps' 		: sum([len(v) for _ ,v in par['design_rg'].items()]),
-		'n_exc'        		: int(par['n_hidden' ] *par['exc_inh_prop']),
+		'n_timesteps' : sum([len(v) for _ ,v in par['design_rg'].items()]),
+		'n_exc'       : int(par['n_hidden1' ] *par['exc_inh_prop']),
 	})
 
 	#
 	par.update({
-		'n_ref'      : len(par['reference']),
-		'n_subblock' : int(par['batch_size' ] /par['trial_per_subblock'])
+		'n_ref'       : len(par['reference']),
+		'n_subblock'  : int(par['batch_size' ] /par['trial_per_subblock'])
 	})
 
 	# default settings
@@ -121,7 +128,14 @@ def update_parameters(par):
 		par['dm_output_rg'] = convert_to_rg(par['em_output_range'], par['dt'])
 
 	if par['em_output_range'] is 'design':
-		par['em_output_rg'] = convert_to_rg(par['design']['estim'], par['dt'])
+		_stim     = convert_to_rg(par['design']['stim'], par['dt'])
+		_decision = convert_to_rg(par['design']['decision'], par['dt'])
+		_delay    = convert_to_rg(par['design']['delay'], par['dt'])
+		_estim    = convert_to_rg(par['design']['estim'], par['dt'])
+		em_output = np.concatenate((_stim,_decision,_delay,_estim))
+		
+		# par['em_output_rg'] = convert_to_rg(par['design']['estim'], par['dt'])
+		par['em_output_rg'] = em_output
 	else:
 		par['em_output_rg'] = convert_to_rg(par['em_output_range'], par['dt'])
 
@@ -133,9 +147,10 @@ def update_parameters(par):
 		par['dead_rg'] = convert_to_rg(par['dead'], par['dt'])
 
 	if par['input_rule'] is 'design':
-		par['input_rule_rg'] = convert_to_rg({'decision'  : par['design']['decision'],
-											  'estimation': par['design']['estim']}, par['dt'])
-		par['n_rule_input']  = 2
+		# par['input_rule_rg'] = convert_to_rg({'decision'  : par['design']['decision'],
+		# 									  'estimation': par['design']['estim']}, par['dt'])
+		par['input_rule_rg'] = convert_to_rg({'decision'  : par['design']['decision']}, par['dt'])
+		par['n_rule_input']  = 0
 	else:
 		par['input_rule_rg']  = convert_to_rg(par['input_rule'], par['dt'])
 		par['n_rule_input']   = len(par['input_rule'])
@@ -151,7 +166,7 @@ def update_parameters(par):
 	if par['output_dm_rule'] is 'design':
 		par['output_dm_rule_rg'] = convert_to_rg({'fixation'  : ((0, par['design']['decision'][0]),
 																 (par['design']['decision'][1], par['design']['estim'][1]))}, par['dt'])
-		par['n_rule_output_dm']  = 1
+		par['n_rule_output_dm']  = 0
 	else:
 		par['output_dm_rule_rg'] = convert_to_rg(par['output_dm_rule'], par['dt'])
 		par['n_rule_output_dm']  = len(par['output_dm_rule'])
@@ -159,7 +174,7 @@ def update_parameters(par):
 	## Estimation-phase range
 	if par['output_em_rule'] is 'design':
 		par['output_em_rule_rg'] = convert_to_rg({'fixation'  : (0, par['design']['estim'][0])}, par['dt'])
-		par['n_rule_output_em']  = 1
+		par['n_rule_output_em']  = 0
 	else:
 		par['output_em_rule_rg'] = convert_to_rg(par['output_em_rule'], par['dt'])
 		par['n_rule_output_em']  = len(par['output_em_rule'])
@@ -187,16 +202,16 @@ def update_parameters(par):
 	##
 	par.update({
 		'rg_exc': range(par['n_exc']),
-		'rg_inh': range(par['n_exc'], par['n_hidden']),
-		'w_in_mask': np.ones((par['n_input'], par['n_hidden']), dtype=np.float32),
-		'w_rnn_mask': np.ones((par['n_hidden'], par['n_hidden']), dtype=np.float32) - np.eye(par['n_hidden']
-																							 ,dtype=np.float32),
+		'rg_inh': range(par['n_exc'], par['n_hidden1']),
+		# 'w_in_mask': np.ones((par['n_input'], par['n_hidden']), dtype=np.float32),
+		# 'w_rnn_mask': np.ones((par['n_hidden'], par['n_hidden']), dtype=np.float32) - np.eye(par['n_hidden']
+		# 																					 ,dtype=np.float32),
 		# 'w_out_dm_mask': np.concatenate((np.ones((par['n_exc'], par['n_output_dm']),dtype=np.float32),
 		# 								 np.zeros((par['n_hidden']-par['n_exc'],par['n_output_dm']), dtype=np.float32)),axis=0),
 		# 'w_out_em_mask': np.concatenate((np.ones((par['n_exc'], int(par['n_output_em'])), dtype=np.float32),
 		# 								 np.zeros((par['n_hidden'] - par['n_exc'], par['n_output_em']),dtype=np.float32)), axis=0),
-		'w_out_dm_mask': np.ones((par['n_hidden'], par['n_output_dm']), dtype=np.float32),
-		'w_out_em_mask': np.ones((par['n_hidden'], par['n_output_em']), dtype=np.float32)
+		# 'w_out_dm_mask': np.ones((par['n_hidden'], par['n_output_dm']), dtype=np.float32),
+		# 'w_out_em_mask': np.ones((par['n_hidden'], par['n_output_em']), dtype=np.float32)
 	})
 
 	return par

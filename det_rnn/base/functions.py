@@ -1,18 +1,22 @@
 import numpy as np
 
-__all__ = ['initialize', 'random_normal_abs', 'alternating',
+__all__ = ['initialize', 'alternating',
 		   'w_rnn_mask', 'w_lat_mask', 'modular_mask', 'convert_to_rg']
 
 # Inherited from Masse
-def initialize(dims, shape=0.1, scale=1.0):
-	w = np.random.gamma(shape, scale, size=dims).astype(np.float32)
-	return w
+# def initialize(dims, shape=0.1, scale=1.0):
+# 	w = np.random.gamma(shape, scale, size=dims).astype(np.float32)
+# 	return np.float32(w)
+
+def initialize(dims, gain=1., shape=0.1, scale=1.0):
+	w = gain*np.random.gamma(shape, scale, size=dims).astype(np.float32)
+	return np.float32(w)
 
 # Inherited from JsL
-def random_normal_abs(dims): # Todo (HL): random.gamma
-    y = np.random.gamma(0.1, 1.0, size=dims) # for masse
-    # y = np.random.gamma(0.001, 0.01, size=dims) # for nomasse(but not trainable)
-    return np.float32(y)
+# def random_normal_abs(dims): # Todo (HL): random.gamma
+#     y = np.random.gamma(0.1, 1.0, size=dims) # for masse
+#     # y = np.random.gamma(0.001, 0.01, size=dims) # for nomasse(but not trainable)
+#     return np.float32(y)
 
 def alternating(x, size):
 	tmp = np.tile(np.array(x), np.int(np.ceil(size / 2)))
@@ -23,7 +27,7 @@ def alternating(x, size):
 def w_rnn_mask(n_hidden, exc_inh_prop):
 	n_exc = int(n_hidden * exc_inh_prop)
 	rg_inh = range(n_exc, n_hidden)
-	Crec = np.ones((n_hidden, n_hidden)) - np.eye(n_hidden)
+	Crec = np.ones((n_hidden, n_hidden)) # - np.eye(n_hidden)
 	Crec[rg_inh,:] = Crec[rg_inh,:]*(-1.)
 	return np.float32(Crec)
 
