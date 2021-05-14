@@ -45,7 +45,7 @@ def update_hp(hp):
 		'w_in10'    : initialize((par['n_input'],   par['n_hidden1']),   gain=hp['gain']),
 		'w_in20'    : initialize((par['n_input'],   par['n_hidden2']),   gain=hp['gain']),
 		'w_rnn110'  : initialize((par['n_hidden1'], par['n_hidden1']),   gain=hp['gain']),
-		'w_rnn120'  : initialize((par['n_hidden2'], par['n_hidden1']),   gain=hp['gain']),
+		'w_rnn120'  : initialize((par['n_hidden1'], par['n_hidden2']),   gain=hp['gain']),
 		'w_rnn210'  : initialize((par['n_hidden2'], par['n_hidden1']),   gain=hp['gain']),
 		'w_rnn220'  : initialize((par['n_hidden2'], par['n_hidden2']),   gain=hp['gain']),
 		'w_out_dm0' : initialize((par['n_hidden1'], par['n_output_dm']), gain=hp['gain']),
