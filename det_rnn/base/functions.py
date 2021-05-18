@@ -1,7 +1,7 @@
 import numpy as np
 
 __all__ = ['initialize', 'random_normal_abs', 'alternating',
-		   'w_rnn_mask', 'modular_mask', 'convert_to_rg']
+		   'w_rnn_mask', 'w_lat_mask', 'modular_mask', 'convert_to_rg']
 
 # Inherited from Masse
 def initialize(dims, shape=0.1, scale=1.0):
@@ -10,7 +10,8 @@ def initialize(dims, shape=0.1, scale=1.0):
 
 # Inherited from JsL
 def random_normal_abs(dims): # Todo (HL): random.gamma
-    y = np.random.gamma(0.1, 1.0, size=dims)
+    y = np.random.gamma(0.1, 1.0, size=dims) # for masse
+    # y = np.random.gamma(0.001, 0.01, size=dims) # for nomasse(but not trainable)
     return np.float32(y)
 
 def alternating(x, size):
@@ -22,44 +23,26 @@ def alternating(x, size):
 def w_rnn_mask(n_hidden, exc_inh_prop):
 	n_exc = int(n_hidden * exc_inh_prop)
 	rg_inh = range(n_exc, n_hidden)
-	Crec = np.ones((n_hidden, n_hidden))
+	Crec = np.ones((n_hidden, n_hidden)) - np.eye(n_hidden)
 	Crec[rg_inh,:] = Crec[rg_inh,:]*(-1.)
 	return np.float32(Crec)
 
-# Modular w_RNN mask
-def modular_mask(connect_prob, n_hidden, exc_inh_prop):
-	n_exc = int(n_hidden * exc_inh_prop)
-	rg_exc = range(n_exc)
-	rg_inh = range(n_exc, n_hidden)
-
-	exc_module1 = rg_exc[:len(rg_exc) // 2]
-	inh_module1 = rg_inh[:len(rg_inh) // 2]
-	exc_module2 = rg_exc[len(rg_exc) // 2:]
-	inh_module2 = rg_inh[len(rg_inh) // 2:]
-
-	Crec = np.zeros((n_hidden, n_hidden))
-	for i in exc_module1:
-		Crec[i, exc_module1] = 1
-		Crec[i, i] = 0
-		Crec[i, exc_module2] = 1 * (np.random.uniform(size=len(exc_module2)) < connect_prob)
-		Crec[i, inh_module1] = -np.sum(Crec[i, rg_exc]) / len(inh_module1)
-	for i in exc_module2:
-		Crec[i, exc_module2] = 1
-		Crec[i, i] = 0
-		Crec[i, exc_module1] = 1 * (np.random.uniform(size=len(exc_module1)) < connect_prob)
-		Crec[i, inh_module2] = -np.sum(Crec[i, rg_exc]) / len(inh_module2)
-	for i in inh_module1:
-		Crec[i, exc_module1] = 1
-		Crec[i, inh_module1] = -np.sum(Crec[i, rg_exc]) / (len(inh_module1) - 1)
-		Crec[i, i] = 0
-	for i in inh_module2:
-		Crec[i, exc_module2] = 1
-		Crec[i, inh_module2] = -np.sum(Crec[i, rg_exc]) / (len(inh_module2) - 1)
-		Crec[i, i] = 0
-
-	Crec[Crec > 0] = 1.
-	Crec[Crec < 0] = -1.
+# w_lat mask
+def w_lat_mask(n_visual):
+	Crec = np.ones((n_visual, n_visual)) - np.eye(n_visual)
 	return np.float32(Crec)
+
+# Modular w_RNN mask
+def modular_mask(n_hidden, exc_inh_prop):
+    n_exc1 = int(n_hidden * exc_inh_prop / 2.)
+    n_exc2 = int(n_hidden * exc_inh_prop / 2.)
+    rg_inh1 = range(n_exc1,int(n_hidden/2))
+    rg_inh2 = range(int(n_hidden/2)+n_exc2,n_hidden)
+    Crec = np.ones((n_hidden, n_hidden))
+    Crec[range(n_hidden),range(n_hidden)] = 0
+    Crec[rg_inh1,:] = -Crec[rg_inh1,:]
+    Crec[rg_inh2,:] = -Crec[rg_inh2,:]
+    return Crec.astype(np.float32)
 
 # Convert range specs(dictionary) into time-step domain
 def convert_to_rg(design, dt):

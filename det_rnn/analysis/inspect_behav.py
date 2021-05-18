@@ -16,7 +16,7 @@ def behavior_summary(trial_info, pred_output, par):
     cenoutput = softmax_pred_output(pred_output)
     
     # posterior mean as a function of time
-    post_prob = cenoutput[:,:,par['n_rule_output']:]
+    post_prob = cenoutput[:,:,par['n_rule_output_em']:]
     post_prob = post_prob/(np.sum(post_prob, axis=2, keepdims=True)+np.finfo(np.float32).eps) # Dirichlet normaliation
     post_support = np.linspace(0,np.pi,par['n_ori'],endpoint=False) + np.pi/par['n_ori']/2
     post_sinr = np.sin(2*post_support)
@@ -60,7 +60,7 @@ def behavior_figure(ground_truth, estim_mean, raw_error, beh_perf):
     ax[1,1].set_xlabel(r"$\cos(2\theta$)"); ax[1,1].set_ylabel(r"$\cos(2\hat{\theta}$)"); ax[1,1].legend()
     
     ax[2,0].set_title("Error Distribution")
-    sns.scatterplot(x='GT', y='Error', data=pd.DataFrame({'GT':ground_truth, 'Error':np.arcsin(np.sin(2*raw_error))}), ax=ax[2,0])
+    sns.scatterplot(x='GT', y='Error', data=pd.DataFrame({'GT':ground_truth, 'Error':(raw_error - np.pi/2.) % (np.pi) - np.pi/2.}), ax=ax[2,0])
     ax[2,0].set_xlabel(r"$\theta$(rad)"); ax[2,0].set_ylabel(r"$\hat{\theta} - \theta$"); plt.legend()
     
     ax[2,1].set_title("Estimation Distribution")
