@@ -26,17 +26,21 @@ class Model(tf.Module):
 		y_em_stack  = tf.TensorArray(tf.float32, size=0, dynamic_size=True, infer_shape=False)
 		i = 0
 		for rnn_input1 in input_data1:
-			# rnn_input1  = input_data1[i]
 			rnn_input2  = input_data2[i]
 			_h1, _h2    = self._rnn_cell(_h1, _h2, rnn_input1, rnn_input2, hp)
 			h1_stack    = h1_stack.write(i, tf.cast(_h1, tf.float32))
 			h2_stack    = h2_stack.write(i, tf.cast(_h2, tf.float32))
+
 			if hp['w_out_dm_fix']: 
 				y_dm_matmul = tf.cast(_h1, tf.float32) @ (hp['w_out_dm'] + self.var_dict['w_out_dm']*0)
 			else: 
 				y_dm_matmul = tf.cast(_h1, tf.float32) @ self.var_dict['w_out_dm']
 			y_dm_stack  = y_dm_stack.write(i, y_dm_matmul)
-			y_em_matmul = tf.cast(_h2, tf.float32) @ self.var_dict['w_out_em']
+
+			if hp['w_out_em_fix']: 
+				y_em_matmul = tf.cast(_h2, tf.float32) @ (hp['w_out_em'] + self.var_dict['w_out_em']*0)
+			else: 
+				y_em_matmul = tf.cast(_h2, tf.float32) @ self.var_dict['w_out_em']
 			y_em_stack  = y_em_stack.write(i, y_em_matmul)
 			i += 1
 		h1_stack   = h1_stack.stack()
@@ -93,21 +97,43 @@ class Model(tf.Module):
 	# Two-module network
 	def _rnn_cell(self, _h1, _h2, rnn_input1, rnn_input2, hp):
 
-		_w_rnn11 = self.var_dict['w_rnn11']
 		_w_rnn12 = self.var_dict['w_rnn12']
-		_w_rnn21 = self.var_dict['w_rnn21']
-		_w_rnn22 = self.var_dict['w_rnn22']
+
+		if hp['w_rnn11_fix']:
+			_w_rnn11 = hp['w_rnn11'] + self.var_dict['w_rnn11']*0
+		else:
+			_w_rnn11 = self.var_dict['w_rnn11']
+
+		if hp['w_rnn21_fix']:
+			_w_rnn21 = hp['w_rnn21'] + self.var_dict['w_rnn21']*0
+		else:
+			_w_rnn21 = self.var_dict['w_rnn21']
+
+		if hp['w_rnn22_fix']:
+			_w_rnn22 = hp['w_rnn22'] + self.var_dict['w_rnn22']*0
+		else:
+			_w_rnn22 = self.var_dict['w_rnn22']
+
+		if hp['w_in_dm_fix']: 
+			_w_in1 = (hp['w_in1'] + self.var_dict['w_in1']*0)
+		else:
+			_w_in1 = self.var_dict['w_in1']
+		
+		if hp['w_in_em_fix']: 
+			_w_in2 = (hp['w_in2'] + self.var_dict['w_in2']*0)
+		else:
+			_w_in2 = self.var_dict['w_in2']
 
 		if hp['DtoE_off']: _w_rnn12 = _w_rnn12 * 0
 		if hp['EtoD_off']: _w_rnn21 = _w_rnn21 * 0
 	
 		_h1 = tf.cast(_h1 * (1. - tf.cast(hp['alpha_neuron1'], tf.float32)) \
-			+ tf.cast(hp['alpha_neuron1'], tf.float32) * tf.nn.sigmoid(rnn_input1 @ self.var_dict['w_in1'] \
+			+ tf.cast(hp['alpha_neuron1'], tf.float32) * tf.nn.sigmoid(rnn_input1 @ _w_in1 \
 				+ _h1 @ _w_rnn11 + _h2 @ _w_rnn21 \
 				+ tf.random.normal(_h1.shape, 0, tf.sqrt(2*tf.cast(hp['alpha_neuron1'], tf.float32))*hp['noise_rnn_sd'])), tf.float32)
 
 		_h2 = tf.cast(_h2 * (1. - tf.cast(hp['alpha_neuron2'], tf.float32)) \
-            + tf.cast(hp['alpha_neuron2'], tf.float32) * tf.nn.sigmoid(rnn_input2 @ self.var_dict['w_in2'] \
+            + tf.cast(hp['alpha_neuron2'], tf.float32) * tf.nn.sigmoid(rnn_input2 @ _w_in2 \
 				+ _h2 @ _w_rnn22 + _h1 @ _w_rnn12 \
 				+ tf.random.normal(_h2.shape, 0, tf.sqrt(2*tf.cast(hp['alpha_neuron2'], tf.float32))*hp['noise_rnn_sd'])), tf.float32)
 

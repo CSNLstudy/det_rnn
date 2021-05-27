@@ -93,8 +93,8 @@ par = {
 	'noise_mean'     : 0,
 	'noise_sd'       : 0.005, # 0.05
 	'n_recall_tuned' : 24,  # precision at the moment of recall
-	'n_hidden1' 	 : 50,  
-	'n_hidden2' 	 : 50,  
+	'n_hidden1' 	 : 48,  
+	'n_hidden2' 	 : 48,  
 
 	# Experimental settings
 	'batch_size' 	: 128,
@@ -122,12 +122,12 @@ def update_parameters(par):
 	})
 
 	# default settings
-	if par['dm_output_range'] is 'design':
+	if par['dm_output_range'] == 'design':
 		par['dm_output_rg'] = convert_to_rg(par['design']['decision'], par['dt'])
 	else:
 		par['dm_output_rg'] = convert_to_rg(par['em_output_range'], par['dt'])
 
-	if par['em_output_range'] is 'design':
+	if par['em_output_range'] == 'design':
 		_stim     = convert_to_rg(par['design']['stim'], par['dt'])
 		_decision = convert_to_rg(par['design']['decision'], par['dt'])
 		_delay    = convert_to_rg(par['design']['delay'], par['dt'])
@@ -140,13 +140,13 @@ def update_parameters(par):
 		par['em_output_rg'] = convert_to_rg(par['em_output_range'], par['dt'])
 
 	# TODO(HG): this may not work if design['estim'] is 2-dimensional
-	if par['dead'] is 'design':
+	if par['dead'] == 'design':
 		par['dead_rg'] = convert_to_rg(((0 ,0.1),
 										(par['design']['estim'][0] ,par['design']['estim'][0 ] +0.1)) ,par['dt'])
 	else:
 		par['dead_rg'] = convert_to_rg(par['dead'], par['dt'])
 
-	if par['input_rule'] is 'design':
+	if par['input_rule'] == 'design':
 		# par['input_rule_rg'] = convert_to_rg({'decision'  : par['design']['decision'],
 		# 									  'estimation': par['design']['estim']}, par['dt'])
 		par['input_rule_rg'] = convert_to_rg({'decision'  : par['design']['decision']}, par['dt'])
@@ -163,7 +163,7 @@ def update_parameters(par):
 		par['n_input'] = par['n_rule_input'] + par['n_tuned_input'] * 2
 
 	## Decision-phase range
-	if par['output_dm_rule'] is 'design':
+	if par['output_dm_rule'] == 'design':
 		par['output_dm_rule_rg'] = convert_to_rg({'fixation'  : ((0, par['design']['decision'][0]),
 																 (par['design']['decision'][1], par['design']['estim'][1]))}, par['dt'])
 		par['n_rule_output_dm']  = 0
@@ -172,7 +172,7 @@ def update_parameters(par):
 		par['n_rule_output_dm']  = len(par['output_dm_rule'])
 
 	## Estimation-phase range
-	if par['output_em_rule'] is 'design':
+	if par['output_em_rule'] == 'design':
 		par['output_em_rule_rg'] = convert_to_rg({'fixation'  : (0, par['design']['estim'][0])}, par['dt'])
 		par['n_rule_output_em']  = 0
 	else:

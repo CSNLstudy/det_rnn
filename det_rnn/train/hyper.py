@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from det_rnn.base import par
-from det_rnn.base.functions import initialize, alternating, modular_mask, w_rnn_mask
+from det_rnn.base.functions import initialize, alternating, modular_mask, w_rnn_mask, w_design
 
 __all__ = ['hp', 'hp_spec', 'update_hp']
 
@@ -9,7 +9,16 @@ __all__ = ['hp', 'hp_spec', 'update_hp']
 hp  = {
 	'masse'       : False,
 	'dale'        : False,
+
+	'w_in_dm_fix' : False,
+	'w_in_em_fix' : False,
 	'w_out_dm_fix': False,
+	'w_out_em_fix': False,
+
+	'w_rnn11_fix' : False,
+	'w_rnn21_fix' : False,
+	'w_rnn22_fix' : False,
+
 	'DtoE_off'    : False,
 	'EtoD_off'    : False,
 
@@ -28,7 +37,14 @@ hp  = {
     'tau_neuron'  : 100,
     'tau_std' : alternating((200, 1500), par['n_hidden1']+par['n_hidden2']),
     'tau_stf' : alternating((200, 1500), par['n_hidden1']+par['n_hidden2']),
-	'w_out_dm': np.kron(np.eye(2), np.ones(int(par['n_hidden1']/2))).T.astype(np.float32),
+
+	'w_in1'   : w_design('w_in1', par),
+	'w_in2'   : w_design('w_in2', par),
+	'w_rnn11' : w_design('w_rnn11', par),
+	'w_rnn21' : w_design('w_rnn21', par),
+	'w_rnn22' : w_design('w_rnn22', par),
+	'w_out_dm': w_design('w_out_dm', par),
+	'w_out_em': w_design('w_out_em', par),
 
 	'syn_x_init': np.ones((par['batch_size'], par['n_hidden1']), dtype=np.float32),
 	'syn_u_init': np.tile(alternating((0.15, 0.45), par['n_hidden1']), (par['batch_size'], 1)),
