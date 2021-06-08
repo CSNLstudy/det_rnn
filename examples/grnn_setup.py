@@ -25,48 +25,7 @@ from models.base.train import train
 from models.gatedRNN.gatedRNN import gRNN
 from models.gatedRNN.gatedRNN_hyper import grnn_hp
 
-#niter = 1
-#grnn.train(stim_train = stim_train, stim_test= stim_train, niter=niter)
-
-# check stimulus
-# for keepgoing in range(2000):
-#     train_data = stim_train.generate_trial()
-#     random_trial_num = np.random.randint(stim_train.batch_size)
-#     target_ori = np.arange(0,180,180/par_train['n_ori'])[train_data['stimulus_ori'][random_trial_num]]
-#     if tf.reduce_max(train_data['neural_input']) < 1:
-#         print('wwtf wait a minute')
-#     #print('orientation = ' + str(target_ori))
-#     #plot_trial(train_data,stim_train,TEST_TRIAL=random_trial_num)
-
-# # check plotting codes
-# stim_test = stim_train
-# test_data = stim_train.generate_trial()
-# test_lossStruct, test_outputs   = grnn.evaluate(test_data)
-# # plot rnn trial and outputs
-# TEST_TRIAL = np.random.randint(stim_train.batch_size)
-# #plot_trial(test_data, stim_train, TEST_TRIAL=TEST_TRIAL, savename=None)
-# #plot_rnn_output(test_data,test_outputs,stim_train, TEST_TRIAL=TEST_TRIAL, savename=None)
-# # estimation summary
-# est_summary, dec_summary = behavior_summary(test_data, test_outputs, stim_train)
-# #behavior_figure(est_summary)
-# # plot rnn decision effects on estimation
-# df_trials, df_sum = estimation_decision(test_data, test_outputs, stim_test)
-# #plot_decision_effects(df_trials,df_sum)
-
-# check loss function
-# est_desired_out = test_data['desired_estim'][:, :, grnn.hp['n_rule_output_em']:]
-# dec_desired_out = test_data['desired_decision'][:, :, grnn.hp['n_rule_output_dm']:]
-# lossStruct = grnn.calc_loss(test_data,
-#                             {'out_rnn': test_outputs['rnn_output'],
-#                              'out_dm': dec_desired_out,
-#                              'out_em': est_desired_out})
-# # cross entropy loss is inherently nonzero (entropy of the distribution)..
-# perfect_outputs = {'rnn_output': test_outputs['rnn_output'], 'rnn_states': test_outputs['rnn_states'],
-#                    'dec_output': dec_desired_out, 'est_output': est_desired_out}
-# est_summary, dec_summary = behavior_summary(test_data, perfect_outputs, stim_train)
-# behavior_figure(est_summary)
-# print("Perfect estimation cos error: {0:.2f}".format(np.mean(np.abs(est_summary['est_perf']))))
-# print("Perfect decision performance: {0:.2f}".format(np.mean(dec_summary['dec_perf'])))
+DEBUG = True # assertion checks and plot intermediate steps
 
 # basic without hp check
 par_train = copy.deepcopy(par)
@@ -85,10 +44,11 @@ par_test = update_parameters(par_test)
 stim_test = Stimulus(par_test)
 test_data = stim_test.generate_trial()
 
-grnn_hp = grnn_hp(par_train)
-grnn = gRNN(grnn_hp)
+grnn_hp = grnn_hp(par_train) # load hyuperparameters
+grnn    = gRNN(grnn_hp)      # create grnn object
 
-niter = 2000
+# train
+niter = 1
 grnn.train(stim_train = stim_train, stim_test= stim_train, niter=niter)
 test_lossStruct, test_outputs   = grnn.evaluate(test_data)
 
@@ -105,3 +65,49 @@ df_trials, df_sum = estimation_decision(test_data, test_outputs, stim_test)
 plot_decision_effects(df_trials,df_sum)
 
 print("Done.")
+
+
+if False:
+    niter = 1
+    grnn.train(stim_train = stim_train, stim_test= stim_train, niter=niter)
+
+    # check stimulus
+    for keepgoing in range(2000):
+        train_data = stim_train.generate_trial()
+        random_trial_num = np.random.randint(stim_train.batch_size)
+        target_ori = np.arange(0,180,180/par_train['n_ori'])[train_data['stimulus_ori'][random_trial_num]]
+        if tf.reduce_max(train_data['neural_input']) < 1:
+            print('wwtf wait a minute')
+        #print('orientation = ' + str(target_ori))
+        #plot_trial(train_data,stim_train,TEST_TRIAL=random_trial_num)
+
+    # check plotting codes
+    stim_test = stim_train
+    test_data = stim_train.generate_trial()
+    test_lossStruct, test_outputs   = grnn.evaluate(test_data)
+    # plot rnn trial and outputs
+    TEST_TRIAL = np.random.randint(stim_train.batch_size)
+    #plot_trial(test_data, stim_train, TEST_TRIAL=TEST_TRIAL, savename=None)
+    #plot_rnn_output(test_data,test_outputs,stim_train, TEST_TRIAL=TEST_TRIAL, savename=None)
+    # estimation summary
+    est_summary, dec_summary = behavior_summary(test_data, test_outputs, stim_train)
+    #behavior_figure(est_summary)
+    # plot rnn decision effects on estimation
+    df_trials, df_sum = estimation_decision(test_data, test_outputs, stim_test)
+    #plot_decision_effects(df_trials,df_sum)
+
+    check loss function
+    est_desired_out = test_data['desired_estim'][:, :, grnn.hp['n_rule_output_em']:]
+    dec_desired_out = test_data['desired_decision'][:, :, grnn.hp['n_rule_output_dm']:]
+    lossStruct = grnn.calc_loss(test_data,
+                                {'out_rnn': test_outputs['rnn_output'],
+                                 'out_dm': dec_desired_out,
+                                 'out_em': est_desired_out})
+    # cross entropy loss is inherently nonzero (entropy of the distribution)..
+    perfect_outputs = {'rnn_output': test_outputs['rnn_output'], 'rnn_states': test_outputs['rnn_states'],
+                       'dec_output': dec_desired_out, 'est_output': est_desired_out}
+    est_summary, dec_summary = behavior_summary(test_data, perfect_outputs, stim_train)
+    behavior_figure(est_summary)
+    print("Perfect estimation cos error: {0:.2f}".format(np.mean(np.abs(est_summary['est_perf']))))
+    print("Perfect decision performance: {0:.2f}".format(np.mean(dec_summary['dec_perf'])))
+

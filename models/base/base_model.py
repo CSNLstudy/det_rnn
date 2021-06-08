@@ -28,6 +28,7 @@ class BaseModel(tf.Module):
          - hyperparameter yaml file
         """
 
+
         super(BaseModel, self).__init__()
         self.dtype = dtype
         self.hp = copy.deepcopy(hp)

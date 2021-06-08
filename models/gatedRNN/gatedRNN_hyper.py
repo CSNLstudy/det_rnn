@@ -10,7 +10,7 @@ def grnn_hp(par = None):
 
     grnn_hp = {
         # saving parameters
-        'output_base'       : '/Users/JRyu/github/det_rnn/experiments/grnn2/hptest',
+        'output_base'       : 'D:/ProjGit/det_rnn/experiments/grnn3/',
         'model_number'      : 0,
         'saving_freq' 	    : 50, # save every saving_freq iterations
         'dtype'             : 'tf.float32',
@@ -33,7 +33,7 @@ def grnn_hp(par = None):
                                       # learning rate is about x10
         'clip_max_grad_val' : 10,
 
-        'scheduler'         : None, # 'scheduler_separate', 'scheduler_estimFirst', None
+        'scheduler'         : 'scheduler_timeconstant', # 'scheduler_separate', 'scheduler_estimFirst', None
 
         ##########################################################################################
         # neuron
@@ -68,13 +68,15 @@ def grnn_hp(par = None):
         'n_rule_input'		: par['n_rule_input'],
         'n_rule_output_dm'	: par['n_rule_output_dm'],
         'n_rule_output_em'	: par['n_rule_output_em'],
-        'act'               : 'sigmoid', # 'relu'
+        'activation'        : 'sigmoid', # 'relu'
 
         ##########################################################################################
         # network;
         # 'gate_in'               : True, # => add into the gate rnn
         'gate_out'              : False,
         'gate_rnn'              : True,
+
+        'update'                : 'Kim', # or 'Masse'
 
         # todo: give some structure to weights and noise?
         # 'rnn_weights'           : 'normal',
@@ -85,6 +87,8 @@ def grnn_hp(par = None):
         'rnn_weights_scale'     : 112, # 'learn' or a number, J2 (Ben-Yishai, 1995)
         # 'rnn_activation'        : tf.nn.sigmoid,
         'rnn_noise_type'        : 'Normal_fixed',
+
+        'out_representation'        : 'logits', #'probs'
 
         ###########################################################################################
         # input rule structure at the end for yaml visibility

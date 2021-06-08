@@ -26,7 +26,7 @@ class gRNN(BaseModel):
         hp: network hyperparameters
         """
         if hp['dtype'] == 'tf.float32':
-            targetdtype= tf.float32
+            targetdtype = tf.float32
 
         super(gRNN, self).__init__(hp,
                                    hypsearch_dict=hypsearch_dict,
@@ -44,7 +44,10 @@ class gRNN(BaseModel):
         self.rnncell = RNNCell(hp=self.hp)
 
         # build layers
-        self.rnn    = tf.keras.layers.RNN(self.rnncell, return_state=True, return_sequences=True, name='RNN')
+        self.rnn    = tf.keras.layers.RNN(self.rnncell,
+                                          return_state=True,
+                                          return_sequences=True,
+                                          name='RNN')
         self.dec    = tf.keras.layers.Dense(self.hp['n_output_dm'] - self.hp['n_rule_output_dm'],
                                             kernel_regularizer = tf.keras.regularizers.l1_l2(l1=self.hp['loss_L1'],
                                                                                              l2=self.hp['loss_L2']),
@@ -192,43 +195,64 @@ class gRNN(BaseModel):
         dec_loss_mse = tf.reduce_mean(
             tf.gather(tf.math.square(dec_desired_out - out_dm), self.hp['input_rule_rg']['decision'], axis=0))
 
-        # interpret desired outputs as unnormalized probabilities
-        # nan when there is no output (0) => normalization
-        est_target         = est_desired_out / tf.reduce_sum(est_desired_out + EPSILON, axis=2, keepdims=True)
-        dec_target         = dec_desired_out / tf.reduce_sum(dec_desired_out + EPSILON, axis=2, keepdims=True)
 
         ## CE loss with probs
         ## interpret output probabilities as probabilities... (not logits for softmax)
-        est_prob         = out_em / tf.reduce_sum(out_em + EPSILON, axis=2, keepdims=True)
-        dec_prob         = out_dm / tf.reduce_sum(out_dm + EPSILON, axis=2, keepdims=True)
+        est_target = est_desired_out / tf.reduce_sum(est_desired_out + EPSILON,
+                                                     axis=2, keepdims=True)
+        dec_target = dec_desired_out / tf.reduce_sum(dec_desired_out + EPSILON,
+                                                     axis=2, keepdims=True)
 
+        # interpret desired outputs as unnormalized probabilities
+        # nan when there is no output (0) => normalization
+        if self.hp['out_representation'] == 'probs':
+            est_prob = out_em / tf.reduce_sum(out_em + EPSILON, axis=2,keepdims=True)
+            dec_prob = out_dm / tf.reduce_sum(out_dm + EPSILON, axis=2,keepdims=True)
             # average over time then batch
             # log: cross entropy
-        est_loss_ce = tf.reduce_mean(
-            tf.reduce_mean(
-            tf.reduce_sum(
-            tf.gather(-est_target, self.hp['input_rule_rg']['estimation'], axis=0)*
-            tf.gather(tf.math.log(est_prob + EPSILON), self.hp['input_rule_rg']['estimation'], axis=0),
-            axis=-1)
-                ,axis=0))
-        dec_loss_ce = tf.reduce_mean(
-            tf.reduce_mean(
-            tf.reduce_sum(
-            tf.gather(-dec_target,self.hp['input_rule_rg']['decision'], axis=0) *
-            tf.gather(tf.math.log(dec_prob + EPSILON), self.hp['input_rule_rg']['decision'], axis=0),
-                axis=-1)
-                , axis=0))
-        # gather 50 timepoints after = 500 ms
+            est_loss_ce = tf.reduce_mean(
+                tf.reduce_mean(
+                    tf.reduce_sum(
+                        tf.gather(-est_target,
+                                  self.hp['input_rule_rg']['estimation'],
+                                  axis=0) *
+                        tf.gather(tf.math.log(est_prob + EPSILON),
+                                  self.hp['input_rule_rg']['estimation'],
+                                  axis=0),
+                        axis=-1)
+                    , axis=0))
+            dec_loss_ce = tf.reduce_mean(
+                tf.reduce_mean(
+                    tf.reduce_sum(
+                        tf.gather(-dec_target,
+                                  self.hp['input_rule_rg']['decision'],
+                                  axis=0) *
+                        tf.gather(tf.math.log(dec_prob + EPSILON),
+                                  self.hp['input_rule_rg']['decision'], axis=0),
+                        axis=-1)
+                    , axis=0))
 
-        # # loss with softmax
-        # est_loss_ce = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
-        #     labels=tf.gather(-est_target, self.hp['input_rule_rg']['estimation'], axis=0),
-        #     logits=tf.gather(out_em, self.hp['input_rule_rg']['estimation'], axis=0),
-        #     axis=-1))
-        # dec_loss_ce = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
-        #     labels=tf.gather(-dec_target,self.hp['input_rule_rg']['decision'], axis=0) ,
-        #     logits=tf.gather(out_dm, self.hp['input_rule_rg']['decision'], axis=0),
-        #     axis=-1))
+        else: # assume logits
+            #self.hp['out_representation'] =='logits':
+            est_loss_ce = tf.reduce_mean(
+                tf.nn.softmax_cross_entropy_with_logits(
+                    labels=tf.gather(-est_target,
+                                     self.hp['input_rule_rg']['estimation'],
+                                     axis=0),
+                    logits=tf.gather(out_em,
+                                     self.hp['input_rule_rg']['estimation'],
+                                     axis=0),
+                    axis=-1))
+            dec_loss_ce = tf.reduce_mean(
+                tf.nn.softmax_cross_entropy_with_logits(
+                    labels=tf.gather(-dec_target,
+                                     self.hp['input_rule_rg']['decision'],
+                                     axis=0),
+                    logits=tf.gather(out_dm,
+                                     self.hp['input_rule_rg']['decision'],
+                                     axis=0),
+                    axis=-1))
+
 
         # regularization loss (implemented as keras module add_loss
         spike_loss = tf.reduce_mean(tf.math.square(rnn_output))
@@ -540,7 +564,6 @@ class scheduler_timeconst():
             self.taumax = self.taumin
 
 
-
 ############################ Submodules ############################
 class RNNCell(tf.keras.layers.Layer):
     def __init__(self, hp=None, **kwargs):
@@ -560,6 +583,7 @@ class RNNCell(tf.keras.layers.Layer):
 
         self.build_rnn()
         self.built = True
+
 
     def build_rnn(self):
         # regularization losses
@@ -583,6 +607,7 @@ class RNNCell(tf.keras.layers.Layer):
             self.alpha_std_mat = tf.cast(alternating(self.hp['alpha_std'], self.hp['n_hidden']), self.dtype)
             self.alpha_stf_mat = tf.cast(alternating(self.hp['alpha_stf'], self.hp['n_hidden']), self.dtype)
             self.U_mat         = tf.cast(alternating(self.hp['U'], self.hp['n_hidden']),self.dtype)
+
 
     def build_weights(self):
         # network weights
@@ -617,7 +642,7 @@ class RNNCell(tf.keras.layers.Layer):
         return states
 
     #@tf.function
-    def __call__(self, inputs, states):
+    def __call__(self, inputs, states, training=None):
         """
         inputs: [B, n_sensory + n_MD]
         states: list of states
@@ -656,33 +681,55 @@ class RNNCell(tf.keras.layers.Layer):
         # inputs: B x n
         inputmat = tf.expand_dims(inputs, axis=-1)
 
-        # transfer function
-        if self.hp['act'] == 'sigmoid':
-            h_post = tf.sigmoid(h_post)
-        elif self.hp['act'] == 'relu':
-            h_post = tf.nn.relu(h_post)
-
         # decay
-        tau = tf.sigmoid(self.tau_unnorm) * (self.hp['tau_max'] - self.hp['tau_min']) + self.hp['tau_min'] # normalize tau.
-        alpha = self.hp['dt'] / tau # Nhidden x 1
+        tau = tf.sigmoid(self.tau_unnorm) * (
+                    self.hp['tau_max'] - self.hp['tau_min']) + self.hp[
+                  'tau_min']  # normalize tau.
+        alpha = self.hp['dt'] / tau  # Nhidden x 1
 
-        # update step
-        dh_pre = wrnn @ h_post + self.Win @ inputmat[:,self.hp['n_rule_input']:,:]
-        dh_pre += self.Wmd_rnn_a @ inputmat[:, :self.hp['n_rule_input'], :]
+        # update
+        if self.hp['update'] == 'Masse':
+            dh_pre = wrnn @ h_post + self.Win @ inputmat[:,self.hp['n_rule_input']:,:]
+            dh_pre += self.Wmd_rnn_a @ inputmat[:, :self.hp['n_rule_input'], :]
 
-        if self.hp['gate_rnn']:
-            gate = (0 + self.Wmd_rnn_x @ inputmat[:,:self.hp['n_rule_input'],:]) # gated by rules
-        else:
-            gate = 1
+            if self.hp['gate_rnn']:
+                gate = (0 + self.Wmd_rnn_x @ inputmat[:,:self.hp['n_rule_input'],:]) # gated by rules
+            else:
+                gate = 1
 
-        h = (1-tf.expand_dims(alpha,axis=-1))*prev_h + tf.expand_dims(alpha,axis=-1) * (gate * dh_pre)
+            # transfer function
+            if self.hp['activation'] == 'sigmoid':
+                act_gated = tf.sigmoid(gate * dh_pre)
+            elif self.hp['activation'] == 'relu':
+                act_gated = tf.nn.relu(gate * dh_pre)
+
+            h = (1-tf.expand_dims(alpha,axis=-1))*prev_h + \
+                tf.expand_dims(alpha,axis=-1) * act_gated
+
+        elif self.hp['update'] == 'Kim':
+            # transfer function
+            if self.hp['activation'] == 'sigmoid':
+                h_post = tf.sigmoid(h_post)
+            elif self.hp['activation'] == 'relu':
+                h_post = tf.nn.relu(h_post)
+
+            dh_pre = wrnn @ h_post + self.Win @ inputmat[:,self.hp['n_rule_input']:,:]
+            dh_pre += self.Wmd_rnn_a @ inputmat[:, :self.hp['n_rule_input'], :]
+
+            if self.hp['gate_rnn']:
+                gate = (0 + self.Wmd_rnn_x @ inputmat[:,:self.hp['n_rule_input'],:]) # gated by rules
+            else:
+                gate = 1
+
+            h = (1-tf.expand_dims(alpha,axis=-1))*prev_h + tf.expand_dims(alpha,axis=-1) * (gate * dh_pre)
 
         # inject noise
         if self.hp['rnn_noise_type'] is not None and dh_pre.shape[0] is not None:
-            h = h + self.hp['noise_sd'] * tf.random.normal(tf.shape(dh_pre),
-                                                           mean=0,
-                                                           stddev = tf.expand_dims(tf.sqrt(2 * alpha),axis=-1),
-                                                           dtype = self.dtype)
+            h = h + self.hp['noise_sd'] * \
+                tf.random.normal(tf.shape(dh_pre),mean=0,
+                                 stddev = tf.expand_dims(tf.sqrt(2 * alpha),axis=-1),
+                                 dtype = self.dtype)
+
 
         # tf.math.reduce_any(tf.math.is_nan(h))
         if self.hp['stsp']:
@@ -737,7 +784,7 @@ class RNNCell(tf.keras.layers.Layer):
         config['alpha_stf'] = self.hp['alpha_stf']
         config['U'] = self.hp['U']
 
-        config['activation'] = self.hp['act']
+        config['activation'] = self.hp['activation']
 
 #        config['rnn_weights'] = self.rnn_weights
         config['n_hidden'] = self.hp['n_hidden']

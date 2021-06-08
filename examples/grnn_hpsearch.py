@@ -25,15 +25,22 @@ from models.base.train import train
 from models.gatedRNN.gatedRNN import gRNN
 from models.gatedRNN.gatedRNN_hyper import grnn_hp
 
+Nmaxtrain = 1
+modelN = 0
+lastrunend = 0 # if restarting, input the number of the latest model
+
 # hyperparameters
-hp_dict = {'loss_ce_est': [10, 1],
-           'loss_ce_dec': [1e-1, 1],
-           'n_hidden': [300,500,100],
-           'learning_rate': [5e-3, 5e-5],
-           'tau_min': [10, 100, 1000],
+hp_dict = {'loss_ce_est': [10],
+           'loss_ce_dec': [1],
+           'n_hidden': [100, 300],
+           'learning_rate': [5e-3],
+           'tau_min': [10, 50],
            'tau_max': [20000, 1000, 200],
-           'scheduler': ['scheduler_estimFirst', None],
-           'gate_rnn': [True, False]}
+           'scheduler': [None, 'scheduler_timeconstant'],
+           'gate_rnn': [True, False],
+           'activation': ['sigmoid', 'relu'],
+           'update': ['Kim',  'Masse'],
+           'out_representation': ['logits', 'probs']}
 
 # # for debugging
 # hp_dict = {'n_hidden': [50],
@@ -56,10 +63,6 @@ collist.append('est_perf')
 collist.append('dec_perf')
 collist.append('model_number')
 dflist = []
-
-Nmaxtrain = 100
-modelN = 0
-lastrunend = 0 # if restarting
 
 hp = grnn_hp(par)
 dfpath = os.path.join(os.sep, *hp['output_base'].split(os.sep)[:-1], 'hp_df.pkl')
