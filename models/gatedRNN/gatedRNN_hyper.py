@@ -10,21 +10,21 @@ def grnn_hp(par = None):
 
     grnn_hp = {
         # saving parameters
-        'output_base'       : 'D:/ProjGit/det_rnn/experiments/grnn3/',
+        'output_base'       : 'D:/ProjGit/det_rnn/experiments/grnn3_short/',
         'model_number'      : 0,
         'saving_freq' 	    : 50, # save every saving_freq iterations
         'dtype'             : 'tf.float32',
 
         ##########################################################################################
         # losses and training
-        'loss_mse_dec'      : 1e-4,
-        'loss_mse_est'      : 1e-4,
-        'loss_ce_dec'       : 10, # CE is needed for distribution learning
+        'loss_mse_dec'      : 0, #1e-4,
+        'loss_mse_est'      : 0, # 1e-4,
+        'loss_ce_dec'       : 1e-1, # CE is needed for distribution learning
         'loss_ce_est'       : 1e-1,
 
         # regularization loss
-        'loss_spike' 	    : 1e-4, #2e-3, # 'spike_cost'  : 2e-3,
-        'loss_L1' 		    : 1e-4, #2e-3, # weight regularization
+        'loss_spike' 	    : 0, #1e-2, #2e-3, # 'spike_cost'  : 2e-3,
+        'loss_L1' 		    : 0, #1e-4, #2e-3, # weight regularization
         'loss_L2' 		    : 0, #2e-3, # weight regularization
         # dropout when training the output
         'dropout'           : 0, # <=0, no drop out. otherwise 0 < dropout < 1 to indicate probability of dropout
@@ -45,7 +45,7 @@ def grnn_hp(par = None):
         'tau_train'         : True,
         'tau_min'           : 10,
         'tau_max'           : 15000,
-        'noise_sd'  	    : 0.5,  # should we learn this?
+        'noise_sd'  	    : 0.1,  # should we learn this?
 
         # neuron, stsp and Dale's law
         'dale'              : False, # parameter todo: implement Dale's law
@@ -73,7 +73,7 @@ def grnn_hp(par = None):
         ##########################################################################################
         # network;
         # 'gate_in'               : True, # => add into the gate rnn
-        'gate_out'              : False,
+        'gate_out'              : True,
         'gate_rnn'              : True,
 
         'update'                : 'Kim', # or 'Masse'
@@ -88,7 +88,7 @@ def grnn_hp(par = None):
         # 'rnn_activation'        : tf.nn.sigmoid,
         'rnn_noise_type'        : 'Normal_fixed',
 
-        'out_representation'        : 'logits', #'probs'
+        'out_representation'    : 'logits', #'probs'
 
         ###########################################################################################
         # input rule structure at the end for yaml visibility

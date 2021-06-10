@@ -106,7 +106,7 @@ class BaseModel(tf.Module):
         prog = Progbar(target=niter)
 
         # test on the same test set.
-        test_data = utils_train.tensorize_trial(stim_test.generate_trial(), dtype=self.dtype)
+        test_data       = utils_train.tensorize_trial(stim_test.generate_trial(), dtype=self.dtype)
         self.optimizer = tf.optimizers.Adam(self.hp['learning_rate']) # use same optimizer across iterations
 
         # interact with environment
@@ -129,7 +129,7 @@ class BaseModel(tf.Module):
 
             # output behavior summary
             train_est_summary, train_dec_summary = behavior_summary(train_data, train_outputs, stim_train)
-            est_summary, dec_summary = behavior_summary(test_data, test_outputs, stim_test)
+            est_summary, dec_summary            = behavior_summary(test_data, test_outputs, stim_test)
 
             # add losses to tensorboard
             with self.writer.as_default():

@@ -27,6 +27,8 @@ from models.gatedRNN.gatedRNN_hyper import grnn_hp
 
 DEBUG = True # assertion checks and plot intermediate steps
 
+
+
 # basic without hp check
 par_train = copy.deepcopy(par)
 par_train['batch_size'] = 50  # smaller batch size
@@ -96,7 +98,7 @@ if False:
     df_trials, df_sum = estimation_decision(test_data, test_outputs, stim_test)
     #plot_decision_effects(df_trials,df_sum)
 
-    check loss function
+    #check loss function
     est_desired_out = test_data['desired_estim'][:, :, grnn.hp['n_rule_output_em']:]
     dec_desired_out = test_data['desired_decision'][:, :, grnn.hp['n_rule_output_dm']:]
     lossStruct = grnn.calc_loss(test_data,

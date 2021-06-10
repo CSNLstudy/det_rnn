@@ -103,7 +103,7 @@ class gRNN(BaseModel):
         else:
             self.scheduler = None
 
-    #@tf.function
+    @tf.function
     def evaluate(self, trial_info):
         # sensory_input   = self.sensory_layer(trial_info['neural_input'][:,:,2:]) # todo: take out rule more robustly
         if self.hp['scheduler'] == 'scheduler_timeconstant':
@@ -142,8 +142,12 @@ class gRNN(BaseModel):
             out_dm = self.dec(out_dm)
             out_em = self.est(out_em)
 
-        out_dm = tf.nn.sigmoid(out_dm)
-        out_em = tf.nn.sigmoid(out_em)
+        if self.hp['out_representation'] == 'probs':
+            out_dm = tf.nn.sigmoid(out_dm)
+            out_em = tf.nn.sigmoid(out_em)
+        else:
+            out_dm = out_dm
+            out_em = out_em
 
         out         = tf.transpose(out,perm=[1, 0, 2]) # todo: check dimensions
         out_dm      = tf.transpose(out_dm,perm=[1, 0, 2])
@@ -152,13 +156,21 @@ class gRNN(BaseModel):
         lossStruct = self.calc_loss(trial_info,
                                     {'out_rnn': out, 'out_dm': out_dm,'out_em': out_em})
 
+        if self.hp['out_representation'] == 'probs':
+            est_prob = out_em / tf.reduce_sum(out_em + EPSILON, axis=2,keepdims=True)
+            dec_prob = out_dm / tf.reduce_sum(out_dm + EPSILON, axis=2,keepdims=True)
+        else:
+            # self.hp['out_representation'] =='logits'
+            est_prob = tf.nn.softmax(out_em, axis=2)
+            dec_prob = tf.nn.softmax(out_dm, axis=2)
+
         # should return
         # (1) a loss struct; should contain the final aggregated loss (unregularized); loss_struct['loss']
         # (2) output struct (logits)
         return lossStruct, {'rnn_output': out, 'rnn_states': states,
-                            'dec_output': out_dm, 'est_output': out_em}
+                            'dec_output': dec_prob, 'est_output': est_prob}
 
-    #@tf.function
+    @tf.function
     def calc_loss(self, trial_info, output):
         if self.scheduler is not None:
             train_params = self.scheduler.get_params()
@@ -166,12 +178,12 @@ class gRNN(BaseModel):
             train_params = self.hp
 
         # inputs and outputs from the trial
-        neural_input        = trial_info['input_tuning']
-        dec_rule            = trial_info['neural_input'][:, :, 1]
-        est_rule            = trial_info['neural_input'][:,:,2]
-        est_desired_out     = trial_info['desired_estim'][:,:,self.hp['n_rule_output_em']:]
-        dec_desired_out     = trial_info['desired_decision'][:, :, self.hp['n_rule_output_dm']:]
-        output_tuning       = trial_info['output_tuning']
+        neural_input    = trial_info['input_tuning']
+        dec_rule        = trial_info['neural_input'][:, :, self.hp['n_rule_output_dm']]
+        est_rule        = trial_info['neural_input'][:, :, self.hp['n_rule_output_em']]
+        dec_desired_out = trial_info['desired_decision'][:, :,self.hp['n_rule_output_dm']:]
+        est_desired_out = trial_info['desired_estim'][:,:,self.hp['n_rule_output_em']:]
+        output_tuning   = trial_info['output_tuning']
 
         # no training mask. Just calculate losses over the task period.
         #dec_mask = trial_info['mask_decision'][:, :, :self.hp['n_rule_output_dm']]
@@ -236,7 +248,7 @@ class gRNN(BaseModel):
             #self.hp['out_representation'] =='logits':
             est_loss_ce = tf.reduce_mean(
                 tf.nn.softmax_cross_entropy_with_logits(
-                    labels=tf.gather(-est_target,
+                    labels=tf.gather(est_target,
                                      self.hp['input_rule_rg']['estimation'],
                                      axis=0),
                     logits=tf.gather(out_em,
@@ -245,7 +257,7 @@ class gRNN(BaseModel):
                     axis=-1))
             dec_loss_ce = tf.reduce_mean(
                 tf.nn.softmax_cross_entropy_with_logits(
-                    labels=tf.gather(-dec_target,
+                    labels=tf.gather(dec_target,
                                      self.hp['input_rule_rg']['decision'],
                                      axis=0),
                     logits=tf.gather(out_dm,
@@ -253,6 +265,23 @@ class gRNN(BaseModel):
                                      axis=0),
                     axis=-1))
 
+            # est_prob = tf.nn.softmax(out_em, axis=2)
+            # dec_prob = tf.nn.softmax(out_dm, axis=2)
+            # # average over time then batch
+            # # log: cross entropy
+            # est_loss_ce = tf.reduce_mean(
+            #     tf.gather(-est_target,
+            #               self.hp['input_rule_rg']['estimation'],
+            #               axis=0) *
+            #     tf.gather(tf.math.log(est_prob + EPSILON),
+            #               self.hp['input_rule_rg']['estimation'],
+            #               axis=0))
+            # dec_loss_ce = tf.reduce_mean(
+            #     tf.gather(-dec_target,
+            #               self.hp['input_rule_rg']['decision'],
+            #               axis=0) *
+            #     tf.gather(tf.math.log(dec_prob + EPSILON),
+            #               self.hp['input_rule_rg']['decision'], axis=0))
 
         # regularization loss (implemented as keras module add_loss
         spike_loss = tf.reduce_mean(tf.math.square(rnn_output))
@@ -631,7 +660,7 @@ class RNNCell(tf.keras.layers.Layer):
         else:
             self.tau_unnorm = tf.random.normal([self.hp['n_hidden']])
 
-    #@tf.function
+    @tf.function
     def get_initial_state(self, inputs=None, batch_size=None, dtype=None):
         states = [tf.zeros((batch_size,self.hp['n_hidden'],1),dtype=self.dtype)]
         if self.hp['stsp']:
@@ -641,7 +670,7 @@ class RNNCell(tf.keras.layers.Layer):
 
         return states
 
-    #@tf.function
+    @tf.function
     def __call__(self, inputs, states, training=None):
         """
         inputs: [B, n_sensory + n_MD]
