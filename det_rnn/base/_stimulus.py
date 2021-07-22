@@ -21,10 +21,11 @@ class Stimulus(object):
         # generate all the orientations to output in a trial
         if balanced is True:
             # if testing is true, generate stimulus evenly
-            raise NotImplementedError # todo weave stimulus and reference
             repeatN = np.ceil(self.batch_size/(self.n_ori*len(self.reference))) # repeat to somewhat match batch size.
-            stimulus_ori = np.repeat(np.arange(self.n_ori), repeatN) # todo: make the testing trial generation more elegant...
-            reference_ori = np.repeat(self.reference, repeatN)
+            B = (self.n_ori * len(self.reference)) * repeatN
+            stimulus_ori = np.repeat(np.arange(self.n_ori), int(B/self.n_ori)) # todo: make the testing trial generation more elegant...
+            reference_ori = np.repeat(self.reference, int(B/len(self.reference)))
+            # raise NotImplementedError  # todo weave stimulus and reference
         else:
             stimulus_ori = np.random.choice(np.arange(self.n_ori), p=self.stim_p, size=self.batch_size)
             reference_ori = np.random.choice(self.reference, p=self.ref_p, size=self.batch_size)

@@ -72,10 +72,13 @@ collist.append('model_number')
 dflist = []
 
 hp = grnn_hp(par)
-dfpath = os.path.join(os.sep, *hp['output_base'].split(os.sep)[:-1], 'hp_df.pkl')
+dfpath = os.path.join(os.sep, *hp['output_base'].split('/')[:-1], 'hp_df.pkl')
 if os.path.isfile(dfpath):
     df1 = pd.read_pickle(dfpath)  # load any previous unfinished runs.
     dflist += [df1]
+
+#df = pd.concat(dflist, ignore_index=True)
+#df
 
 for params in hypsearch:
     if modelN < lastrunend:
