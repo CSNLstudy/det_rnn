@@ -49,16 +49,21 @@ par3['kappa']  = 3 # stimulus uncertainty
 stim3 = Stimulus(par3)
 trials += [stim3.generate_trial(balanced=True)]
 
+par4 = copy.deepcopy(par1)
+par4['kappa']  = 10 # stimulus uncertainty
+stim4 = Stimulus(par4)
+trials += [stim4.generate_trial(balanced=True)]
+
 # show input tuning
 plt.figure(figsize=(8,10))
 plt.subplot(2,1,1)
-for tr in range(3):
+for tr in range(4):
     plt.plot(trials[tr]['input_tuning'][int(nori/2),:], label='kappa='+str(trials[tr]['stimulus_kap'][0]))
 plt.legend()
 plt.title('Input tuning')
 
-for tr in range(3):
-    plt.subplot(2,3,4+tr)
+for tr in range(4):
+    plt.subplot(2,4,5+tr)
     plt.imshow(trials[tr]['input_tuning'])
     plt.title('Tuning matrix kappa='+str(trials[tr]['stimulus_kap'][0]))
 plt.show()
@@ -71,11 +76,11 @@ if False:
     vars = []
     decodingW = []
     trueW = []
-    for tr in range(3):
+    for tr in range(4):
         input_tuning = tf.cast(gain * trials[tr]['input_tuning'], dtype=ALLDTYPE)
         tuning = tf.repeat(input_tuning[:, None, :], nsamples, axis=1)  # (S,M,N))
 
-        net = pRNN(dtype=ALLDTYPE, normal_approx = True)
+        net = pRNN(nori, dtype=ALLDTYPE, normal_approx = True)
         decoder = poisson_decoder(dtype=ALLDTYPE)
         act = net.poisson_activation(tuning)
 
@@ -97,7 +102,7 @@ if False:
 
     plt.figure(figsize=(8,8))
     plt.subplot(2,2,1)
-    for tr in range(3):
+    for tr in range(4):
         plt.plot(np.linspace(0,np.pi,nori),means[tr],
                  label='kappa='+str(trials[tr]['stimulus_kap'][0]))
     plt.title('Decoded circular mean')
@@ -106,7 +111,7 @@ if False:
     plt.legend()
 
     plt.subplot(2,2,2)
-    for tr in range(3):
+    for tr in range(4):
         plt.plot(np.linspace(0,np.pi,nori),vars[tr],
                  label='kappa='+str(trials[tr]['stimulus_kap'][0]))
     plt.title('Decoded circular variance')
@@ -116,7 +121,7 @@ if False:
     plt.legend()
 
     plt.subplot(2,2,3)
-    for tr in range(3):
+    for tr in range(4):
         plt.plot(np.linspace(0,np.pi,nori),decodingW[tr],
                  label='recovered, kappa='+str(trials[tr]['stimulus_kap'][0]))
         plt.plot(np.linspace(0,np.pi,nori),trueW[tr], ':',
@@ -124,7 +129,6 @@ if False:
     plt.title('Decoding weights')
     plt.legend()
     plt.show()
-
 
 # information loss with constant subtraction or rotation
 if False:
@@ -149,15 +153,15 @@ if False:
     decoder     = poisson_decoder(dtype=ALLDTYPE)
     act         = net.poisson_activation(tuning)
     cirmean, circvar, H, ml = decoder.decode(act, H0=H3)
-    means += [cirmean];vars += [circvar];decodingW+=[H];
+    means += [cirmean];vars += [circvar];decodingW+=[H.numpy()];
 
     act_gain    = net.poisson_activation(tuning2) # bigger gain
     cirmean, circvar, H, ml = decoder.decode(act_gain, H0=H3)
-    means += [cirmean];vars += [circvar];decodingW+=[H];
+    means += [cirmean];vars += [circvar];decodingW+=[H.numpy()];
 
     act_inh     = tf.nn.relu(act - gain/10)
     cirmean, circvar, H, ml = decoder.decode(act_inh, H0=H3)
-    means += [cirmean];vars += [circvar];decodingW+=[H];
+    means += [cirmean];vars += [circvar];decodingW+=[H.numpy()];
 
     m1 = tf.random.normal((1, 1, nori, nori*100))
     m2 = tf.random.normal((1, 1, nori * 100,nori))
@@ -166,7 +170,7 @@ if False:
     act_rot  = lintrans[None,None,:,:] @ act[:,:,:,None]
     decH = (lintrans.T @ H3[:, None])
     cirmean, circvar, H, ml = decoder.decode(act_rot[:,:,:,0], H0=None) #decH[:,0])
-    means += [cirmean]; vars += [circvar];decodingW+=[H];
+    means += [cirmean]; vars += [circvar];decodingW+=[H.numpy()];
 
     plt.figure(figsize=(8,8))
     plt.subplot(2,2,1)
@@ -204,24 +208,109 @@ if False:
     plt.legend()
     plt.show()
 
-########### Poisson network ############
+########### Poisson weighting ############
+
 if True:
+    gain = 200
+    nsubpop = 1000  # number of repeated neurons with tuning
+    tr = 1
+    input_tuning = tf.cast(gain * trials[tr]['input_tuning'], dtype=ALLDTYPE)
+    tuning  = tf.cast(tf.repeat(input_tuning[:, None, :], nsubpop, axis=1), dtype=ALLDTYPE)  # (S,M,N))
+    net     = pRNN(nori, dtype=ALLDTYPE, normal_approx=True)
+    decoder = poisson_decoder(dtype=ALLDTYPE)
+
+    dgain = 50
+    ref0 = np.pi/2
+    decision_tuning         = np.zeros((nori,2))
+    for ori in range(nori):
+        stim_ori = ori*np.pi/nori
+        if np.sin(2 * (ref0 - stim_ori)) > 0:
+            decision_tuning[ori,:] = [dgain,0]
+        else:
+            decision_tuning[ori, :] = [0,dgain]
+    decision_tuning = tf.constant(decision_tuning,dtype=ALLDTYPE)
+    dec_tuning_samples = tf.repeat(decision_tuning[:, None, :], nsubpop, axis=1)
+
+    ref1 = np.pi*2/3
+    decision_tuning_wrong = np.zeros((nori, 2))
+    for ori in range(nori):
+        stim_ori = ori*np.pi/nori
+        if np.sin(2 * (ref1 - stim_ori)) > 0:
+            decision_tuning_wrong[ori,:] = [dgain,0]
+        else:
+            decision_tuning_wrong[ori, :] = [0,dgain]
+    decision_tuning_wrong = tf.constant(decision_tuning_wrong,dtype=ALLDTYPE)
+    dec_wrongtuning_samples = tf.repeat(decision_tuning_wrong[:, None, :], nsubpop, axis=1)
+
+    act_stim = net.poisson_activation(tuning)
+    act_dec = net.poisson_activation(dec_tuning_samples)
+    act_comb_corr = input_tuning @ act_stim[:,:,:,None] + decision_tuning @ act_dec[:,:,:,None]
+    act_comb_wrong = input_tuning @ act_stim[:, :, :, None] + \
+                     decision_tuning_wrong @ act_dec[:, :, :, None]
+
+    cirmean0, circvar0, H0, ml0 = decoder.decode(act_stim, H0=None)
+    cirmean1, circvar1, H1, ml1 = decoder.decode(act_comb_corr[:,:,:,0], H0=None)
+    cirmean2, circvar2, H2, ml2 = decoder.decode(act_comb_wrong[:, :, :, 0], H0=None)
+
+    plt.figure(figsize=(10,8))
+    plt.subplot(3, 2, 1)
+    plt.imshow(input_tuning.numpy().T)
+    plt.title('stimulus tuning')
+
+    plt.subplot(6, 2, 2)
+    plt.imshow(decision_tuning.numpy().T)
+    plt.title('decision tuning')
+
+    plt.subplot(6, 2, 4)
+    plt.imshow(decision_tuning_wrong.numpy().T)
+    plt.title('decision wrong tuning')
+
+    plt.subplot(3,2,3)
+    plt.plot(np.linspace(0, np.pi, nori), cirmean0, label='original')
+    plt.plot(np.linspace(0,np.pi,nori), cirmean1, label='combination_corr')
+    plt.plot(np.linspace(0, np.pi, nori), cirmean2, label='combination_wrong')
+    plt.title('Decoded circular mean')
+    plt.xlabel('Orientation')
+    plt.ylabel('Orientation')
+    plt.legend()
+
+    plt.subplot(3,2,4)
+    plt.plot(np.linspace(0, np.pi, nori), circvar0, label='original')
+    plt.plot(np.linspace(0,np.pi,nori), circvar1, label='combination_corr')
+    plt.plot(np.linspace(0, np.pi, nori), circvar2, label='combination_wrong')
+    plt.title('Decoded circular variance')
+    plt.xlabel('Orientation')
+    plt.ylabel('rad')
+    plt.yscale('log')
+    plt.legend()
+
+    plt.subplot(3,2,5)
+    plt.plot(np.linspace(0,np.pi,nori),H0.numpy(), label='original')
+    plt.plot(np.linspace(0, np.pi, nori), H1.numpy(), label='combination_corr')
+    plt.plot(np.linspace(0, np.pi, nori), H2.numpy(), label='combination_wrong')
+    plt.title('Decoding weights')
+    plt.legend()
+    plt.show()
+    plt.legend()
+
+########### Poisson network ############
+if False:
     gain = 200
     nsubpop = 1000  # number of repeated neurons with tuning
     tr = 1
     input_tuning = tf.cast(gain * trials[tr]['input_tuning'], dtype=ALLDTYPE)
     tuning = tf.cast(tf.repeat(input_tuning[:, None, :], nsubpop, axis=1), dtype=ALLDTYPE)  # (S,M,N))
 
-    rnnmat = trials[2]['input_tuning']
-    # e,v = tf.linalg.eigh(trials[2]['input_tuning'])
+    rnnmat = trials[3]['input_tuning'] # sharp tuning
+    e, v = tf.linalg.eigh(trials[3]['input_tuning'])
 
     net = pRNN(nori, rnnmat=rnnmat, dtype=ALLDTYPE, normal_approx=True)
     net_gauss = pRNN(nori, rnnmat=rnnmat, dtype=ALLDTYPE, normal_approx=True, noise_fixed=gain / 10)
     decoder = poisson_decoder(dtype=ALLDTYPE)
 
     T = 50
-    data_pois = net(tuning, T)  # (T, S, M, N, 1)
-    data_pois = net_gauss(tuning, T)
+    data_pois = net(net.poisson_activation(tuning), T)  # (T, S, M, N, 1)
+    data_gauss = net_gauss(net_gauss.poisson_activation(tuning), T)
 
     plt.figure(figsize=(8, 10))
     idx = int(nori / 2)
@@ -231,7 +320,7 @@ if True:
     plt.colorbar()
 
     plt.subplot(2, 1, 2)
-    plt.imshow(data_pois[:, idx, 0, :, 0].numpy().T)
+    plt.imshow(data_gauss[:, idx, 0, :, 0].numpy().T)
     plt.title('Gaussian-like firing')
     plt.colorbar()
 

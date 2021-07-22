@@ -26,23 +26,26 @@ class pRNN(tf.Module):
 
     def __call__(self,r, T):
         # r: (S, M, N)
-        act = [r[:,:,:,None]]
+        act = [r[:,:,:,None]/tf.norm(r)]
         for t in range(T):
             act += [self.update(act[-1])]
 
         return tf.stack(act,axis=0) #(T, S, M, N, 1)
 
-
     def update(self,r):
         # r: (S, M, N, 1)
         (S,M,N,_)   = r.shape
-        In          = self.rnnmat @ r
-        mean_sp     = tf.reduce_mean(In,axis=1,keepdims=True)
-        globalinh   = mean_sp - tf.reduce_max(mean_sp,axis=2,keepdims=True)  # global inhibition
-        mean    = tf.repeat(globalinh, M, axis=1) # average over subpopulations
-        newr    = self.poisson_activation(mean)
-        return newr
+        mean = self.rnnmat @ r
+        newr = mean / tf.norm(mean)
+        # newr = mean - tf.reduce_min(mean,axis=[1, 2],keepdims=True)  # global inhibition
 
+        # In          = self.rnnmat @ r
+        # mean_sp     = tf.reduce_mean(In,axis=1,keepdims=True)
+        # globalinh   = mean_sp - tf.reduce_min(mean_sp,axis=2,keepdims=True)  # global inhibition
+        # mean        = tf.repeat(globalinh, M, axis=1)
+        # newr        = self.poisson_activation(mean)
+
+        return newr
 
     def poisson_activation(self, fr):
         if self.normal_approx:
@@ -54,6 +57,6 @@ class pRNN(tf.Module):
         else:
             r = tf.random.poisson([], fr, dtype=fr.dtype)
 
-        # r = tf.nn.relu(r)
+        r = tf.nn.relu(r)
 
         return r
