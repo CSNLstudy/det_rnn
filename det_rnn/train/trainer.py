@@ -6,7 +6,7 @@ from .hyper import hp_spec
 __all__ = ['initialize_rnn', 'append_model_performance', 'print_results',
            'tensorize_trial', 'numpy_trial',
            'tensorize_model_performance',
-           'level_up_criterion', 'cull_criterion', 'gen_ti_spec']
+           'level_up_criterion', 'level_up_criterion_both', 'cull_criterion', 'gen_ti_spec']
 
 def initialize_rnn(ti_spec,hp_spec=hp_spec):
     model = Model()
@@ -15,7 +15,8 @@ def initialize_rnn(ti_spec,hp_spec=hp_spec):
         hp=hp_spec
     )
     model.rnn_model.get_concrete_function(
-        input_data=ti_spec['neural_input'],
+        input_data1=ti_spec['neural_input1'],
+        input_data2=ti_spec['neural_input2'],
         hp=hp_spec
     )
     return model
@@ -61,14 +62,23 @@ def level_up_criterion(iter,perf_crit,recency,milestone,model_performance):
     indx_recent = np.arange(iter)[-recency:]
     indx_milest = np.arange(iter)[milestone:]
     indx_inters = np.intersect1d(indx_recent, indx_milest)
-    perf_vec = np.array(model_performance['perf'])[indx_inters]
+    perf_vec = np.array(model_performance['perf_em'])[indx_inters]
     return (np.mean(perf_vec) > perf_crit) & (len(perf_vec) >= recency)
+
+# TODO(HG): simplify this
+def level_up_criterion_both(iter,perf_crit_dm,perf_crit_em, recency,milestone,model_performance):
+    indx_recent = np.arange(iter)[-recency:]
+    indx_milest = np.arange(iter)[milestone:]
+    indx_inters = np.intersect1d(indx_recent, indx_milest)
+    perf_vec_dm = np.array(model_performance['perf_dm'])[indx_inters]
+    perf_vec_em = np.array(model_performance['perf_em'])[indx_inters]
+    return (np.mean(perf_vec_dm) > perf_crit_dm) & (len(perf_vec_dm) >= recency) & (np.mean(perf_vec_em) > perf_crit_em) & (len(perf_vec_em) >= recency)
 
 def cull_criterion(iter,fall_crit,recency,milestone,model_performance):
     indx_recent = np.arange(iter)[-recency:]
     indx_milest = np.arange(iter)[milestone:]
     indx_inters = np.intersect1d(indx_recent, indx_milest)
-    perf_vec = np.array(model_performance['perf'])[indx_inters]
+    perf_vec = np.array(model_performance['perf_em'])[indx_inters]
     return (np.mean(perf_vec) < fall_crit) & (len(perf_vec) >= recency)
 
 def gen_ti_spec(trial_info) :
@@ -82,7 +92,7 @@ def gen_ti_spec(trial_info) :
 #
 def _get_eval(trial_info, output, par):
     argoutput = tf.math.argmax(output['dm'], axis=2).numpy()
-    perf_dm   = np.mean(np.array([argoutput[t,:] == ((trial_info['reference_ori'].numpy() > 0)+1)for t in par['design_rg']['decision']]))
+    perf_dm   = np.mean(np.array([argoutput[t,:] == ((trial_info['reference_ori'].numpy() > 0)) for t in par['design_rg']['decision']]))
 
     if par['resp_decoding'] == 'disc':
         cenoutput = tf.nn.softmax(output['em'], axis=2).numpy()

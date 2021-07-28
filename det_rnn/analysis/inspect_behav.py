@@ -4,7 +4,7 @@ import seaborn as sns
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-__all__ = ['softmax_pred_output','behavior_summary', 'behavior_figure']
+__all__ = ['softmax_pred_output','behavior_summary_dm', 'behavior_summary_em', 'behavior_figure']
 
 def softmax_pred_output(pred_output):
     # softmax the pred_output
@@ -12,8 +12,24 @@ def softmax_pred_output(pred_output):
     cenoutput = cenoutput.numpy()
     return cenoutput
 
-def behavior_summary(trial_info, pred_output, par):
-    cenoutput = softmax_pred_output(pred_output)
+# Edited (in order to minimize overhead)
+def behavior_summary_dm(pred_output, par):
+    cenoutput  = softmax_pred_output(pred_output) # pred_output is assumed to be decision period
+    
+    # posterior probability as a function of time
+    post_prob  = cenoutput[:,:,par['n_rule_output_dm']:]
+    post_prob  = post_prob/(np.sum(post_prob, axis=2, keepdims=True)+np.finfo(np.float32).eps) # Dirichlet normaliation
+    
+    # posterior probability collapsed along time
+    dv_mean    = np.mean(post_prob,axis=0)
+    dv_L       = dv_mean[:,1]
+    dv_R       = dv_mean[:,0]
+    choice     = dv_L > dv_R
+    return dv_L, dv_R, choice
+
+
+def behavior_summary_em(trial_info, pred_output, par):
+    cenoutput = softmax_pred_output(pred_output) # pred_output is assumed to be estimation period
     
     # posterior mean as a function of time
     post_prob = cenoutput[:,:,par['n_rule_output_em']:]
@@ -24,17 +40,18 @@ def behavior_summary(trial_info, pred_output, par):
     pseudo_mean = np.arctan2(post_prob @ post_sinr, post_prob @ post_cosr)/2
     
     # posterior mean collapsed along time
-    estim_sinr = (np.sin(2*pseudo_mean[par['design_rg']['estim'],:])).mean(axis=0)
-    estim_cosr = (np.cos(2*pseudo_mean[par['design_rg']['estim'],:])).mean(axis=0)
+    estim_sinr = (np.sin(2*pseudo_mean)).mean(axis=0)
+    estim_cosr = (np.cos(2*pseudo_mean)).mean(axis=0)
     estim_mean = np.arctan2(estim_sinr, estim_cosr)/2
     
     ## Quantities for plotting
     ground_truth  = trial_info['stimulus_ori']
     ground_truth  = ground_truth * np.pi/par['n_ori']
-    raw_error = estim_mean - ground_truth
-    beh_perf  = np.cos(2.*(ground_truth - estim_mean))
+    raw_error     = estim_mean - ground_truth
+    error         = (raw_error - np.pi/2.) % (np.pi) - np.pi/2.
+    beh_perf      = np.cos(2.*(ground_truth - estim_mean))
 
-    return ground_truth, estim_mean, raw_error, beh_perf
+    return ground_truth, estim_mean, error, beh_perf
 
 def behavior_figure(ground_truth, estim_mean, raw_error, beh_perf):
     cos_supp  = np.linspace(0,np.pi,1000)

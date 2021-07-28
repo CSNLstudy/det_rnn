@@ -17,11 +17,12 @@ class Stimulus(object):
             setattr(self, k, v)
 
     def generate_trial(self):
-        stimulus        = self._gen_stimseq()
-        neural_input    = self._gen_stim(stimulus)
-        desired_output  = self._gen_output(stimulus)
-        mask            = self._gen_mask()
-        return {'neural_input'    : neural_input.astype(np.float32),
+        stimulus                     = self._gen_stimseq()
+        neural_input1, neural_input2 = self._gen_stims(stimulus)
+        desired_output               = self._gen_output(stimulus)
+        mask                         = self._gen_mask()
+        return {'neural_input1'   : neural_input1.astype(np.float32),
+                'neural_input2'   : neural_input2.astype(np.float32),
                 'stimulus_ori'    : stimulus['stimulus_ori'],
                 'reference_ori'   : stimulus['reference_ori'],
                 'desired_decision': desired_output['decision'].astype(np.float32),
@@ -34,15 +35,23 @@ class Stimulus(object):
         reference_ori = np.random.choice(self.reference, p=self.ref_p, size=self.batch_size)
         return {'stimulus_ori': stimulus_ori, 'reference_ori': reference_ori}
 
-    def _gen_stim(self, stimulus):
-        neural_input = random.standard_normal(size=(self.n_timesteps, self.batch_size, self.n_input))*self.noise_sd + self.noise_mean
-        neural_input[:,:,:self.n_rule_input] += self._gen_input_rule()
+    def _gen_stims(self, stimulus):
+        neural_input1  = random.standard_normal(size=(self.n_timesteps, self.batch_size, self.n_input))*self.noise_sd*np.sqrt(2*self.tau/self.dt)
+        neural_input2  = random.standard_normal(size=(self.n_timesteps, self.batch_size, self.n_input))*self.noise_sd*np.sqrt(2*self.tau/self.dt)
+
+        neural_input1 += self.noise_in_vec1.reshape((-1,1,1))*random.standard_normal(size=(self.n_timesteps, self.batch_size, self.n_input))
+        neural_input2 += self.noise_in_vec2.reshape((-1,1,1))*random.standard_normal(size=(self.n_timesteps, self.batch_size, self.n_input))
+
+        # neural_input1[:,:,:self.n_rule_input]  = 0   # noise to rule set to be 0
+        # neural_input1[:,:,:self.n_rule_input] += self._gen_input_rule()
+        # neural_input2[:,:,:self.n_rule_input]  = 0   # noise to rule set to be 0
+        # neural_input2[:,:,:self.n_rule_input] += self._gen_input_rule()
+
         for t in range(self.batch_size):
-            neural_input[self.design_rg['stim'],t,self.n_rule_input:] += self.tuning_input[:,0,stimulus['stimulus_ori'][t]].reshape((1,-1))
-            neural_input[self.design_rg['decision'],t,self.n_rule_input+(stimulus['stimulus_ori'][t]+stimulus['reference_ori'][t])%self.n_ori] += self.strength_ref
-        if self.n_subblock > 1: # multi-trial settings
-            neural_input = neural_input.transpose((1,0,2)).reshape((self.n_subblock,-1,self.n_input)).transpose((1,0,2))
-        return neural_input
+            neural_input2[self.design_rg['stim'],t,self.n_rule_input:] += self.tuning_input[:,0,stimulus['stimulus_ori'][t]].reshape((1,-1))
+            neural_input1[self.design_rg['decision'],t,self.n_rule_input+(stimulus['stimulus_ori'][t]+stimulus['reference_ori'][t])%self.n_ori] += self.strength_ref
+
+        return neural_input1, neural_input2
 
     def _gen_output(self, stimulus):
         desired_decision = np.zeros((self.n_timesteps,self.batch_size,self.n_output_dm), dtype=np.float32)
@@ -51,6 +60,8 @@ class Stimulus(object):
         desired_estim[:, :, :self.n_rule_output_em]    = self._gen_output_rule('estim')
         for t in range(self.batch_size):
             desired_decision[self.dm_output_rg, t, self.n_rule_output_dm + (0 < stimulus['reference_ori'][t])] += self.strength_decision
+            # for t_rg in range(self.dm_output_rg[0], self.em_output_rg[-1]):
+            #     desired_decision[t_rg, t, self.n_rule_output_dm + (0 < stimulus['reference_ori'][t])] += self.strength_decision
             if self.resp_decoding == 'conti':
                 desired_estim[self.em_output_rg, t, self.n_rule_output_em:] = stimulus['stimulus_ori'][t] * np.pi / np.float32(self.n_tuned_output)
             elif self.resp_decoding in ['disc', 'onehot']:
@@ -76,7 +87,6 @@ class Stimulus(object):
             mask_decision = mask_decision.transpose((1,0,2)).reshape((self.n_subblock,-1,self.n_output_dm)).transpose((1,0,2))
             mask_estim = mask_estim.transpose((1,0,2)).reshape((self.n_subblock,-1,self.n_output_em)).transpose((1,0,2))
         return {'decision' : mask_decision, 'estim' : mask_estim}
-
 
     def _gen_input_rule(self):
         if self.n_rule_input == 0:
